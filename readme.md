@@ -2,26 +2,6 @@
 
 This is a fullstack system built with **React (frontend)** and **Node.js/Express (backend)**.
 
-
-## 📂 Project Structure
-Capstone-2/
-│
-├── backend/ # Node.js + Express + MongoDB
-│ ├── models/
-│ ├── routes/
-│ ├── uploads/
-│ ├── server.js
-│ └── package.json
-│
-├── frontend/
-│ └── react-app/ # React frontend
-│ ├── src/
-│ ├── public/
-│ ├── package.json
-│
-└── README.md
-
-
 # 🖥️ How to Clone and Run the System
 
 Follow these steps to set up this project on a new PC.
