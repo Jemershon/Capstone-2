@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import axios from "axios";
 import { NavLink, Link, Routes, Route, useNavigate } from "react-router-dom";
 import {
@@ -9,106 +9,273 @@ import {
   Navbar,
   Card,
   Button,
-  Modal,
-  Table,
   Form,
+  Table,
+  Modal,
   Toast,
+  Spinner,
+  Alert,
 } from "react-bootstrap";
 
-// ================= Dashboard & Manage Classes =================
+// Retry function for API calls
+const retry = async (fn, retries = 3, delay = 1000) => {
+  for (let i = 0; i < retries; i++) {
+    try {
+      return await fn();
+    } catch (err) {
+      if (i === retries - 1) throw err;
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+  }
+};
+
+// ================= Dashboard & Classes =================
 function DashboardAndClasses() {
   const [classes, setClasses] = useState([]);
-  const [showCreateClassModal, setShowCreateClassModal] = useState(false);
-  const [newClass, setNewClass] = useState({ name: "", section: "" });
-  const [user, setUser] = useState({ name: "" });
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [classData, setClassData] = useState({ name: "", section: "", code: "", teacher: "", bg: "#FFF0D8" });
+  const [user, setUser] = useState({ username: "" });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [showToast, setShowToast] = useState(false);
+  const [debugData, setDebugData] = useState(null);
 
-  useEffect(() => {
-    axios.get("http://localhost:4000/api/classes").then(res => setClasses(res.data));
-    axios.get("http://localhost:4000/api/profile", {
-      headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
-    }).then(res => setUser(res.data));
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const headers = { Authorization: `Bearer ${localStorage.getItem("token")}` };
+      const [classesRes, userRes] = await Promise.all([
+        retry(() => axios.get(`${process.env.REACT_APP_API_URL}/api/classes?page=1&limit=100`, { headers })),
+        retry(() => axios.get(`${process.env.REACT_APP_API_URL}/api/profile`, { headers })),
+      ]);
+      setClasses(classesRes.data || []);
+      setUser(userRes.data);
+      setDebugData({ classes: classesRes.data, user: userRes.data });
+    } catch (err) {
+      console.error("Fetch error:", err.response?.data || err.message);
+      setError(err.response?.data?.error || "Failed to load classes or profile. Check network or login status.");
+      setShowToast(true);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  const handleCreateClass = async (e) => {
-    e.preventDefault();
-    if (!newClass.name.trim() || !newClass.section.trim()) return;
-    const createdClass = await axios.post("http://localhost:4000/api/classes", {
-      name: newClass.name,
-      section: newClass.section,
-      students: 0,
-      code: Math.random().toString(36).substring(2, 8).toUpperCase(),
-      teacher: user.name,
-      bg: "#FFF0D8",
-    }, {
-      headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
-    });
-    setClasses([createdClass.data, ...classes]);
-    setNewClass({ name: "", section: "" });
-    setShowCreateClassModal(false);
+  useEffect(() => {
+    let cancelled = false;
+    if (!cancelled) fetchData();
+    return () => {
+      cancelled = true;
+    };
+  }, [fetchData]);
+
+  const handleCreateClass = async () => {
+    if (!classData.name || !classData.section || !classData.code || !classData.teacher) {
+      setError("All fields are required");
+      setShowToast(true);
+      return;
+    }
+    try {
+      await retry(() =>
+        axios.post(
+          `${process.env.REACT_APP_API_URL}/api/classes`,
+          { ...classData, code: classData.code.toUpperCase() },
+          { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
+        )
+      );
+      await fetchData();
+      setShowCreateModal(false);
+      setClassData({ name: "", section: "", code: "", teacher: "", bg: "#FFF0D8" });
+      setError("Class created successfully!");
+      setShowToast(true);
+    } catch (err) {
+      console.error("Create class error:", err.response?.data || err.message);
+      setError(err.response?.data?.error || "Failed to create class. Check code uniqueness or network.");
+      setShowToast(true);
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="text-center py-4">
+        <Spinner animation="border" role="status" aria-label="Loading classes" />
+        <p>Loading classes...</p>
+      </div>
+    );
+  }
 
   return (
     <div>
-      <div className="d-flex justify-content-between align-items-center mb-3">
-        <h2 className="fw-bold">Dashboard & Manage Classes</h2>
-        <Button variant="primary" onClick={() => setShowCreateClassModal(true)}>
+      <h2 className="fw-bold mb-4">Dashboard & Classes</h2>
+      {error && (
+        <Toast
+          show={showToast}
+          onClose={() => setShowToast(false)}
+          delay={5000}
+          autohide
+          bg={error.includes("successfully") ? "success" : "danger"}
+          style={{ position: "fixed", top: "20px", right: "20px", zIndex: 10000 }}
+        >
+          <Toast.Body className="text-white">{error}</Toast.Body>
+        </Toast>
+      )}
+      {debugData && (
+        <Alert variant="info" className="mb-4">
+          <strong>Debug Info:</strong> Classes: {JSON.stringify(debugData.classes.length)} items, User: {JSON.stringify(debugData.user.username)}
+        </Alert>
+      )}
+      <Row className="mb-4">
+        <Col md={4}>
+          <Card className="p-3 bg-primary text-white">
+            <h5>Total Classes</h5>
+            <h3>{classes.length}</h3>
+          </Card>
+        </Col>
+        <Col md={4}>
+          <Card className="p-3 bg-success text-white">
+            <h5>Total Students</h5>
+            <h3>{classes.reduce((acc, cls) => acc + (cls.students?.length || 0), 0)}</h3>
+          </Card>
+        </Col>
+        <Col md={4}>
+          <Card className="p-3 bg-warning text-dark">
+            <h5>Assignments Posted</h5>
+            <h3>{classes.reduce((acc, cls) => acc + (cls.assignments?.length || 0), 0)}</h3>
+          </Card>
+        </Col>
+      </Row>
+      <h4 className="fw-bold mb-3 d-flex justify-content-between align-items-center">
+        <span>Your classes:</span>
+        <Button
+          size="sm"
+          variant="outline-primary"
+          onClick={() => setShowCreateModal(true)}
+          aria-label="Create a new class"
+        >
           + Create Class
         </Button>
-      </div>
-      <Table striped bordered hover>
-        <thead>
-          <tr>
-            <th>Class Name</th>
-            <th>Section</th>
-            <th>Code</th>
-            <th>Students</th>
-            <th>Teacher</th>
-          </tr>
-        </thead>
-        <tbody>
-          {classes.map((cls) => (
-            <tr key={cls._id || cls.id}>
-              <td>{cls.name}</td>
-              <td>{cls.section}</td>
-              <td>{cls.code}</td>
-              <td>{cls.students}</td>
-              <td>{cls.teacher}</td>
-            </tr>
-          ))}
-        </tbody>
-      </Table>
-      <Modal show={showCreateClassModal} onHide={() => setShowCreateClassModal(false)} centered>
-        <Form onSubmit={handleCreateClass}>
-          <Modal.Header closeButton>
-            <Modal.Title>Create Class</Modal.Title>
-          </Modal.Header>
-          <Modal.Body>
+      </h4>
+      <Row>
+        {classes.length === 0 && (
+          <Col xs={12}>
+            <Card className="p-4 text-center text-muted">
+              No classes found. Create a class to get started!
+            </Card>
+          </Col>
+        )}
+        {classes.map((cls) => (
+          <Col key={cls._id || cls.id} md={4} className="mb-3">
+            <Card
+              className="p-3 h-100"
+              style={{ backgroundColor: cls.bg || "#FFF0D8", border: "1px solid #ccc", borderRadius: "8px" }}
+            >
+              <Card.Body>
+                <Card.Title className="fw-bold">{cls.name}</Card.Title>
+                <Card.Subtitle className="mb-2 text-muted">{cls.section}</Card.Subtitle>
+                <p className="mb-1">
+                  <strong>Class Code:</strong> {cls.code}
+                </p>
+                <p className="mb-0">
+                  <strong>Students:</strong> {cls.students.length}
+                </p>
+              </Card.Body>
+              <Card.Footer className="text-end">
+                <Button variant="primary" size="sm" aria-label={`Manage class ${cls.name}`}>
+                  Manage Class
+                </Button>
+              </Card.Footer>
+            </Card>
+          </Col>
+        ))}
+      </Row>
+      <Modal
+        show={showCreateModal}
+        onHide={() => {
+          setShowCreateModal(false);
+          setClassData({ name: "", section: "", code: "", teacher: "", bg: "#FFF0D8" });
+          setError("");
+        }}
+        centered
+      >
+        <Modal.Header closeButton>
+          <Modal.Title>Create Class</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Form>
             <Form.Group className="mb-3">
               <Form.Label>Class Name</Form.Label>
               <Form.Control
-                value={newClass.name}
-                onChange={e => setNewClass(c => ({ ...c, name: e.target.value }))}
-                placeholder="Enter class name"
+                type="text"
+                value={classData.name}
+                onChange={(e) => setClassData({ ...classData, name: e.target.value })}
+                placeholder="e.g., Math 101"
                 required
+                aria-required="true"
               />
             </Form.Group>
             <Form.Group className="mb-3">
               <Form.Label>Section</Form.Label>
               <Form.Control
-                value={newClass.section}
-                onChange={e => setNewClass(c => ({ ...c, section: e.target.value }))}
-                placeholder="Enter section"
+                type="text"
+                value={classData.section}
+                onChange={(e) => setClassData({ ...classData, section: e.target.value })}
+                placeholder="e.g., A"
                 required
+                aria-required="true"
               />
             </Form.Group>
-          </Modal.Body>
-          <Modal.Footer>
-            <Button variant="secondary" onClick={() => setShowCreateClassModal(false)}>Cancel</Button>
-            <Button type="submit" variant="primary" disabled={!newClass.name.trim() || !newClass.section.trim()}>
-              Create
-            </Button>
-          </Modal.Footer>
-        </Form>
+            <Form.Group className="mb-3">
+              <Form.Label>Class Code</Form.Label>
+              <Form.Control
+                type="text"
+                value={classData.code}
+                onChange={(e) => setClassData({ ...classData, code: e.target.value })}
+                placeholder="e.g., ABC123"
+                required
+                aria-required="true"
+              />
+            </Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Label>Teacher Name</Form.Label>
+              <Form.Control
+                type="text"
+                value={classData.teacher}
+                onChange={(e) => setClassData({ ...classData, teacher: e.target.value })}
+                placeholder="e.g., John Doe"
+                required
+                aria-required="true"
+              />
+            </Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Label>Background Color</Form.Label>
+              <Form.Control
+                type="color"
+                value={classData.bg}
+                onChange={(e) => setClassData({ ...classData, bg: e.target.value })}
+                aria-label="Select background color"
+              />
+            </Form.Group>
+          </Form>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button
+            variant="secondary"
+            onClick={() => {
+              setShowCreateModal(false);
+              setClassData({ name: "", section: "", code: "", teacher: "", bg: "#FFF0D8" });
+              setError("");
+            }}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="success"
+            onClick={handleCreateClass}
+            disabled={!classData.name || !classData.section || !classData.code || !classData.teacher}
+            aria-label="Create class"
+          >
+            Create
+          </Button>
+        </Modal.Footer>
       </Modal>
     </div>
   );
@@ -117,114 +284,220 @@ function DashboardAndClasses() {
 // ================= Assignments =================
 function Assignments() {
   const [assignments, setAssignments] = useState([]);
+  const [classes, setClasses] = useState([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [form, setForm] = useState({
-    class: "",
-    title: "",
-    description: "",
-    due: "",
-  });
+  const [assignmentData, setAssignmentData] = useState({ class: "", title: "", description: "", due: "", status: "Pending" });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [showToast, setShowToast] = useState(false);
+  const [debugData, setDebugData] = useState(null);
 
-  useEffect(() => {
-    axios.get("http://localhost:4000/api/assignments").then(res => setAssignments(res.data));
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const headers = { Authorization: `Bearer ${localStorage.getItem("token")}` };
+      const [assignmentsRes, classesRes] = await Promise.all([
+        retry(() => axios.get(`${process.env.REACT_APP_API_URL}/api/assignments?page=1&limit=100`, { headers })),
+        retry(() => axios.get(`${process.env.REACT_APP_API_URL}/api/classes?page=1&limit=100`, { headers })),
+      ]);
+      setAssignments(assignmentsRes.data || []);
+      setClasses(classesRes.data || []);
+      setDebugData({ assignments: assignmentsRes.data, classes: classesRes.data });
+    } catch (err) {
+      console.error("Fetch error:", err.response?.data || err.message);
+      setError(err.response?.data?.error || "Failed to load assignments or classes. Check network or login status.");
+      setShowToast(true);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  const handleCreateAssignment = async (e) => {
-    e.preventDefault();
-    if (!form.class || !form.title || !form.due) return;
-    const created = await axios.post("http://localhost:4000/api/assignments", {
-      ...form,
-      status: "Pending",
-      submittedFile: "",
-    }, {
-      headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
-    });
-    setAssignments([created.data, ...assignments]);
-    setForm({ class: "", title: "", description: "", due: "" });
-    setShowCreateModal(false);
+  useEffect(() => {
+    let cancelled = false;
+    if (!cancelled) fetchData();
+    return () => {
+      cancelled = true;
+    };
+  }, [fetchData]);
+
+  const handleCreateAssignment = async () => {
+    if (!assignmentData.class || !assignmentData.title || !assignmentData.due) {
+      setError("Class, title, and due date are required");
+      setShowToast(true);
+      return;
+    }
+    try {
+      await retry(() =>
+        axios.post(
+          `${process.env.REACT_APP_API_URL}/api/assignments`,
+          assignmentData,
+          { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
+        )
+      );
+      await fetchData();
+      setShowCreateModal(false);
+      setAssignmentData({ class: "", title: "", description: "", due: "", status: "Pending" });
+      setError("Assignment created successfully!");
+      setShowToast(true);
+    } catch (err) {
+      console.error("Create assignment error:", err.response?.data || err.message);
+      setError(err.response?.data?.error || "Failed to create assignment. Check inputs or network.");
+      setShowToast(true);
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="text-center py-4">
+        <Spinner animation="border" role="status" aria-label="Loading assignments" />
+        <p>Loading assignments...</p>
+      </div>
+    );
+  }
 
   return (
     <div>
-      <div className="d-flex justify-content-between align-items-center mb-3">
-        <h2 className="fw-bold">Assignments</h2>
-        <Button variant="primary" onClick={() => setShowCreateModal(true)}>
-          + Create Assignment
-        </Button>
-      </div>
-      <Table striped bordered hover>
+      <h2 className="fw-bold mb-3">Assignments</h2>
+      {error && (
+        <Toast
+          show={showToast}
+          onClose={() => setShowToast(false)}
+          delay={5000}
+          autohide
+          bg={error.includes("successfully") ? "success" : "danger"}
+          style={{ position: "fixed", top: "20px", right: "20px", zIndex: 10000 }}
+        >
+          <Toast.Body className="text-white">{error}</Toast.Body>
+        </Toast>
+      )}
+      {debugData && (
+        <Alert variant="info" className="mb-4">
+          <strong>Debug Info:</strong> Assignments: {JSON.stringify(debugData.assignments.length)} items, Classes: {JSON.stringify(debugData.classes.length)}
+        </Alert>
+      )}
+      <Button
+        variant="outline-primary"
+        className="mb-3"
+        onClick={() => setShowCreateModal(true)}
+        aria-label="Create new assignment"
+      >
+        + Create Assignment
+      </Button>
+      <Table striped bordered hover responsive style={{ tableLayout: "fixed" }}>
         <thead>
           <tr>
-            <th>Class</th>
-            <th>Title</th>
-            <th>Description</th>
-            <th>Due</th>
-            <th>Status</th>
+            <th style={{ width: "20%" }}>Class</th>
+            <th style={{ width: "20%" }}>Title</th>
+            <th style={{ width: "30%" }}>Description</th>
+            <th style={{ width: "15%" }}>Due</th>
+            <th style={{ width: "15%" }}>Status</th>
           </tr>
         </thead>
         <tbody>
-          {assignments.map((a) => (
-            <tr key={a._id || a.id}>
-              <td>{a.class}</td>
-              <td>{a.title}</td>
-              <td>{a.description}</td>
-              <td>{a.due}</td>
-              <td>{a.status}</td>
+          {assignments.length === 0 ? (
+            <tr>
+              <td colSpan={5} className="text-center text-muted">
+                No assignments found. Create an assignment to get started!
+              </td>
             </tr>
-          ))}
+          ) : (
+            assignments.map((a) => (
+              <tr key={a._id || a.id}>
+                <td>{a.class}</td>
+                <td>{a.title}</td>
+                <td style={{ whiteSpace: "pre-wrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                  {a.description}
+                </td>
+                <td>{new Date(a.due).toLocaleDateString()}</td>
+                <td>{a.status}</td>
+              </tr>
+            ))
+          )}
         </tbody>
       </Table>
-      <Modal show={showCreateModal} onHide={() => setShowCreateModal(false)} centered>
-        <Form onSubmit={handleCreateAssignment}>
-          <Modal.Header closeButton>
-            <Modal.Title>Create Assignment</Modal.Title>
-          </Modal.Header>
-          <Modal.Body>
+      <Modal
+        show={showCreateModal}
+        onHide={() => {
+          setShowCreateModal(false);
+          setAssignmentData({ class: "", title: "", description: "", due: "", status: "Pending" });
+          setError("");
+        }}
+        centered
+      >
+        <Modal.Header closeButton>
+          <Modal.Title>Create Assignment</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Form>
             <Form.Group className="mb-3">
               <Form.Label>Class</Form.Label>
-              <Form.Control
-                value={form.class}
-                onChange={e => setForm(f => ({ ...f, class: e.target.value }))}
-                placeholder="Class name"
+              <Form.Select
+                value={assignmentData.class}
+                onChange={(e) => setAssignmentData({ ...assignmentData, class: e.target.value })}
                 required
-              />
+                aria-required="true"
+              >
+                <option value="">Select Class</option>
+                {classes.map((cls) => (
+                  <option key={cls._id || cls.id} value={cls.name}>
+                    {cls.name}
+                  </option>
+                ))}
+              </Form.Select>
             </Form.Group>
             <Form.Group className="mb-3">
               <Form.Label>Title</Form.Label>
               <Form.Control
-                value={form.title}
-                onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
-                placeholder="Assignment title"
+                type="text"
+                value={assignmentData.title}
+                onChange={(e) => setAssignmentData({ ...assignmentData, title: e.target.value })}
+                placeholder="e.g., Homework 1"
                 required
+                aria-required="true"
               />
             </Form.Group>
             <Form.Group className="mb-3">
               <Form.Label>Description</Form.Label>
               <Form.Control
                 as="textarea"
-                rows={2}
-                value={form.description}
-                onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
-                placeholder="Assignment description"
+                rows={3}
+                value={assignmentData.description}
+                onChange={(e) => setAssignmentData({ ...assignmentData, description: e.target.value })}
+                placeholder="Describe the assignment"
               />
             </Form.Group>
             <Form.Group className="mb-3">
               <Form.Label>Due Date</Form.Label>
               <Form.Control
                 type="date"
-                value={form.due}
-                onChange={e => setForm(f => ({ ...f, due: e.target.value }))}
+                value={assignmentData.due}
+                onChange={(e) => setAssignmentData({ ...assignmentData, due: e.target.value })}
                 required
+                aria-required="true"
               />
             </Form.Group>
-          </Modal.Body>
-          <Modal.Footer>
-            <Button variant="secondary" onClick={() => setShowCreateModal(false)}>Cancel</Button>
-            <Button type="submit" variant="primary" disabled={!form.class || !form.title || !form.due}>
-              Create
-            </Button>
-          </Modal.Footer>
-        </Form>
+          </Form>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button
+            variant="secondary"
+            onClick={() => {
+              setShowCreateModal(false);
+              setAssignmentData({ class: "", title: "", description: "", due: "", status: "Pending" });
+              setError("");
+            }}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="success"
+            onClick={handleCreateAssignment}
+            disabled={!assignmentData.class || !assignmentData.title || !assignmentData.due}
+            aria-label="Create assignment"
+          >
+            Create
+          </Button>
+        </Modal.Footer>
       </Modal>
     </div>
   );
@@ -234,374 +507,422 @@ function Assignments() {
 function Announcements() {
   const [announcements, setAnnouncements] = useState([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [form, setForm] = useState({
-    teacher: "",
-    date: "",
-    message: "",
-    likes: 0,
-    likedByMe: false,
-    saved: false,
-  });
+  const [announcementData, setAnnouncementData] = useState({ message: "", date: new Date().toISOString().split("T")[0] });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [showToast, setShowToast] = useState(false);
+  const [debugData, setDebugData] = useState(null);
 
-  useEffect(() => {
-    axios.get("http://localhost:4000/api/announcements").then(res => setAnnouncements(res.data));
-    axios.get("http://localhost:4000/api/profile", {
-      headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
-    }).then(res => setForm(f => ({ ...f, teacher: res.data.name })));
+  const fetchAnnouncements = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await retry(() =>
+        axios.get(`${process.env.REACT_APP_API_URL}/api/announcements?page=1&limit=100`, {
+          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+        })
+      );
+      setAnnouncements(res.data || []);
+      setDebugData({ announcements: res.data });
+    } catch (err) {
+      console.error("Fetch announcements error:", err.response?.data || err.message);
+      setError(err.response?.data?.error || "Failed to load announcements. Check network or login status.");
+      setShowToast(true);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  const handleCreateAnnouncement = async (e) => {
-    e.preventDefault();
-    if (!form.message || !form.date) return;
-    const created = await axios.post("http://localhost:4000/api/announcements", form, {
-      headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
-    });
-    setAnnouncements([created.data, ...announcements]);
-    setForm({ teacher: form.teacher, date: "", message: "", likes: 0, likedByMe: false, saved: false });
-    setShowCreateModal(false);
+  useEffect(() => {
+    let cancelled = false;
+    if (!cancelled) fetchAnnouncements();
+    return () => {
+      cancelled = true;
+    };
+  }, [fetchAnnouncements]);
+
+  const handleCreateAnnouncement = async () => {
+    if (!announcementData.message || !announcementData.date) {
+      setError("Message and date are required");
+      setShowToast(true);
+      return;
+    }
+    try {
+      await retry(() =>
+        axios.post(
+          `${process.env.REACT_APP_API_URL}/api/announcements`,
+          { ...announcementData, teacher: localStorage.getItem("username") },
+          { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
+        )
+      );
+      await fetchAnnouncements();
+      setShowCreateModal(false);
+      setAnnouncementData({ message: "", date: new Date().toISOString().split("T")[0] });
+      setError("Announcement posted successfully!");
+      setShowToast(true);
+    } catch (err) {
+      console.error("Create announcement error:", err.response?.data || err.message);
+      setError(err.response?.data?.error || "Failed to post announcement. Check inputs or network.");
+      setShowToast(true);
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="text-center py-4">
+        <Spinner animation="border" role="status" aria-label="Loading announcements" />
+        <p>Loading announcements...</p>
+      </div>
+    );
+  }
 
   return (
     <div>
-      <div className="d-flex justify-content-between align-items-center mb-3">
-        <h2 className="fw-bold">Announcements / Stream</h2>
-        <Button variant="primary" onClick={() => setShowCreateModal(true)}>
-          + Create Announcement
-        </Button>
-      </div>
-      <Table striped bordered hover>
+      <h2 className="fw-bold mb-3">Announcements / Stream</h2>
+      {error && (
+        <Toast
+          show={showToast}
+          onClose={() => setShowToast(false)}
+          delay={5000}
+          autohide
+          bg={error.includes("successfully") ? "success" : "danger"}
+          style={{ position: "fixed", top: "20px", right: "20px", zIndex: 10000 }}
+        >
+          <Toast.Body className="text-white">{error}</Toast.Body>
+        </Toast>
+      )}
+      {debugData && (
+        <Alert variant="info" className="mb-4">
+          <strong>Debug Info:</strong> Announcements: {JSON.stringify(debugData.announcements.length)} items
+        </Alert>
+      )}
+      <Button
+        variant="outline-primary"
+        className="mb-3"
+        onClick={() => setShowCreateModal(true)}
+        aria-label="Post new announcement"
+      >
+        + Post Announcement
+      </Button>
+      <Table striped bordered hover responsive style={{ tableLayout: "fixed" }}>
         <thead>
           <tr>
-            <th>Teacher</th>
-            <th>Date</th>
-            <th>Message</th>
-            <th>Likes</th>
+            <th style={{ width: "20%" }}>Teacher</th>
+            <th style={{ width: "20%" }}>Date</th>
+            <th style={{ width: "50%" }}>Message</th>
+            <th style={{ width: "10%" }}>Likes</th>
           </tr>
         </thead>
         <tbody>
+          {announcements.length === 0 && (
+            <tr>
+              <td colSpan={4} className="text-center text-muted">
+                No announcements found. Post one to get started!
+              </td>
+            </tr>
+          )}
           {announcements.map((a) => (
             <tr key={a._id || a.id}>
               <td>{a.teacher}</td>
-              <td>{a.date}</td>
-              <td>{a.message}</td>
+              <td>{new Date(a.date).toLocaleDateString()}</td>
+              <td style={{ whiteSpace: "pre-wrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                {a.message}
+              </td>
               <td>{a.likes}</td>
             </tr>
           ))}
         </tbody>
       </Table>
-      <Modal show={showCreateModal} onHide={() => setShowCreateModal(false)} centered>
-        <Form onSubmit={handleCreateAnnouncement}>
-          <Modal.Header closeButton>
-            <Modal.Title>Create Announcement</Modal.Title>
-          </Modal.Header>
-          <Modal.Body>
-            <Form.Group className="mb-3">
-              <Form.Label>Date</Form.Label>
-              <Form.Control
-                type="date"
-                value={form.date}
-                onChange={e => setForm(f => ({ ...f, date: e.target.value }))}
-                required
-              />
-            </Form.Group>
+      <Modal
+        show={showCreateModal}
+        onHide={() => {
+          setShowCreateModal(false);
+          setAnnouncementData({ message: "", date: new Date().toISOString().split("T")[0] });
+          setError("");
+        }}
+        centered
+      >
+        <Modal.Header closeButton>
+          <Modal.Title>Post Announcement</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Form>
             <Form.Group className="mb-3">
               <Form.Label>Message</Form.Label>
               <Form.Control
                 as="textarea"
-                rows={2}
-                value={form.message}
-                onChange={e => setForm(f => ({ ...f, message: e.target.value }))}
-                placeholder="Announcement message"
+                rows={3}
+                value={announcementData.message}
+                onChange={(e) => setAnnouncementData({ ...announcementData, message: e.target.value })}
+                placeholder="Enter announcement"
                 required
+                aria-required="true"
               />
             </Form.Group>
-          </Modal.Body>
-          <Modal.Footer>
-            <Button variant="secondary" onClick={() => setShowCreateModal(false)}>Cancel</Button>
-            <Button type="submit" variant="primary" disabled={!form.message || !form.date}>
-              Create
-            </Button>
-          </Modal.Footer>
-        </Form>
+            <Form.Group className="mb-3">
+              <Form.Label>Date</Form.Label>
+              <Form.Control
+                type="date"
+                value={announcementData.date}
+                onChange={(e) => setAnnouncementData({ ...announcementData, date: e.target.value })}
+                required
+                aria-required="true"
+              />
+            </Form.Group>
+          </Form>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button
+            variant="secondary"
+            onClick={() => {
+              setShowCreateModal(false);
+              setAnnouncementData({ message: "", date: new Date().toISOString().split("T")[0] });
+              setError("");
+            }}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="success"
+            onClick={handleCreateAnnouncement}
+            disabled={!announcementData.message || !announcementData.date}
+            aria-label="Post announcement"
+          >
+            Post
+          </Button>
+        </Modal.Footer>
       </Modal>
     </div>
   );
 }
 
-// ================= Exams / Quizzes (Google Form Style) =================
+// ================= Exams =================
 function Exams() {
   const [exams, setExams] = useState([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [form, setForm] = useState({
-    title: "",
-    description: "",
-    questions: [],
-  });
-  const [questionText, setQuestionText] = useState("");
-  const [questionType, setQuestionType] = useState("short");
-  const [options, setOptions] = useState([{ text: "", correct: false }]);
-  const [showPreviewModal, setShowPreviewModal] = useState(false);
-  const [previewExam, setPreviewExam] = useState(null);
+  const [examData, setExamData] = useState({ title: "", description: "", questions: [{ text: "", type: "short", options: [] }] });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [showToast, setShowToast] = useState(false);
+  const [debugData, setDebugData] = useState(null);
 
-  useEffect(() => {
-    axios.get("http://localhost:4000/api/exams").then(res => setExams(res.data));
+  const fetchExams = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await retry(() =>
+        axios.get(`${process.env.REACT_APP_API_URL}/api/exams?page=1&limit=100`, {
+          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+        })
+      );
+      setExams(res.data || []);
+      setDebugData({ exams: res.data });
+    } catch (err) {
+      console.error("Fetch exams error:", err.response?.data || err.message);
+      setError(err.response?.data?.error || "Failed to load exams. Check network or login status.");
+      setShowToast(true);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  // Add question to form
-  const handleAddQuestion = () => {
-    if (!questionText.trim()) return;
-    const newQuestion = {
-      text: questionText,
-      type: questionType,
-      options:
-        questionType === "multiple"
-          ? options.filter(opt => opt.text.trim())
-          : [],
+  useEffect(() => {
+    let cancelled = false;
+    if (!cancelled) fetchExams();
+    return () => {
+      cancelled = true;
     };
-    setForm((prev) => ({
-      ...prev,
-      questions: [...prev.questions, newQuestion],
-    }));
-    setQuestionText("");
-    setQuestionType("short");
-    setOptions([{ text: "", correct: false }]);
-  };
+  }, [fetchExams]);
 
-  // Remove question
-  const handleRemoveQuestion = (idx) => {
-    setForm((prev) => ({
-      ...prev,
-      questions: prev.questions.filter((_, i) => i !== idx),
-    }));
-  };
-
-  // Add exam
-  const handleCreateExam = async (e) => {
-    e.preventDefault();
-    if (!form.title.trim() || form.questions.length === 0) return;
-    const created = await axios.post("http://localhost:4000/api/exams", form, {
-      headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
+  const handleAddQuestion = () => {
+    setExamData({
+      ...examData,
+      questions: [...examData.questions, { text: "", type: "short", options: [] }],
     });
-    setExams([created.data, ...exams]);
-    setForm({ title: "", description: "", questions: [] });
-    setShowCreateModal(false);
   };
 
-  // Preview exam
-  const handlePreviewExam = (exam) => {
-    setPreviewExam(exam);
-    setShowPreviewModal(true);
+  const handleQuestionChange = (index, field, value) => {
+    const newQuestions = [...examData.questions];
+    newQuestions[index] = { ...newQuestions[index], [field]: value };
+    setExamData({ ...examData, questions: newQuestions });
   };
 
-  // Handle option text change
-  const handleOptionTextChange = (idx, value) => {
-    const newOpts = [...options];
-    newOpts[idx].text = value;
-    setOptions(newOpts);
+  const handleCreateExam = async () => {
+    if (!examData.title || examData.questions.some((q) => !q.text)) {
+      setError("Title and question text are required");
+      setShowToast(true);
+      return;
+    }
+    try {
+      await retry(() =>
+        axios.post(
+          `${process.env.REACT_APP_API_URL}/api/exams`,
+          { ...examData, createdBy: localStorage.getItem("username") },
+          { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
+        )
+      );
+      await fetchExams();
+      setShowCreateModal(false);
+      setExamData({ title: "", description: "", questions: [{ text: "", type: "short", options: [] }] });
+      setError("Exam created successfully!");
+      setShowToast(true);
+    } catch (err) {
+      console.error("Create exam error:", err.response?.data || err.message);
+      setError(err.response?.data?.error || "Failed to create exam. Check inputs or network.");
+      setShowToast(true);
+    }
   };
 
-  // Handle option correct checkbox
-  const handleOptionCorrectChange = (idx, checked) => {
-    const newOpts = [...options];
-    newOpts[idx].correct = checked;
-    setOptions(newOpts);
-  };
+  if (loading) {
+    return (
+      <div className="text-center py-4">
+        <Spinner animation="border" role="status" aria-label="Loading exams" />
+        <p>Loading exams...</p>
+      </div>
+    );
+  }
 
   return (
     <div>
-      <div className="d-flex justify-content-between align-items-center mb-3">
-        <h2 className="fw-bold">Exams / Quizzes</h2>
-        <Button variant="primary" onClick={() => setShowCreateModal(true)}>
-          + Create Exam / Quiz
-        </Button>
-      </div>
-      <Row className="g-3">
-        {exams.map((exam) => (
-          <Col md={6} key={exam._id || exam.id}>
-            <Card className="h-100 shadow-sm">
-              <Card.Body>
-                <Card.Title>{exam.title}</Card.Title>
-                <Card.Subtitle className="mb-2 text-muted">
-                  {exam.questions.length} questions
-                </Card.Subtitle>
-                <Card.Text className="text-truncate">{exam.description || "No description provided."}</Card.Text>
-                <Button size="sm" variant="outline-primary" onClick={() => handlePreviewExam(exam)}>
-                  Preview
-                </Button>
-              </Card.Body>
-            </Card>
-          </Col>
-        ))}
-        {exams.length === 0 && (
-          <Col xs={12}>
-            <Card className="p-4 text-center text-muted">No exams yet. Create one!</Card>
-          </Col>
-        )}
-      </Row>
-      {/* Create Exam Modal */}
-      <Modal show={showCreateModal} onHide={() => setShowCreateModal(false)} centered size="lg">
-        <Form onSubmit={handleCreateExam}>
-          <Modal.Header closeButton>
-            <Modal.Title>Create Exam / Quiz</Modal.Title>
-          </Modal.Header>
-          <Modal.Body>
+      <h2 className="fw-bold mb-3">Exams</h2>
+      {error && (
+        <Toast
+          show={showToast}
+          onClose={() => setShowToast(false)}
+          delay={5000}
+          autohide
+          bg={error.includes("successfully") ? "success" : "danger"}
+          style={{ position: "fixed", top: "20px", right: "20px", zIndex: 10000 }}
+        >
+          <Toast.Body className="text-white">{error}</Toast.Body>
+        </Toast>
+      )}
+      {debugData && (
+        <Alert variant="info" className="mb-4">
+          <strong>Debug Info:</strong> Exams: {JSON.stringify(debugData.exams.length)} items
+        </Alert>
+      )}
+      <Button
+        variant="outline-primary"
+        className="mb-3"
+        onClick={() => setShowCreateModal(true)}
+        aria-label="Create new exam"
+      >
+        + Create Exam
+      </Button>
+      <Table striped bordered hover responsive style={{ tableLayout: "fixed" }}>
+        <thead>
+          <tr>
+            <th style={{ width: "25%" }}>Title</th>
+            <th style={{ width: "40%" }}>Description</th>
+            <th style={{ width: "20%" }}>Created By</th>
+            <th style={{ width: "15%" }}>Questions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {exams.length === 0 && (
+            <tr>
+              <td colSpan={4} className="text-center text-muted">
+                No exams found. Create an exam to get started!
+              </td>
+            </tr>
+          )}
+          {exams.map((e) => (
+            <tr key={e._id || e.id}>
+              <td>{e.title}</td>
+              <td style={{ whiteSpace: "pre-wrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                {e.description}
+              </td>
+              <td>{e.createdBy}</td>
+              <td>{e.questions.length}</td>
+            </tr>
+          ))}
+        </tbody>
+      </Table>
+      <Modal
+        show={showCreateModal}
+        onHide={() => {
+          setShowCreateModal(false);
+          setExamData({ title: "", description: "", questions: [{ text: "", type: "short", options: [] }] });
+          setError("");
+        }}
+        centered
+      >
+        <Modal.Header closeButton>
+          <Modal.Title>Create Exam</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Form>
             <Form.Group className="mb-3">
               <Form.Label>Title</Form.Label>
               <Form.Control
-                value={form.title}
-                onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
-                placeholder="Exam or Quiz title"
+                type="text"
+                value={examData.title}
+                onChange={(e) => setExamData({ ...examData, title: e.target.value })}
+                placeholder="e.g., Midterm"
                 required
+                aria-required="true"
               />
             </Form.Group>
             <Form.Group className="mb-3">
               <Form.Label>Description</Form.Label>
               <Form.Control
                 as="textarea"
-                rows={2}
-                value={form.description}
-                onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-                placeholder="Exam description"
+                rows={3}
+                value={examData.description}
+                onChange={(e) => setExamData({ ...examData, description: e.target.value })}
+                placeholder="Describe the exam"
               />
             </Form.Group>
-            <hr />
-            <h5>Add Questions</h5>
-            <Form.Group className="mb-2">
-              <Form.Label>Question</Form.Label>
-              <Form.Control
-                value={questionText}
-                onChange={(e) => setQuestionText(e.target.value)}
-                placeholder="Enter question"
-              />
-            </Form.Group>
-            <Form.Group className="mb-2">
-              <Form.Label>Type</Form.Label>
-              <Form.Select
-                value={questionType}
-                onChange={(e) => setQuestionType(e.target.value)}
-                style={{ maxWidth: 200 }}
-              >
-                <option value="short">Short Answer</option>
-                <option value="multiple">Multiple Choice</option>
-              </Form.Select>
-            </Form.Group>
-            {questionType === "multiple" && (
-              <div className="mb-2">
-                <Form.Label>Options</Form.Label>
-                {options.map((opt, idx) => (
-                  <div key={idx} className="d-flex align-items-center mb-1">
-                    <Form.Control
-                      value={opt.text}
-                      onChange={(e) => handleOptionTextChange(idx, e.target.value)}
-                      placeholder={`Option ${idx + 1}`}
-                      style={{ maxWidth: 300 }}
-                    />
-                    <Form.Check
-                      type="checkbox"
-                      label="Correct"
-                      checked={opt.correct}
-                      onChange={e => handleOptionCorrectChange(idx, e.target.checked)}
-                      className="ms-2"
-                    />
-                    <Button
-                      variant="outline-danger"
-                      size="sm"
-                      className="ms-2"
-                      onClick={() => setOptions(options.filter((_, i) => i !== idx))}
-                      disabled={options.length <= 1}
-                    >
-                      Remove
-                    </Button>
-                  </div>
-                ))}
-                <Button
-                  variant="outline-primary"
-                  size="sm"
-                  onClick={() => setOptions([...options, { text: "", correct: false }])}
-                >
-                  + Add Option
-                </Button>
+            {examData.questions.map((q, idx) => (
+              <div key={idx} className="mb-3 p-3 border rounded">
+                <Form.Group className="mb-2">
+                  <Form.Label>Question {idx + 1}</Form.Label>
+                  <Form.Control
+                    type="text"
+                    value={q.text}
+                    onChange={(e) => handleQuestionChange(idx, "text", e.target.value)}
+                    placeholder="Enter question"
+                    required
+                    aria-required="true"
+                  />
+                </Form.Group>
+                <Form.Group className="mb-2">
+                  <Form.Label>Type</Form.Label>
+                  <Form.Select
+                    value={q.type}
+                    onChange={(e) => handleQuestionChange(idx, "type", e.target.value)}
+                    aria-label={`Question ${idx + 1} type`}
+                  >
+                    <option value="short">Short Answer</option>
+                    <option value="multiple">Multiple Choice</option>
+                  </Form.Select>
+                </Form.Group>
               </div>
-            )}
-            <Button
-              variant="success"
-              className="mt-2"
-              onClick={handleAddQuestion}
-              disabled={!questionText.trim()}
-            >
-              Add Question
-            </Button>
-            <hr />
-            <h6>Questions Added</h6>
-            {form.questions.length === 0 && (
-              <div className="text-muted mb-2">No questions added yet.</div>
-            )}
-            {form.questions.map((q, idx) => (
-              <Card key={idx} className="mb-2">
-                <Card.Body>
-                  <div className="d-flex justify-content-between align-items-center">
-                    <div>
-                      <strong>Q{idx + 1}:</strong> {q.text}
-                      <span className="ms-2 badge bg-info">{q.type === "short" ? "Short Answer" : "Multiple Choice"}</span>
-                    </div>
-                    <Button variant="outline-danger" size="sm" onClick={() => handleRemoveQuestion(idx)}>
-                      Remove
-                    </Button>
-                  </div>
-                  {q.type === "multiple" && (
-                    <ul className="mt-2 mb-0">
-                      {q.options.map((opt, i) => (
-                        <li key={i}>
-                          {opt.text}
-                          {opt.correct && <span className="ms-2 badge bg-success">Correct</span>}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </Card.Body>
-              </Card>
             ))}
-          </Modal.Body>
-          <Modal.Footer>
-            <Button variant="secondary" onClick={() => setShowCreateModal(false)}>Cancel</Button>
-            <Button type="submit" variant="primary" disabled={!form.title.trim() || form.questions.length === 0}>
-              Create Exam
+            <Button variant="outline-secondary" onClick={handleAddQuestion} aria-label="Add another question">
+              + Add Question
             </Button>
-          </Modal.Footer>
-        </Form>
-      </Modal>
-      {/* Preview Exam Modal */}
-      <Modal show={showPreviewModal} onHide={() => setShowPreviewModal(false)} centered size="lg">
-        <Modal.Header closeButton>
-          <Modal.Title>Preview: {previewExam?.title}</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          <p><strong>Description:</strong> {previewExam?.description}</p>
-          <hr />
-          {previewExam?.questions?.map((q, idx) => (
-            <div key={idx} className="mb-3">
-              <strong>Q{idx + 1}:</strong> {q.text}
-              <div className="mt-1">
-                {q.type === "short" ? (
-                  <Form.Control disabled placeholder="Short answer" style={{ maxWidth: 400 }} />
-                ) : (
-                  q.options.map((opt, i) => (
-                    <div key={i} className="d-flex align-items-center mb-1">
-                      <Form.Check
-                        type="checkbox"
-                        label={opt.text}
-                        checked={opt.correct}
-                        disabled
-                        style={{ maxWidth: 400 }}
-                      />
-                      {opt.correct && <span className="ms-2 badge bg-success">Correct</span>}
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-          ))}
+          </Form>
         </Modal.Body>
+        <Modal.Footer>
+          <Button
+            variant="secondary"
+            onClick={() => {
+              setShowCreateModal(false);
+              setExamData({ title: "", description: "", questions: [{ text: "", type: "short", options: [] }] });
+              setError("");
+            }}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="success"
+            onClick={handleCreateExam}
+            disabled={!examData.title || examData.questions.some((q) => !q.text)}
+            aria-label="Create exam"
+          >
+            Create
+          </Button>
+        </Modal.Footer>
       </Modal>
     </div>
   );
@@ -610,32 +931,227 @@ function Exams() {
 // ================= Grades =================
 function Grades() {
   const [grades, setGrades] = useState([]);
-  useEffect(() => {
-    axios.get("http://localhost:4000/api/grades").then(res => setGrades(res.data));
+  const [classes, setClasses] = useState([]);
+  const [students, setStudents] = useState([]);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [gradeData, setGradeData] = useState({ class: "", student: "", grade: "", feedback: "" });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [showToast, setShowToast] = useState(false);
+  const [debugData, setDebugData] = useState(null);
+
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const headers = { Authorization: `Bearer ${localStorage.getItem("token")}` };
+      const [gradesRes, classesRes, usersRes] = await Promise.all([
+        retry(() => axios.get(`${process.env.REACT_APP_API_URL}/api/grades?page=1&limit=100`, { headers })),
+        retry(() => axios.get(`${process.env.REACT_APP_API_URL}/api/classes?page=1&limit=100`, { headers })),
+        retry(() => axios.get(`${process.env.REACT_APP_API_URL}/api/admin/users?page=1&limit=100`, { headers })),
+      ]);
+      setGrades(gradesRes.data || []);
+      setClasses(classesRes.data || []);
+      setStudents(usersRes.data.filter((u) => u.role === "student") || []);
+      setDebugData({ grades: gradesRes.data, classes: classesRes.data, students: usersRes.data });
+    } catch (err) {
+      console.error("Fetch grades error:", err.response?.data || err.message);
+      setError(err.response?.data?.error || "Failed to load grades, classes, or students. Check network or login status.");
+      setShowToast(true);
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!cancelled) fetchData();
+    return () => {
+      cancelled = true;
+    };
+  }, [fetchData]);
+
+  const handleCreateGrade = async () => {
+    if (!gradeData.class || !gradeData.student || !gradeData.grade) {
+      setError("Class, student, and grade are required");
+      setShowToast(true);
+      return;
+    }
+    try {
+      await retry(() =>
+        axios.post(
+          `${process.env.REACT_APP_API_URL}/api/grades`,
+          gradeData,
+          { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
+        )
+      );
+      await fetchData();
+      setShowCreateModal(false);
+      setGradeData({ class: "", student: "", grade: "", feedback: "" });
+      setError("Grade assigned successfully!");
+      setShowToast(true);
+    } catch (err) {
+      console.error("Create grade error:", err.response?.data || err.message);
+      setError(err.response?.data?.error || "Failed to assign grade. Check inputs or network.");
+      setShowToast(true);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="text-center py-4">
+        <Spinner animation="border" role="status" aria-label="Loading grades" />
+        <p>Loading grades...</p>
+      </div>
+    );
+  }
+
   return (
     <div>
-      <h2 className="fw-bold">Grades</h2>
-      <Table striped bordered hover>
+      <h2 className="fw-bold mb-3">Grades</h2>
+      {error && (
+        <Toast
+          show={showToast}
+          onClose={() => setShowToast(false)}
+          delay={5000}
+          autohide
+          bg={error.includes("successfully") ? "success" : "danger"}
+          style={{ position: "fixed", top: "20px", right: "20px", zIndex: 10000 }}
+        >
+          <Toast.Body className="text-white">{error}</Toast.Body>
+        </Toast>
+      )}
+      {debugData && (
+        <Alert variant="info" className="mb-4">
+          <strong>Debug Info:</strong> Grades: {JSON.stringify(debugData.grades.length)} items, Classes: {JSON.stringify(debugData.classes.length)}, Students: {JSON.stringify(debugData.students.length)}
+        </Alert>
+      )}
+      <Button
+        variant="outline-primary"
+        className="mb-3"
+        onClick={() => setShowCreateModal(true)}
+        aria-label="Assign new grade"
+      >
+        + Assign Grade
+      </Button>
+      <Table striped bordered hover responsive style={{ tableLayout: "fixed" }}>
         <thead>
           <tr>
-            <th>Class</th>
-            <th>Student</th>
-            <th>Grade</th>
-            <th>Feedback</th>
+            <th style={{ width: "30%" }}>Class</th>
+            <th style={{ width: "20%" }}>Student</th>
+            <th style={{ width: "15%" }}>Grade</th>
+            <th style={{ width: "35%" }}>Feedback</th>
           </tr>
         </thead>
         <tbody>
+          {grades.length === 0 && (
+            <tr>
+              <td colSpan={4} className="text-center text-muted">
+                No grades found. Assign a grade to get started!
+              </td>
+            </tr>
+          )}
           {grades.map((g, idx) => (
-            <tr key={idx}>
+            <tr key={g._id || idx}>
               <td>{g.class}</td>
               <td>{g.student}</td>
               <td>{g.grade}</td>
-              <td>{g.feedback}</td>
+              <td style={{ whiteSpace: "pre-wrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                {g.feedback}
+              </td>
             </tr>
           ))}
         </tbody>
       </Table>
+      <Modal
+        show={showCreateModal}
+        onHide={() => {
+          setShowCreateModal(false);
+          setGradeData({ class: "", student: "", grade: "", feedback: "" });
+          setError("");
+        }}
+        centered
+      >
+        <Modal.Header closeButton>
+          <Modal.Title>Assign Grade</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Form>
+            <Form.Group className="mb-3">
+              <Form.Label>Class</Form.Label>
+              <Form.Select
+                value={gradeData.class}
+                onChange={(e) => setGradeData({ ...gradeData, class: e.target.value })}
+                required
+                aria-required="true"
+              >
+                <option value="">Select Class</option>
+                {classes.map((cls) => (
+                  <option key={cls._id || cls.id} value={cls.name}>
+                    {cls.name}
+                  </option>
+                ))}
+              </Form.Select>
+            </Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Label>Student</Form.Label>
+              <Form.Select
+                value={gradeData.student}
+                onChange={(e) => setGradeData({ ...gradeData, student: e.target.value })}
+                required
+                aria-required="true"
+              >
+                <option value="">Select Student</option>
+                {students.map((s) => (
+                  <option key={s._id || s.id} value={s.username}>
+                    {s.name} ({s.username})
+                  </option>
+                ))}
+              </Form.Select>
+            </Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Label>Grade</Form.Label>
+              <Form.Control
+                type="text"
+                value={gradeData.grade}
+                onChange={(e) => setGradeData({ ...gradeData, grade: e.target.value })}
+                placeholder="e.g., A, B+, 85"
+                required
+                aria-required="true"
+              />
+            </Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Label>Feedback</Form.Label>
+              <Form.Control
+                as="textarea"
+                rows={3}
+                value={gradeData.feedback}
+                onChange={(e) => setGradeData({ ...gradeData, feedback: e.target.value })}
+                placeholder="Enter feedback"
+              />
+            </Form.Group>
+          </Form>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button
+            variant="secondary"
+            onClick={() => {
+              setShowCreateModal(false);
+              setGradeData({ class: "", student: "", grade: "", feedback: "" });
+              setError("");
+            }}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="success"
+            onClick={handleCreateGrade}
+            disabled={!gradeData.class || !gradeData.student || !gradeData.grade}
+            aria-label="Assign grade"
+          >
+            Assign
+          </Button>
+        </Modal.Footer>
+      </Modal>
     </div>
   );
 }
@@ -643,90 +1159,321 @@ function Grades() {
 // ================= Profile =================
 function Profile() {
   const [profile, setProfile] = useState({});
-  useEffect(() => {
-    axios.get("http://localhost:4000/api/profile", {
-      headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
-    }).then(res => setProfile(res.data));
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [showToast, setShowToast] = useState(false);
+  const [debugData, setDebugData] = useState(null);
+
+  const fetchProfile = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await retry(() =>
+        axios.get(`${process.env.REACT_APP_API_URL}/api/profile`, {
+          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+        })
+      );
+      setProfile(res.data);
+      setDebugData({ profile: res.data });
+    } catch (err) {
+      console.error("Fetch profile error:", err.response?.data || err.message);
+      setError(err.response?.data?.error || "Failed to load profile. Check login status.");
+      setShowToast(true);
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!cancelled) fetchProfile();
+    return () => {
+      cancelled = true;
+    };
+  }, [fetchProfile]);
+
+  if (loading) {
+    return (
+      <div className="text-center py-4">
+        <Spinner animation="border" role="status" aria-label="Loading profile" />
+        <p>Loading profile...</p>
+      </div>
+    );
+  }
+
   return (
     <div>
       <h2 className="fw-bold">Profile</h2>
+      {error && (
+        <Toast
+          show={showToast}
+          onClose={() => setShowToast(false)}
+          delay={5000}
+          autohide
+          bg="danger"
+          style={{ position: "fixed", top: "20px", right: "20px", zIndex: 10000 }}
+        >
+          <Toast.Body className="text-white">{error}</Toast.Body>
+        </Toast>
+      )}
+      {debugData && (
+        <Alert variant="info" className="mb-4">
+          <strong>Debug Info:</strong> Profile: {JSON.stringify(debugData.profile.username)}
+        </Alert>
+      )}
       <Card className="p-3 mt-3">
-        <p><strong>Name:</strong> {profile.name}</p>
-        <p><strong>Email:</strong> {profile.email}</p>
-        <p><strong>Role:</strong> {profile.role}</p>
+        <p>
+          <strong>Name:</strong> {profile.name || "N/A"}
+        </p>
+        <p>
+          <strong>Username:</strong> {profile.username || "N/A"}
+        </p>
+        <p>
+          <strong>Role:</strong> {profile.role || "N/A"}
+        </p>
       </Card>
     </div>
   );
 }
 
 // ================= Teacher Dashboard =================
-export default function TeacherD() {
+export default function TeacherDashboard() {
+  const navigate = useNavigate();
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [showToast, setShowToast] = useState(false);
-  const navigate = useNavigate();
+  const [isAuthenticated, setIsAuthenticated] = useState(!!localStorage.getItem("token"));
+  const [authLoading, setAuthLoading] = useState(true);
+  const [authError, setAuthError] = useState("");
+
+  const verifyToken = useCallback(async () => {
+    setAuthLoading(true);
+    try {
+      const res = await retry(() =>
+        axios.get(`${process.env.REACT_APP_API_URL}/api/profile`, {
+          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+        })
+      );
+      if (res.data.role !== "teacher") {
+        throw new Error("Access denied: Not a teacher");
+      }
+      localStorage.setItem("username", res.data.username);
+    } catch (err) {
+      console.error("Auth error:", err.response?.data || err.message);
+      setAuthError(err.response?.data?.error || "Authentication failed. Please log in again.");
+      setIsAuthenticated(false);
+      localStorage.removeItem("token");
+      localStorage.removeItem("username");
+      setTimeout(() => navigate("/"), 3000);
+    } finally {
+      setAuthLoading(false);
+    }
+  }, [navigate]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (isAuthenticated && !cancelled) {
+      verifyToken();
+    } else {
+      setAuthLoading(false);
+    }
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthenticated, verifyToken]);
+
+  if (authLoading) {
+    return (
+      <div className="text-center py-4">
+        <Spinner animation="border" role="status" aria-label="Verifying authentication" />
+        <p>Verifying authentication...</p>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <div className="container text-center py-5">
+        <Alert variant="danger">
+          {authError || "You are not authenticated. Redirecting to login..."}
+        </Alert>
+      </div>
+    );
+  }
 
   return (
     <Container fluid>
       <Row>
-        {/* Desktop Sidebar */}
+        {/* Sidebar for desktop */}
         <Col md={2} className="d-none d-md-block bg-dark text-white vh-100 p-3">
           <h4 className="text-center mb-4">Teacher Panel</h4>
           <Nav className="flex-column">
-            <Nav.Link as={NavLink} to="/teacher/dashboard" className="nav-link-custom">📊 Dashboard & Classes</Nav.Link>
-            <Nav.Link as={NavLink} to="/teacher/assignments" className="nav-link-custom">📝 Assignments</Nav.Link>
-            <Nav.Link as={NavLink} to="/teacher/announcements" className="nav-link-custom">📢 Announcements / Stream</Nav.Link>
-            <Nav.Link as={NavLink} to="/teacher/exams" className="nav-link-custom">📝 Exams / Quizzes</Nav.Link>
-            <Nav.Link as={NavLink} to="/teacher/grades" className="nav-link-custom">🧮 Grades</Nav.Link>
-            <Nav.Link as={NavLink} to="/teacher/profile" className="nav-link-custom">👤 Profile</Nav.Link>
-            <Nav.Link onClick={() => setShowLogoutModal(true)} className="nav-link-custom text-danger">🚪 Logout</Nav.Link>
+            <Nav.Link
+              as={NavLink}
+              to="/teacher/dashboard"
+              className="nav-link-custom"
+              aria-label="Dashboard and Classes"
+            >
+              🏠 Dashboard & Classes
+            </Nav.Link>
+            <Nav.Link
+              as={NavLink}
+              to="/teacher/assignments"
+              className="nav-link-custom"
+              aria-label="Assignments"
+            >
+              📝 Assignments
+            </Nav.Link>
+            <Nav.Link
+              as={NavLink}
+              to="/teacher/exams"
+              className="nav-link-custom"
+              aria-label="Exams"
+            >
+              📚 Exams
+            </Nav.Link>
+            <Nav.Link
+              as={NavLink}
+              to="/teacher/grades"
+              className="nav-link-custom"
+              aria-label="Grades"
+            >
+              📊 Grades
+            </Nav.Link>
+            <Nav.Link
+              as={NavLink}
+              to="/teacher/announcements"
+              className="nav-link-custom"
+              aria-label="Announcements"
+            >
+              📢 Announcements / Stream
+            </Nav.Link>
+            <Nav.Link
+              as={NavLink}
+              to="/teacher/profile"
+              className="nav-link-custom"
+              aria-label="Profile"
+            >
+              👤 Profile
+            </Nav.Link>
+            <Nav.Link
+              onClick={() => setShowLogoutModal(true)}
+              className="text-danger nav-link-custom"
+              aria-label="Logout"
+            >
+              🚪 Logout
+            </Nav.Link>
           </Nav>
         </Col>
-        {/* Mobile Navbar */}
-        <Col xs={12} className="d-md-none p-0">
-          <Navbar bg="dark" variant="dark" expand="md">
-            <Navbar.Brand className="ms-2">Teacher Panel</Navbar.Brand>
-            <Navbar.Toggle aria-controls="mobile-nav" />
-            <Navbar.Collapse id="mobile-nav">
-              <Nav className="flex-column p-2">
-                <Nav.Link as={Link} to="/teacher/dashboard" className="text-white">📊 Dashboard & Classes</Nav.Link>
-                <Nav.Link as={Link} to="/teacher/assignments" className="text-white">📝 Assignments</Nav.Link>
-                <Nav.Link as={Link} to="/teacher/announcements" className="text-white">📢 Announcements / Stream</Nav.Link>
-                <Nav.Link as={Link} to="/teacher/exams" className="text-white">📝 Exams / Quizzes</Nav.Link>
-                <Nav.Link as={Link} to="/teacher/grades" className="text-white">🧮 Grades</Nav.Link>
-                <Nav.Link as={Link} to="/teacher/profile" className="text-white">👤 Profile</Nav.Link>
-                <Nav.Link onClick={() => setShowLogoutModal(true)} className="text-danger">🚪 Logout</Nav.Link>
-              </Nav>
-            </Navbar.Collapse>
-          </Navbar>
-        </Col>
+        {/* Mobile navbar */}
+        <Navbar bg="dark" variant="dark" expand="md" className="d-md-none">
+          <Navbar.Brand className="ms-2">Teacher Panel</Navbar.Brand>
+          <Navbar.Toggle aria-controls="mobile-nav" />
+          <Navbar.Collapse id="mobile-nav">
+            <Nav className="flex-column p-2">
+              <Nav.Link
+                as={Link}
+                to="/teacher/dashboard"
+                className="text-white"
+                aria-label="Dashboard and Classes"
+              >
+                🏠 Dashboard & Classes
+              </Nav.Link>
+              <Nav.Link
+                as={Link}
+                to="/teacher/assignments"
+                className="text-white"
+                aria-label="Assignments"
+              >
+                📝 Assignments
+              </Nav.Link>
+              <Nav.Link
+                as={Link}
+                to="/teacher/exams"
+                className="text-white"
+                aria-label="Exams"
+              >
+                📚 Exams
+              </Nav.Link>
+              <Nav.Link
+                as={Link}
+                to="/teacher/grades"
+                className="text-white"
+                aria-label="Grades"
+              >
+                📊 Grades
+              </Nav.Link>
+              <Nav.Link
+                as={Link}
+                to="/teacher/announcements"
+                className="text-white"
+                aria-label="Announcements"
+              >
+                📢 Announcements / Stream
+              </Nav.Link>
+              <Nav.Link
+                as={Link}
+                to="/teacher/profile"
+                className="text-white"
+                aria-label="Profile"
+              >
+                👤 Profile
+              </Nav.Link>
+              <Nav.Link
+                onClick={() => setShowLogoutModal(true)}
+                className="text-danger"
+                aria-label="Logout"
+              >
+                🚪 Logout
+              </Nav.Link>
+            </Nav>
+          </Navbar.Collapse>
+        </Navbar>
         {/* Main Content */}
-        <Col md={10} xs={12} className="p-4">
+        <Col md={10} className="p-4">
           <Routes>
             <Route path="dashboard" element={<DashboardAndClasses />} />
             <Route path="assignments" element={<Assignments />} />
-            <Route path="announcements" element={<Announcements />} />
             <Route path="exams" element={<Exams />} />
             <Route path="grades" element={<Grades />} />
+            <Route path="announcements" element={<Announcements />} />
             <Route path="profile" element={<Profile />} />
           </Routes>
         </Col>
       </Row>
-      {/* Logout Modal */}
-      <Modal show={showLogoutModal} onHide={() => setShowLogoutModal(false)} centered>
-        <Modal.Header closeButton><Modal.Title>Logout</Modal.Title></Modal.Header>
-        <Modal.Body>Are you sure you want to logout?</Modal.Body>
+      {/* Logout Confirmation Modal */}
+      <Modal
+        show={showLogoutModal}
+        onHide={() => setShowLogoutModal(false)}
+        centered
+      >
+        <Modal.Header closeButton>
+          <Modal.Title>Confirm Logout</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>Are you sure you want to log out?</Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowLogoutModal(false)}>Cancel</Button>
-          <Button variant="danger" onClick={() => {
-            setShowLogoutModal(false);
-            setShowToast(true);
-            localStorage.removeItem("token");
-            setTimeout(() => {
-              setShowToast(false);
-              navigate("/");
-            }, 1500);
-          }}>Logout</Button>
+          <Button
+            variant="secondary"
+            onClick={() => setShowLogoutModal(false)}
+            aria-label="Cancel logout"
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="danger"
+            onClick={() => {
+              setShowLogoutModal(false);
+              setShowToast(true);
+              localStorage.removeItem("token");
+              localStorage.removeItem("username");
+              setIsAuthenticated(false);
+              setTimeout(() => {
+                setShowToast(false);
+                navigate("/");
+              }, 1500);
+            }}
+            aria-label="Confirm logout"
+          >
+            Logout
+          </Button>
         </Modal.Footer>
       </Modal>
       {/* Toast Notification */}
@@ -736,9 +1483,19 @@ export default function TeacherD() {
         delay={1500}
         autohide
         bg="success"
-        style={{ position: "fixed", top: "50%", left: "50%", transform: "translate(-50%, -50%)", minWidth: "250px", textAlign: "center", zIndex: 9999 }}
+        style={{
+          position: "fixed",
+          top: "50%",
+          left: "50%",
+          transform: "translate(-50%, -50%)",
+          minWidth: "250px",
+          textAlign: "center",
+          zIndex: 10000,
+        }}
       >
-        <Toast.Body className="text-white fw-bold">✅ Logged out successfully!</Toast.Body>
+        <Toast.Body className="text-white fw-bold">
+          ✅ Logged out successfully!
+        </Toast.Body>
       </Toast>
     </Container>
   );

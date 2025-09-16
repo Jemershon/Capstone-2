@@ -1,30 +1,46 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Button, Modal, Form } from "react-bootstrap";
+import { Button, Modal, Form, Toast, Spinner } from "react-bootstrap";
 import axios from "axios";
+
+// Retry function for API calls
+const retry = async (fn, retries = 3, delay = 1000) => {
+  for (let i = 0; i < retries; i++) {
+    try {
+      return await fn();
+    } catch (err) {
+      if (i === retries - 1) throw err;
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+  }
+};
 
 export default function LandingPage() {
   const navigate = useNavigate();
-
   const [showModal, setShowModal] = useState(false);
   const [isLogin, setIsLogin] = useState(true);
   const [formData, setFormData] = useState({
     name: "",
     username: "",
+    email: "", // Added email field
     password: "",
     role: "Student",
   });
   const [error, setError] = useState("");
+  const [showToast, setShowToast] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const handleShowModal = () => {
     setShowModal(true);
     setError("");
+    setFormData({ name: "", username: "", email: "", password: "", role: "Student" });
+    setIsLogin(true);
   };
 
   const handleCloseModal = () => {
     setShowModal(false);
     setError("");
-    setFormData({ name: "", username: "", password: "", role: "Student" });
+    setFormData({ name: "", username: "", email: "", password: "", role: "Student" });
     setIsLogin(true);
   };
 
@@ -32,41 +48,72 @@ export default function LandingPage() {
     setFormData((f) => ({ ...f, [e.target.name]: e.target.value }));
   };
 
-  // --- Register with username ---
   const handleRegister = async (e) => {
     e.preventDefault();
-    console.log("Registering with:", formData); // ✅ debug log
+    if (!formData.name || !formData.username || !formData.email || !formData.password) { // Updated validation
+      setError("All fields are required");
+      setShowToast(true);
+      return;
+    }
+    setLoading(true);
     try {
-      await axios.post("http://localhost:4000/api/register", formData);
-      alert("Account created! Please login.");
+      const res = await retry(() =>
+        axios.post(`${process.env.REACT_APP_API_URL}/api/register`, formData)
+      );
+      console.log("Register response:", res.data); // Debug log
+      setError("Account created successfully! Please login.");
+      setShowToast(true);
       setIsLogin(true);
+      setFormData({ name: "", username: "", email: "", password: "", role: "Student" });
     } catch (err) {
-      setError(err.response?.data?.error || "Registration failed");
+      console.error("Register error:", err.response?.data || err.message);
+      setError(err.response?.data?.error || "Registration failed. Check inputs.");
+      setShowToast(true);
+    } finally {
+      setLoading(false);
     }
   };
 
-  // --- Login with username ---
   const handleLogin = async (e) => {
     e.preventDefault();
+    if (!formData.username || !formData.password) {
+      setError("Username and password are required");
+      setShowToast(true);
+      return;
+    }
+    setLoading(true);
     try {
-      const res = await axios.post("http://localhost:4000/api/login", {
-        username: formData.username,
-        password: formData.password,
-      });
-      localStorage.setItem("token", res.data.token); // Save JWT token
-      if (res.data.user.role === "Student") navigate("/student/dashboard");
-      else if (res.data.user.role === "Teacher") navigate("/teacher/dashboard");
-      else if (res.data.user.role === "Admin") navigate("/admin/dashboard");
+      const res = await retry(() =>
+        axios.post(`${process.env.REACT_APP_API_URL}/api/login`, {
+          username: formData.username,
+          password: formData.password,
+        })
+      );
+      console.log("Login response:", res.data); // Debug log
+      localStorage.setItem("token", res.data.token);
+      localStorage.setItem("username", formData.username);
+      setError("Login successful!");
+      setShowToast(true);
+      setTimeout(() => {
+        if (res.data.user.role === "Student") navigate("/student/dashboard");
+        else if (res.data.user.role === "Teacher") navigate("/teacher/dashboard");
+        else if (res.data.user.role === "Admin") navigate("/admin/dashboard");
+        else throw new Error("Invalid role");
+      }, 1000);
     } catch (err) {
-      setError(err.response?.data?.error || "Login failed");
+      console.error("Login error:", err.response?.data || err.message);
+      setError(err.response?.data?.error || "Login failed. Check credentials.");
+      setShowToast(true);
+    } finally {
+      setLoading(false);
     }
   };
 
-  // --- Always reset form when opening modal ---
   const openModalWithRole = (role) => {
-    setFormData({ name: "", username: "", password: "", role }); // ✅ reset
+    setFormData({ name: "", username: "", email: "", password: "", role });
     setIsLogin(false);
     setShowModal(true);
+    setError("");
   };
 
   return (
@@ -87,11 +134,12 @@ export default function LandingPage() {
           </a>
           <button
             className="btn btn-primary ms-3"
-            onClick={() => setShowModal(true)}
+            onClick={handleShowModal}
+            aria-label="Get started"
           >
             Get Started
           </button>
-          <Link to="/admin/dashboard" className="btn btn-outline-dark ms-2">
+          <Link to="/admin/dashboard" className="btn btn-outline-dark ms-2" aria-label="Admin dashboard">
             Admin
           </Link>
         </div>
@@ -109,12 +157,14 @@ export default function LandingPage() {
             <button
               className="btn btn-primary btn-lg me-3"
               onClick={() => openModalWithRole("Student")}
+              aria-label="Join as Student"
             >
               Join as Student
             </button>
             <button
               className="btn btn-outline-secondary btn-lg"
               onClick={() => openModalWithRole("Teacher")}
+              aria-label="Join as Teacher"
             >
               Join as Teacher
             </button>
@@ -174,13 +224,24 @@ export default function LandingPage() {
         </small>
       </footer>
 
-      {/* --- Modal for Login/Register --- */}
-      <Modal show={showModal} onHide={() => setShowModal(false)} centered>
+      {/* Modal for Login/Register */}
+      <Modal show={showModal} onHide={handleCloseModal} centered>
         <Modal.Header closeButton>
           <Modal.Title>{isLogin ? "Login" : "Create Account"}</Modal.Title>
         </Modal.Header>
         <Modal.Body>
-          {error && <p className="text-danger">{error}</p>}
+          {error && (
+            <Toast
+              show={showToast}
+              onClose={() => setShowToast(false)}
+              delay={5000}
+              autohide
+              bg={error.includes("successfully") ? "success" : "danger"}
+              style={{ position: "absolute", top: "10px", right: "10px", zIndex: 10000 }}
+            >
+              <Toast.Body className="text-white">{error}</Toast.Body>
+            </Toast>
+          )}
           <Form onSubmit={isLogin ? handleLogin : handleRegister}>
             {!isLogin && (
               <Form.Floating className="mb-3">
@@ -191,6 +252,8 @@ export default function LandingPage() {
                   placeholder="Name"
                   value={formData.name}
                   onChange={handleChange}
+                  required={!isLogin}
+                  aria-required={!isLogin}
                 />
                 <label htmlFor="floatingName">Name</label>
               </Form.Floating>
@@ -203,8 +266,23 @@ export default function LandingPage() {
                 placeholder="Username"
                 value={formData.username}
                 onChange={handleChange}
+                required
+                aria-required="true"
               />
               <label htmlFor="floatingUsername">Username</label>
+            </Form.Floating>
+            <Form.Floating className="mb-3">
+              <Form.Control
+                id="floatingEmail" // New ID
+                name="email" // New name
+                type="email"
+                placeholder="Email"
+                value={formData.email}
+                onChange={handleChange}
+                required={!isLogin} // Required only for registration
+                aria-required={!isLogin}
+              />
+              <label htmlFor="floatingEmail">Email</label> {/* New label */}
             </Form.Floating>
             <Form.Floating className="mb-3">
               <Form.Control
@@ -214,6 +292,8 @@ export default function LandingPage() {
                 placeholder="Password"
                 value={formData.password}
                 onChange={handleChange}
+                required
+                aria-required="true"
               />
               <label htmlFor="floatingPassword">Password</label>
             </Form.Floating>
@@ -224,13 +304,23 @@ export default function LandingPage() {
                 onChange={(e) =>
                   setFormData({ ...formData, role: e.target.value })
                 }
+                aria-label="Select role"
               >
                 <option value="Student">Student</option>
                 <option value="Teacher">Teacher</option>
               </Form.Select>
             )}
-            <Button type="submit" className="w-100">
-              {isLogin ? "Login" : "Create Account"}
+            <Button
+              type="submit"
+              className="w-100"
+              disabled={loading}
+              aria-label={isLogin ? "Login" : "Create Account"}
+            >
+              {loading ? (
+                <Spinner animation="border" size="sm" aria-label="Processing" />
+              ) : (
+                isLogin ? "Login" : "Create Account"
+              )}
             </Button>
           </Form>
           <div className="text-center mt-3">
@@ -242,6 +332,8 @@ export default function LandingPage() {
                     className="text-primary"
                     style={{ cursor: "pointer" }}
                     onClick={() => setIsLogin(false)}
+                    role="button"
+                    aria-label="Switch to create account"
                   >
                     Create one
                   </span>
@@ -253,6 +345,8 @@ export default function LandingPage() {
                     className="text-primary"
                     style={{ cursor: "pointer" }}
                     onClick={() => setIsLogin(true)}
+                    role="button"
+                    aria-label="Switch to login"
                   >
                     Login
                   </span>
