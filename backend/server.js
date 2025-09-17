@@ -55,6 +55,7 @@ const UserSchema = new mongoose.Schema({
   email: { type: String, unique: true },
   password: String,
   role: { type: String, enum: ["Student", "Teacher", "Admin"], default: "Student" },
+  creditPoints: { type: Number, default: 0 },
 });
 
 const ClassSchema = new mongoose.Schema({
@@ -66,34 +67,68 @@ const ClassSchema = new mongoose.Schema({
   bg: { type: String, default: "#FFF0D8" },
 });
 
-const AssignmentSchema = new mongoose.Schema({
-  class: String,
-  title: String,
-  description: String,
-  due: Date,
-  status: { type: String, default: "Pending" },
-  createdBy: String,
-  submittedFile: String,
-  studentUsername: String,
-});
+const AssignmentSchema = new mongoose.Schema(
+  {
+    class: String,
+    title: String,
+    description: String,
+    due: Date,
+    status: { type: String, default: "Pending" },
+    createdBy: String,
+    submittedFile: String,
+    studentUsername: String,
+  },
+  { timestamps: true }
+);
 
-const AnnouncementSchema = new mongoose.Schema({
-  teacher: String,
-  date: Date,
-  message: String,
-  likes: { type: Number, default: 0 },
-});
+const AnnouncementSchema = new mongoose.Schema(
+  {
+    teacher: String,
+    class: String,
+    date: Date,
+    message: String,
+    examId: { type: mongoose.Schema.Types.ObjectId, ref: "Exam" },
+    likes: { type: Number, default: 0 },
+  },
+  { timestamps: true }
+);
 
-const ExamSchema = new mongoose.Schema({
-  title: String,
-  description: String,
-  questions: [{ 
-    text: { type: String, required: true },
-    type: { type: String, enum: ['short', 'multiple'], default: 'short' },
-    options: { type: [String], default: [] }
-  }],
-  createdBy: String,
-});
+const ExamSchema = new mongoose.Schema(
+  {
+    title: String,
+    description: String,
+    class: String,
+    due: Date,
+    questions: [
+      {
+        text: { type: String, required: true },
+        type: { type: String, enum: ["short", "multiple"], default: "short" },
+        options: { type: [String], default: [] },
+        correctAnswer: { type: String, default: "" },
+      },
+    ],
+    createdBy: String,
+  },
+  { timestamps: true }
+);
+
+const ExamSubmissionSchema = new mongoose.Schema(
+  {
+    examId: { type: mongoose.Schema.Types.ObjectId, ref: "Exam" },
+    student: String,
+    answers: [
+      {
+        questionIndex: Number,
+        answer: String,
+      },
+    ],
+    rawScore: Number,
+    finalScore: Number,
+    creditsUsed: { type: Number, default: 0 },
+    submittedAt: { type: Date, default: Date.now },
+  },
+  { timestamps: true }
+);
 
 const GradeSchema = new mongoose.Schema({
   class: String,
@@ -107,6 +142,7 @@ const Class = mongoose.model("Class", ClassSchema);
 const Assignment = mongoose.model("Assignment", AssignmentSchema);
 const Announcement = mongoose.model("Announcement", AnnouncementSchema);
 const Exam = mongoose.model("Exam", ExamSchema);
+const ExamSubmission = mongoose.model("ExamSubmission", ExamSubmissionSchema);
 const Grade = mongoose.model("Grade", GradeSchema);
 
 // Middleware
@@ -216,6 +252,7 @@ app.post("/api/seed", async (req, res) => {
     const announcements = [
       {
         teacher: "teacher1",
+        class: "Math 101",
         date: new Date(),
         message: "Welcome to Math 101!",
         likes: 0,
@@ -514,11 +551,13 @@ app.post("/api/assignments", authenticateToken, requireTeacherOrAdmin, async (re
   }
 });
 
-// Teacher: Get announcements
+// Teacher: Get class-scoped announcements
 app.get("/api/announcements", authenticateToken, async (req, res) => {
   try {
-    const { page = 1, limit = 100 } = req.query;
-    const announcements = await Announcement.find({ teacher: req.user.username })
+    const { page = 1, limit = 100, className } = req.query;
+    const filter = { teacher: req.user.username };
+    if (className) filter.class = className;
+    const announcements = await Announcement.find(filter)
       .skip((page - 1) * limit)
       .limit(parseInt(limit));
     res.json(announcements);
@@ -528,30 +567,39 @@ app.get("/api/announcements", authenticateToken, async (req, res) => {
   }
 });
 
-// Teacher: Create announcement
+// Teacher: Create class-scoped announcement (optionally attach examId)
 app.post("/api/announcements", authenticateToken, requireTeacherOrAdmin, async (req, res) => {
   try {
-    const { message, date, teacher } = req.body;
-    if (!message || !date || !teacher) {
-      return res.status(400).json({ error: "Message, date, and teacher are required" });
+    const { message, date, teacher, class: className, examId } = req.body;
+    if (!message || !date || !teacher || !className) {
+      return res.status(400).json({ error: "Message, date, teacher, and class are required" });
     }
     if (req.user.role === "Teacher" && req.user.username !== teacher) {
       return res.status(403).json({ error: "You can only post announcements as yourself" });
     }
-    const announcement = new Announcement({ message, date, teacher, likes: 0 });
+    const cls = await Class.findOne({ name: className });
+    if (!cls) {
+      return res.status(404).json({ error: "Class not found" });
+    }
+    if (req.user.role === "Teacher" && cls.teacher !== req.user.username) {
+      return res.status(403).json({ error: "You are not authorized to post to this class" });
+    }
+    const announcement = new Announcement({ message, date, teacher, class: className, examId: examId || null, likes: 0 });
     await announcement.save();
-    res.status(201).json({ message: "Announcement created successfully" });
+    res.status(201).json({ message: "Announcement created successfully", announcement });
   } catch (err) {
     console.error("Create announcement error:", err);
     res.status(500).json({ error: "Failed to create announcement" });
   }
 });
 
-// Teacher: Get exams
+// Teacher: Get exams (optionally by class)
 app.get("/api/exams", authenticateToken, async (req, res) => {
   try {
-    const { page = 1, limit = 100 } = req.query;
-    const exams = await Exam.find({ createdBy: req.user.username })
+    const { page = 1, limit = 100, className } = req.query;
+    const filter = { createdBy: req.user.username };
+    if (className) filter.class = className;
+    const exams = await Exam.find(filter)
       .skip((page - 1) * limit)
       .limit(parseInt(limit));
     res.json(exams);
@@ -561,22 +609,170 @@ app.get("/api/exams", authenticateToken, async (req, res) => {
   }
 });
 
-// Teacher: Create exam
+// Teacher: Create exam (Google Form-like)
 app.post("/api/exams", authenticateToken, requireTeacherOrAdmin, async (req, res) => {
   try {
-    const { title, description, questions, createdBy } = req.body;
-    if (!title || !questions || !createdBy) {
-      return res.status(400).json({ error: "Title, questions, and creator are required" });
+    const { title, description, questions, createdBy, class: className, due } = req.body;
+    if (!title || !questions || !createdBy || !className) {
+      return res.status(400).json({ error: "Title, questions, class, and creator are required" });
     }
     if (req.user.role === "Teacher" && req.user.username !== createdBy) {
       return res.status(403).json({ error: "You can only create exams as yourself" });
     }
-    const exam = new Exam({ title, description, questions, createdBy });
+    const cls = await Class.findOne({ name: className });
+    if (!cls) {
+      return res.status(404).json({ error: "Class not found" });
+    }
+    if (req.user.role === "Teacher" && cls.teacher !== req.user.username) {
+      return res.status(403).json({ error: "You are not authorized to create exams for this class" });
+    }
+    const exam = new Exam({ title, description, class: className, due: due ? new Date(due) : null, questions, createdBy });
     await exam.save();
-    res.status(201).json({ message: "Exam created successfully" });
+    res.status(201).json({ message: "Exam created successfully", exam });
   } catch (err) {
     console.error("Create exam error:", err);
     res.status(500).json({ error: "Failed to create exam" });
+  }
+});
+
+// Teacher/Student: Get exam by id (teacher must own; student must be enrolled)
+app.get("/api/exams/:id", authenticateToken, async (req, res) => {
+  try {
+    const exam = await Exam.findById(req.params.id);
+    if (!exam) return res.status(404).json({ error: "Exam not found" });
+    // Teacher can view own exam
+    if (req.user.role === "Teacher" && exam.createdBy !== req.user.username) {
+      return res.status(403).json({ error: "Not authorized to view this exam" });
+    }
+    if (req.user.role === "Student") {
+      const cls = await Class.findOne({ name: exam.class });
+      if (!cls || !cls.students.includes(req.user.username)) {
+        return res.status(403).json({ error: "Not enrolled in this class" });
+      }
+    }
+    res.json(exam);
+  } catch (err) {
+    console.error("Get exam by id error:", err);
+    res.status(500).json({ error: "Failed to fetch exam" });
+  }
+});
+
+// Student: Submit exam answers; auto-score and save to grades
+app.post("/api/exams/:id/submit", authenticateToken, requireStudent, async (req, res) => {
+  try {
+    const { answers } = req.body; // [{questionIndex, answer}]
+    const exam = await Exam.findById(req.params.id);
+    if (!exam) return res.status(404).json({ error: "Exam not found" });
+    const cls = await Class.findOne({ name: exam.class });
+    if (!cls || !cls.students.includes(req.user.username)) {
+      return res.status(403).json({ error: "Not enrolled in this class" });
+    }
+    // Prevent multiple submissions
+    const existing = await ExamSubmission.findOne({ examId: exam._id, student: req.user.username });
+    if (existing) {
+      return res.status(400).json({ error: "You have already submitted this exam" });
+    }
+    // Score raw
+    let rawScore = 0;
+    const total = exam.questions.length;
+    for (const ans of answers || []) {
+      const q = exam.questions[ans.questionIndex];
+      if (!q) continue;
+      if (q.type === "multiple" && q.correctAnswer && ans.answer === q.correctAnswer) rawScore++;
+      if (q.type === "short" && q.correctAnswer && ans.answer?.trim().toLowerCase() === q.correctAnswer.trim().toLowerCase()) rawScore++;
+    }
+    // Determine early/late and adjust credit points
+    const now = new Date();
+    const user = await User.findOne({ username: req.user.username });
+    if (!user) return res.status(404).json({ error: "User not found" });
+    let creditDelta = 0;
+    if (exam.due) {
+      if (now < new Date(exam.due)) creditDelta = 1; else creditDelta = -2;
+    }
+    user.creditPoints = Math.max(0, (user.creditPoints || 0) + creditDelta);
+    // Fill missing points using available credits
+    const missing = Math.max(0, total - rawScore);
+    const creditsToUse = Math.min(user.creditPoints, missing);
+    const finalScore = rawScore + creditsToUse;
+    user.creditPoints = Math.max(0, user.creditPoints - creditsToUse);
+    await user.save();
+
+    const submission = new ExamSubmission({ examId: exam._id, student: req.user.username, answers, rawScore, finalScore, creditsUsed: creditsToUse });
+    await submission.save();
+    // Create grade entry for this exam with breakdown
+    const gradeEntry = new Grade({ class: exam.class, student: req.user.username, grade: `${finalScore}/${total}`, feedback: `Exam: ${exam.title} (raw ${rawScore}/${total}, +${creditsToUse} credits)` });
+    await gradeEntry.save();
+    res.json({ message: "Submission recorded", rawScore, finalScore, total, creditsUsed: creditsToUse, creditBalance: user.creditPoints });
+  } catch (err) {
+    console.error("Submit exam error:", err);
+    res.status(500).json({ error: "Failed to submit exam" });
+  }
+});
+
+// Teacher: List submissions for an exam
+app.get("/api/exams/:id/submissions", authenticateToken, requireTeacherOrAdmin, async (req, res) => {
+  try {
+    const exam = await Exam.findById(req.params.id);
+    if (!exam) return res.status(404).json({ error: "Exam not found" });
+    if (req.user.role === "Teacher" && exam.createdBy !== req.user.username) {
+      return res.status(403).json({ error: "Not authorized" });
+    }
+    const submissions = await ExamSubmission.find({ examId: exam._id });
+    res.json(submissions);
+  } catch (err) {
+    console.error("List submissions error:", err);
+    res.status(500).json({ error: "Failed to fetch submissions" });
+  }
+});
+
+// Common delete endpoints
+app.delete("/api/announcements/:id", authenticateToken, requireTeacherOrAdmin, async (req, res) => {
+  try {
+    const ann = await Announcement.findById(req.params.id);
+    if (!ann) return res.status(404).json({ error: "Announcement not found" });
+    if (req.user.role === "Teacher" && ann.teacher !== req.user.username) {
+      return res.status(403).json({ error: "Not authorized" });
+    }
+    await Announcement.deleteOne({ _id: ann._id });
+    res.json({ message: "Announcement deleted" });
+  } catch (err) {
+    console.error("Delete announcement error:", err);
+    res.status(500).json({ error: "Failed to delete announcement" });
+  }
+});
+
+app.delete("/api/exams/:id", authenticateToken, requireTeacherOrAdmin, async (req, res) => {
+  try {
+    const exam = await Exam.findById(req.params.id);
+    if (!exam) return res.status(404).json({ error: "Exam not found" });
+    if (req.user.role === "Teacher" && exam.createdBy !== req.user.username) {
+      return res.status(403).json({ error: "Not authorized" });
+    }
+    await Exam.deleteOne({ _id: exam._id });
+    await ExamSubmission.deleteMany({ examId: exam._id });
+    res.json({ message: "Exam and submissions deleted" });
+  } catch (err) {
+    console.error("Delete exam error:", err);
+    res.status(500).json({ error: "Failed to delete exam" });
+  }
+});
+
+app.delete("/api/grades/:id", authenticateToken, requireTeacherOrAdmin, async (req, res) => {
+  try {
+    const grade = await Grade.findById(req.params.id);
+    if (!grade) return res.status(404).json({ error: "Grade not found" });
+    // Teachers can delete grades for their classes only
+    if (req.user.role === "Teacher") {
+      const cls = await Class.findOne({ name: grade.class });
+      if (!cls || cls.teacher !== req.user.username) {
+        return res.status(403).json({ error: "Not authorized" });
+      }
+    }
+    await Grade.deleteOne({ _id: grade._id });
+    res.json({ message: "Grade deleted" });
+  } catch (err) {
+    console.error("Delete grade error:", err);
+    res.status(500).json({ error: "Failed to delete grade" });
   }
 });
 
@@ -708,13 +904,16 @@ app.put("/api/assignments/:id", authenticateToken, requireStudent, async (req, r
   }
 });
 
-// Student: Get announcements
+// Student: Get announcements for classes the student is enrolled in (optionally filtered by class)
 app.get("/api/student/announcements", authenticateToken, requireStudent, async (req, res) => {
   try {
-    const { page = 1, limit = 100 } = req.query;
-    const classes = await Class.find({ students: req.user.username }).select("teacher");
+    const { page = 1, limit = 100, className } = req.query;
+    const classes = await Class.find({ students: req.user.username }).select("teacher name");
     const teachers = classes.map(cls => cls.teacher);
-    const announcements = await Announcement.find({ teacher: { $in: teachers } })
+    const classNames = classes.map(cls => cls.name);
+    const filter = { teacher: { $in: teachers }, class: { $in: classNames } };
+    if (className) filter.class = className;
+    const announcements = await Announcement.find(filter)
       .skip((page - 1) * limit)
       .limit(parseInt(limit));
     res.json(announcements);

@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Button, Modal, Form, Toast, Spinner } from "react-bootstrap";
+import { Button, Modal, Form, Toast, Spinner, Navbar, Nav, Container } from "react-bootstrap";
 import axios from "axios";
 import { API_BASE_URL } from "../api";
 
@@ -119,32 +119,29 @@ export default function LandingPage() {
 
   return (
     <div className="d-flex flex-column min-vh-100 bg-light">
-      <header className="navbar navbar-expand-lg navbar-light bg-white shadow-sm px-4">
-        <a className="navbar-brand fw-bold text-primary fs-3" href="#">
-          NoteTify
-        </a>
-        <div className="ms-auto">
-          <a className="nav-link d-inline mx-2 text-dark" href="#features">
-            Features
-          </a>
-          <a className="nav-link d-inline mx-2 text-dark" href="#about">
-            About
-          </a>
-          <a className="nav-link d-inline mx-2 text-dark" href="#contact">
-            Contact
-          </a>
-          <button
-            className="btn btn-primary ms-3"
-            onClick={handleShowModal}
-            aria-label="Get started"
-          >
-            Get Started
-          </button>
-          <Link to="/admin/dashboard" className="btn btn-outline-dark ms-2" aria-label="Admin dashboard">
-            Admin
-          </Link>
-        </div>
-      </header>
+      <Navbar expand="lg" bg="white" variant="light" className="shadow-sm px-4">
+        <Container fluid>
+          <Navbar.Brand className="fw-bold text-primary fs-3">NoteTify</Navbar.Brand>
+          <Navbar.Toggle aria-controls="main-nav" />
+          <Navbar.Collapse id="main-nav">
+            <Nav className="ms-auto align-items-lg-center">
+              <Nav.Link href="#features" className="mx-2 text-dark">Features</Nav.Link>
+              <Nav.Link href="#about" className="mx-2 text-dark">About</Nav.Link>
+              <Nav.Link href="#contact" className="mx-2 text-dark">Contact</Nav.Link>
+              <Button
+                className="ms-lg-3"
+                onClick={handleShowModal}
+                aria-label="Get started"
+              >
+                Get Started
+              </Button>
+              <Button as={Link} to="/admin/dashboard" variant="outline-dark" className="ms-2" aria-label="Admin dashboard">
+                Admin
+              </Button>
+            </Nav>
+          </Navbar.Collapse>
+        </Container>
+      </Navbar>
 
       <section className="container flex-grow-1 d-flex flex-column flex-md-row align-items-center justify-content-between py-5">
         <div className="col-md-6">
@@ -237,7 +234,7 @@ export default function LandingPage() {
               onClose={() => setShowToast(false)}
               delay={5000}
               autohide
-              bg={error.includes("successfully") ? "success" : "danger"}
+              bg={error.toLowerCase().includes("success") ? "success" : "danger"}
               style={{ position: "absolute", top: "10px", right: "10px", zIndex: 10000 }}
             >
               <Toast.Body className="text-white">{error}</Toast.Body>

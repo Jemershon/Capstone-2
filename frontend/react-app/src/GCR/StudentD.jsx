@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import axios from "axios";
 import { API_BASE_URL } from "../api";
-import { NavLink, Link, Routes, Route, useNavigate } from "react-router-dom";
+import { NavLink, Link, Routes, Route, useNavigate, useParams } from "react-router-dom";
 import {
   Container,
   Row,
@@ -186,11 +186,9 @@ function DashboardAndClasses() {
                 <Button 
                   variant="primary" 
                   size="sm" 
+                  as={Link}
+                  to={`/student/class/${encodeURIComponent(cls.name)}`}
                   aria-label={`Enter class ${cls.name}`}
-                  onClick={() => {
-                    setError(`Entered class: ${cls.name}. Class code: ${cls.code}`);
-                    setShowToast(true);
-                  }}
                 >
                   Enter Class
                 </Button>
@@ -549,32 +547,47 @@ function Assignments() {
   );
 }
 
-// ================= Announcements / Stream =================
-function Announcements() {
+// ================= Student Class Stream (per class) =================
+function StudentClassStream() {
+  const { name } = useParams();
+  const className = decodeURIComponent(name || "");
   const [announcements, setAnnouncements] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showToast, setShowToast] = useState(false);
-  const [debugData, setDebugData] = useState(null);
+  const [showExamModal, setShowExamModal] = useState(false);
+  const [activeExam, setActiveExam] = useState(null);
+  const [answers, setAnswers] = useState([]);
+  const [submitting, setSubmitting] = useState(false);
+  const [submittedExamIds, setSubmittedExamIds] = useState({});
 
   const fetchAnnouncements = useCallback(async () => {
     setLoading(true);
     try {
       const res = await retry(() =>
-        axios.get(`${API_BASE_URL}/api/student/announcements?page=1&limit=100`, {
+        axios.get(`${API_BASE_URL}/api/student/announcements?page=1&limit=100&className=${encodeURIComponent(className)}`, {
           headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
         })
       );
       setAnnouncements(res.data || []);
-      setDebugData({ announcements: res.data });
     } catch (err) {
       console.error("Fetch announcements error:", err.response?.data || err.message);
-      setError(err.response?.data?.error || "Failed to load announcements. Check network or login status.");
+      setError(err.response?.data?.error || "Failed to load class stream.");
       setShowToast(true);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [className]);
+
+  const checkSubmitted = useCallback(async (examId) => {
+    try {
+      // try to fetch exam submissions by this student; endpoint denies listing for students, so infer by 400 on submit attempt
+      // simpler approach: query exam and ignore; backend prevents retake on submit
+      return submittedExamIds[examId] === true;
+    } catch {
+      return false;
+    }
+  }, [submittedExamIds]);
 
   useEffect(() => {
     let cancelled = false;
@@ -584,18 +597,61 @@ function Announcements() {
     };
   }, [fetchAnnouncements]);
 
+  const openTakeExam = async (examId) => {
+    if (await checkSubmitted(examId)) return; // block if already submitted
+    try {
+      const res = await retry(() =>
+        axios.get(`${API_BASE_URL}/api/exams/${examId}`, {
+          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+        })
+      );
+      const exam = res.data;
+      setActiveExam(exam);
+      setAnswers(exam.questions.map(() => ""));
+      setShowExamModal(true);
+    } catch (err) {
+      console.error("Load exam error:", err.response?.data || err.message);
+      setError(err.response?.data?.error || "Failed to load exam.");
+      setShowToast(true);
+    }
+  };
+
+  const submitExam = async () => {
+    if (!activeExam) return;
+    setSubmitting(true);
+    try {
+      const payload = { answers: answers.map((ans, idx) => ({ questionIndex: idx, answer: ans })) };
+      await retry(() =>
+        axios.post(`${API_BASE_URL}/api/exams/${activeExam._id}/submit`, payload, {
+          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+        })
+      );
+      setShowExamModal(false);
+      setActiveExam(null);
+      setAnswers([]);
+      setSubmittedExamIds((prev) => ({ ...prev, [activeExam._id]: true }));
+      await fetchAnnouncements();
+    } catch (err) {
+      console.error("Submit exam error:", err.response?.data || err.message);
+      setError(err.response?.data?.error || "Failed to submit exam.");
+      setShowToast(true);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="text-center py-4">
-        <Spinner animation="border" role="status" aria-label="Loading announcements" />
-        <p>Loading announcements...</p>
+        <Spinner animation="border" role="status" aria-label="Loading class stream" />
+        <p>Loading class stream...</p>
       </div>
     );
   }
 
   return (
     <div>
-      <h2 className="fw-bold mb-3">Announcements / Stream</h2>
+      <h2 className="fw-bold mb-3">{className} — Stream</h2>
       {error && (
         <Toast
           show={showToast}
@@ -608,40 +664,84 @@ function Announcements() {
           <Toast.Body className="text-white">{error}</Toast.Body>
         </Toast>
       )}
-      {debugData && (
-        <Alert variant="info" className="mb-4">
-          <strong>Debug Info:</strong> Announcements: {JSON.stringify(debugData.announcements.length)} items
-        </Alert>
+
+      {announcements.length === 0 ? (
+        <Card className="p-4 text-center text-muted">No posts yet.</Card>
+      ) : (
+        announcements.map((a) => (
+          <Card key={a._id || a.id} className="mb-3">
+            <Card.Body>
+              <div className="d-flex justify-content-between align-items-start">
+                <div>
+                  <div className="fw-bold">{a.teacher}</div>
+                  <div className="text-muted" style={{ fontSize: 12 }}>{new Date(a.date).toLocaleString()}</div>
+                </div>
+                {a.examId && submittedExamIds[a.examId] && (
+                  <span className="badge bg-success">Submitted</span>
+                )}
+              </div>
+              <div className="mt-2" style={{ whiteSpace: "pre-wrap" }}>{a.message}</div>
+              {a.examId && !submittedExamIds[a.examId] && (
+                <div className="mt-3">
+                  <Button variant="primary" onClick={() => openTakeExam(a.examId)} aria-label="Take exam">Take Exam</Button>
+                </div>
+              )}
+            </Card.Body>
+          </Card>
+        ))
       )}
-      <Table striped bordered hover responsive style={{ tableLayout: "fixed" }}>
-        <thead>
-          <tr>
-            <th style={{ width: "20%" }}>Teacher</th>
-            <th style={{ width: "20%" }}>Date</th>
-            <th style={{ width: "50%" }}>Message</th>
-            <th style={{ width: "10%" }}>Likes</th>
-          </tr>
-        </thead>
-        <tbody>
-          {announcements.length === 0 && (
-            <tr>
-              <td colSpan={4} className="text-center text-muted">
-                No announcements found. Check with your teacher.
-              </td>
-            </tr>
+
+      <Modal show={showExamModal} onHide={() => setShowExamModal(false)} centered size="lg">
+        <Modal.Header closeButton>
+          <Modal.Title>{activeExam ? activeExam.title : "Exam"}</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {activeExam && (
+            <>
+              {activeExam.description && <p className="text-muted">{activeExam.description}</p>}
+              {activeExam.questions.map((q, idx) => (
+                <div key={idx} className="mb-3 p-3 border rounded">
+                  <div className="fw-bold mb-2">Q{idx + 1}. {q.text}</div>
+                  {q.type === "multiple" ? (
+                    <div>
+                      {(q.options || []).map((opt, i) => (
+                        <Form.Check
+                          key={i}
+                          type="radio"
+                          id={`q${idx}-opt${i}`}
+                          name={`q${idx}`}
+                          label={opt}
+                          checked={answers[idx] === opt}
+                          onChange={() => {
+                            const next = [...answers];
+                            next[idx] = opt;
+                            setAnswers(next);
+                          }}
+                        />
+                      ))}
+                    </div>
+                  ) : (
+                    <Form.Control
+                      type="text"
+                      value={answers[idx]}
+                      onChange={(e) => {
+                        const next = [...answers];
+                        next[idx] = e.target.value;
+                        setAnswers(next);
+                      }}
+                      placeholder="Your answer"
+                    />
+                  )}
+                </div>
+              ))}
+            </>
           )}
-          {announcements.map((a) => (
-            <tr key={a._id || a.id}>
-              <td>{a.teacher}</td>
-              <td>{new Date(a.date).toLocaleDateString()}</td>
-              <td style={{ whiteSpace: "pre-wrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                {a.message}
-              </td>
-              <td>{a.likes}</td>
-            </tr>
-          ))}
-        </tbody>
-      </Table>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowExamModal(false)}>Cancel</Button>
+          <Button variant="success" onClick={submitExam} disabled={submitting}>{submitting ? "Submitting..." : "Submit"}</Button>
+        </Modal.Footer>
+      </Modal>
     </div>
   );
 }
@@ -838,6 +938,13 @@ function Profile() {
           <strong>Role:</strong> {profile.role || "N/A"}
         </p>
       </Card>
+      <Card className="p-3 mt-3">
+        <h5 className="mb-2">Credit Points</h5>
+        <p className="mb-0" style={{ fontSize: 24 }}>
+          <strong>{profile.creditPoints ?? 0}</strong>
+        </p>
+        <small className="text-muted">Earn +1 for early submit, −2 for late. Used to fill exam gaps.</small>
+      </Card>
     </div>
   );
 }
@@ -919,30 +1026,8 @@ export default function StudentDashboard() {
             >
               🏠 Dashboard & Classes
             </Nav.Link>
-            <Nav.Link
-              as={NavLink}
-              to="/student/assignments"
-              className="nav-link-custom"
-              aria-label="Assignments"
-            >
-              📝 Assignments
-            </Nav.Link>
-            <Nav.Link
-              as={NavLink}
-              to="/student/grades"
-              className="nav-link-custom"
-              aria-label="Grades"
-            >
-              📊 Grades
-            </Nav.Link>
-            <Nav.Link
-              as={NavLink}
-              to="/student/announcements"
-              className="nav-link-custom"
-              aria-label="Announcements"
-            >
-              📢 Announcements / Stream
-            </Nav.Link>
+            {/* Removed Assignments and Announcements links for per-class stream */}
+            {/* Remove Grades from student sidebar */}
             <Nav.Link
               as={NavLink}
               to="/student/profile"
@@ -975,30 +1060,8 @@ export default function StudentDashboard() {
               >
                 🏠 Dashboard & Classes
               </Nav.Link>
-              <Nav.Link
-                as={Link}
-                to="/student/assignments"
-                className="text-white"
-                aria-label="Assignments"
-              >
-                📝 Assignments
-              </Nav.Link>
-              <Nav.Link
-                as={Link}
-                to="/student/grades"
-                className="text-white"
-                aria-label="Grades"
-              >
-                📊 Grades
-              </Nav.Link>
-              <Nav.Link
-                as={Link}
-                to="/student/announcements"
-                className="text-white"
-                aria-label="Announcements"
-              >
-                📢 Announcements / Stream
-              </Nav.Link>
+              {/* Removed Assignments and Announcements from mobile nav */}
+              {/* Remove Grades from student mobile nav */}
               <Nav.Link
                 as={Link}
                 to="/student/profile"
@@ -1022,9 +1085,9 @@ export default function StudentDashboard() {
         <Col md={10} className="main-content-responsive">
           <Routes>
             <Route path="dashboard" element={<DashboardAndClasses />} />
-            <Route path="assignments" element={<Assignments />} />
-            <Route path="grades" element={<Grades />} />
-            <Route path="announcements" element={<Announcements />} />
+            {/* Removed global Assignments and Announcements; use class stream */}
+            {/* Removed Grades route so only teachers see grades */}
+            <Route path="class/:name" element={<StudentClassStream />} />
             <Route path="profile" element={<Profile />} />
           </Routes>
         </Col>

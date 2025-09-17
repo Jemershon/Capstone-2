@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import axios from "axios";
 import { API_BASE_URL } from "../api";
-import { NavLink, Link, Routes, Route, useNavigate } from "react-router-dom";
+import { NavLink, Link, Routes, Route, useNavigate, useParams } from "react-router-dom";
 import {
   Container,
   Row,
@@ -32,9 +32,12 @@ const retry = async (fn, retries = 3, delay = 1000) => {
 
 // ================= Dashboard & Classes =================
 function DashboardAndClasses() {
+  const navigate = useNavigate();
   const [classes, setClasses] = useState([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [classData, setClassData] = useState({ name: "", section: "", code: "", teacher: "", bg: "#FFF0D8" });
+  const [selectedClass, setSelectedClass] = useState(null);
+  const [showManageModal, setShowManageModal] = useState(false);
   const [user, setUser] = useState({ username: "" });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -184,10 +187,7 @@ function DashboardAndClasses() {
                   variant="primary" 
                   size="sm" 
                   aria-label={`Manage class ${cls.name}`}
-                  onClick={() => {
-                    setError(`Managing class: ${cls.name}. Students: ${cls.students.length}`);
-                    setShowToast(true);
-                  }}
+                  onClick={() => navigate(`/teacher/class/${encodeURIComponent(cls.name)}`)}
                 >
                   Manage Class
                 </Button>
@@ -196,6 +196,7 @@ function DashboardAndClasses() {
           </Col>
         ))}
       </Row>
+      {/* Removed inline Manage Class modal; navigation goes to per-class stream */}
       <Modal
         show={showCreateModal}
         onHide={() => {
@@ -293,6 +294,310 @@ function DashboardAndClasses() {
   );
 }
 
+// ================= Teacher Class Stream (per class) =================
+function TeacherClassStream() {
+  const { name } = useParams();
+  const className = decodeURIComponent(name || "");
+  const [announcements, setAnnouncements] = useState([]);
+  const [message, setMessage] = useState("");
+  const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
+  const [loading, setLoading] = useState(true);
+  const [posting, setPosting] = useState(false);
+  const [error, setError] = useState("");
+  const [showToast, setShowToast] = useState(false);
+  const [showExamModal, setShowExamModal] = useState(false);
+  const [examData, setExamData] = useState({ title: "", description: "", questions: [{ text: "", type: "short", options: [], correctAnswer: "" }] });
+
+  const fetchAnnouncements = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await retry(() =>
+        axios.get(`${API_BASE_URL}/api/announcements?page=1&limit=100&className=${encodeURIComponent(className)}`, {
+          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+        })
+      );
+      setAnnouncements(res.data || []);
+    } catch (err) {
+      console.error("Fetch announcements error:", err.response?.data || err.message);
+      setError(err.response?.data?.error || "Failed to load class stream.");
+      setShowToast(true);
+    } finally {
+      setLoading(false);
+    }
+  }, [className]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!cancelled) fetchAnnouncements();
+    return () => {
+      cancelled = true;
+    };
+  }, [fetchAnnouncements]);
+
+  const handlePost = async () => {
+    if (!message.trim()) return;
+    setPosting(true);
+    try {
+      await retry(() =>
+        axios.post(
+          `${API_BASE_URL}/api/announcements`,
+          { message, date, teacher: localStorage.getItem("username"), class: className },
+          { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
+        )
+      );
+      setMessage("");
+      await fetchAnnouncements();
+    } catch (err) {
+      console.error("Post announcement error:", err.response?.data || err.message);
+      setError(err.response?.data?.error || "Failed to post.");
+      setShowToast(true);
+    } finally {
+      setPosting(false);
+    }
+  };
+
+  const handleAddQuestion = () => {
+    setExamData({
+      ...examData,
+      questions: [...examData.questions, { text: "", type: "short", options: [], correctAnswer: "" }],
+    });
+  };
+
+  const handleQuestionChange = (index, field, value) => {
+    const newQuestions = [...examData.questions];
+    newQuestions[index] = { ...newQuestions[index], [field]: value };
+    setExamData({ ...examData, questions: newQuestions });
+  };
+
+  const handleCreateExam = async () => {
+    if (!examData.title || examData.questions.some((q) => !q.text)) {
+      setError("Title and question text are required");
+      setShowToast(true);
+      return;
+    }
+    try {
+      const createRes = await retry(() =>
+        axios.post(
+          `${API_BASE_URL}/api/exams`,
+          { ...examData, class: className, createdBy: localStorage.getItem("username") },
+          { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
+        )
+      );
+      const createdExam = createRes.data?.exam;
+      // Announce the new exam to the stream with examId
+      await retry(() =>
+        axios.post(
+          `${API_BASE_URL}/api/announcements`,
+          { message: `New exam posted: ${examData.title}`, date: new Date().toISOString().split("T")[0], teacher: localStorage.getItem("username"), class: className, examId: createdExam?._id },
+          { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
+        )
+      );
+      setShowExamModal(false);
+      setExamData({ title: "", description: "", questions: [{ text: "", type: "short", options: [], correctAnswer: "" }] });
+      await fetchAnnouncements();
+    } catch (err) {
+      console.error("Create exam error:", err.response?.data || err.message);
+      setError(err.response?.data?.error || "Failed to create exam.");
+      setShowToast(true);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="text-center py-4">
+        <Spinner animation="border" role="status" aria-label="Loading class stream" />
+        <p>Loading class stream...</p>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <h2 className="fw-bold mb-3">{className} — Stream</h2>
+      {error && (
+        <Toast
+          show={showToast}
+          onClose={() => setShowToast(false)}
+          delay={5000}
+          autohide
+          bg="danger"
+          style={{ position: "fixed", top: "20px", right: "20px", zIndex: 10000 }}
+        >
+          <Toast.Body className="text-white">{error}</Toast.Body>
+        </Toast>
+      )}
+      <Card className="p-3 mb-3">
+        <Form>
+          <Form.Group className="mb-2">
+            <Form.Label className="fw-bold">Share something with your class</Form.Label>
+            <Form.Control as="textarea" rows={3} value={message} onChange={(e) => setMessage(e.target.value)} placeholder="Announce something to your class" />
+          </Form.Group>
+          <div className="d-flex gap-2 align-items-center">
+            <Form.Control style={{ maxWidth: 200 }} type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+            <Button onClick={handlePost} disabled={!message.trim() || posting}>
+              {posting ? "Posting..." : "Post"}
+            </Button>
+            <Button variant="outline-primary" onClick={() => setShowExamModal(true)} aria-label="Create exam for this class">
+              + Create Exam
+            </Button>
+          </div>
+        </Form>
+      </Card>
+
+      {announcements.length === 0 ? (
+        <Card className="p-4 text-center text-muted">No posts yet. Start the conversation!</Card>
+      ) : (
+        announcements.map((a) => (
+          <Card key={a._id || a.id} className="mb-3">
+            <Card.Body>
+              <div className="d-flex justify-content-between align-items-start">
+                <div>
+                  <div className="fw-bold">{a.teacher}</div>
+                  <div className="text-muted" style={{ fontSize: 12 }}>{new Date(a.date).toLocaleString()}</div>
+                </div>
+                <div className="d-flex gap-2">
+                  <Button
+                    variant="outline-danger"
+                    size="sm"
+                    onClick={async () => {
+                      try {
+                        await retry(() => axios.delete(`${API_BASE_URL}/api/announcements/${a._id || a.id}`, { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }));
+                        await fetchAnnouncements();
+                      } catch (err) {
+                        console.error("Delete announcement error:", err.response?.data || err.message);
+                        setError(err.response?.data?.error || "Failed to delete post.");
+                        setShowToast(true);
+                      }
+                    }}
+                  >
+                    Delete
+                  </Button>
+                </div>
+              </div>
+              <div className="mt-2" style={{ whiteSpace: "pre-wrap" }}>{a.message}</div>
+            </Card.Body>
+          </Card>
+        ))
+      )}
+
+      {/* Create Exam Modal */}
+      <Modal
+        show={showExamModal}
+        onHide={() => setShowExamModal(false)}
+        centered
+      >
+        <Modal.Header closeButton>
+          <Modal.Title>Create Exam for {className}</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Form>
+            <Form.Group className="mb-3">
+              <Form.Label>Title</Form.Label>
+              <Form.Control
+                type="text"
+                value={examData.title}
+                onChange={(e) => setExamData({ ...examData, title: e.target.value })}
+                placeholder="e.g., Midterm"
+                required
+                aria-required="true"
+              />
+            </Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Label>Description</Form.Label>
+              <Form.Control
+                as="textarea"
+                rows={3}
+                value={examData.description}
+                onChange={(e) => setExamData({ ...examData, description: e.target.value })}
+                placeholder="Describe the exam"
+              />
+            </Form.Group>
+            <Form.Group className="mb-3" style={{ maxWidth: 240 }}>
+              <Form.Label>Due Date (optional)</Form.Label>
+              <Form.Control
+                type="date"
+                value={examData.due || ""}
+                onChange={(e) => setExamData({ ...examData, due: e.target.value })}
+              />
+            </Form.Group>
+            {examData.questions.map((q, idx) => (
+              <div key={idx} className="mb-3 p-3 border rounded">
+                <Form.Group className="mb-2">
+                  <Form.Label>Question {idx + 1}</Form.Label>
+                  <Form.Control
+                    type="text"
+                    value={q.text}
+                    onChange={(e) => handleQuestionChange(idx, "text", e.target.value)}
+                    placeholder="Enter question"
+                    required
+                    aria-required="true"
+                  />
+                </Form.Group>
+                <Form.Group className="mb-2">
+                  <Form.Label>Type</Form.Label>
+                  <Form.Select
+                    value={q.type}
+                    onChange={(e) => handleQuestionChange(idx, "type", e.target.value)}
+                    aria-label={`Question ${idx + 1} type`}
+                  >
+                    <option value="short">Short Answer</option>
+                    <option value="multiple">Multiple Choice</option>
+                  </Form.Select>
+                </Form.Group>
+                {q.type === "multiple" && (
+                  <>
+                    <Form.Group className="mb-2">
+                      <Form.Label>Options (one per line)</Form.Label>
+                      <Form.Control
+                        as="textarea"
+                        rows={2}
+                        value={(q.options || []).join("\n")}
+                        onChange={(e) => handleQuestionChange(idx, "options", e.target.value.split("\n"))}
+                        placeholder={"Option A\nOption B\nOption C"}
+                      />
+                    </Form.Group>
+                    <Form.Group className="mb-2">
+                      <Form.Label>Correct Answer</Form.Label>
+                      <Form.Select
+                        value={q.correctAnswer || ""}
+                        onChange={(e) => handleQuestionChange(idx, "correctAnswer", e.target.value)}
+                      >
+                        <option value="">Select correct answer</option>
+                        {(q.options || []).map((opt, i) => (
+                          <option key={i} value={opt}>{opt}</option>
+                        ))}
+                      </Form.Select>
+                    </Form.Group>
+                  </>
+                )}
+                {q.type === "short" && (
+                  <Form.Group className="mb-2">
+                    <Form.Label>Correct Answer (optional)</Form.Label>
+                    <Form.Control
+                      type="text"
+                      value={q.correctAnswer || ""}
+                      onChange={(e) => handleQuestionChange(idx, "correctAnswer", e.target.value)}
+                      placeholder="Enter correct answer for auto-grading"
+                    />
+                  </Form.Group>
+                )}
+                <div className="d-flex justify-content-end">
+                  <Button variant="outline-secondary" size="sm" onClick={handleAddQuestion} aria-label="Add another question">
+                    + Add Question
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </Form>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowExamModal(false)}>Cancel</Button>
+          <Button variant="success" onClick={handleCreateExam} disabled={!examData.title || examData.questions.some((q) => !q.text)}>Create</Button>
+        </Modal.Footer>
+      </Modal>
+    </div>
+  );
+}
 // ================= Assignments =================
 function Assignments() {
   const [assignments, setAssignments] = useState([]);
@@ -711,7 +1016,8 @@ function Announcements() {
 function Exams() {
   const [exams, setExams] = useState([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [examData, setExamData] = useState({ title: "", description: "", questions: [{ text: "", type: "short", options: [] }] });
+  const [examData, setExamData] = useState({ title: "", description: "", class: "", questions: [{ text: "", type: "short", options: [], correctAnswer: "" }] });
+  const [classes, setClasses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showToast, setShowToast] = useState(false);
@@ -720,13 +1026,21 @@ function Exams() {
   const fetchExams = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await retry(() =>
-        axios.get(`${API_BASE_URL}/api/exams?page=1&limit=100`, {
-          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-        })
-      );
-      setExams(res.data || []);
-      setDebugData({ exams: res.data });
+      const [examsRes, classesRes] = await Promise.all([
+        retry(() =>
+          axios.get(`${API_BASE_URL}/api/exams?page=1&limit=100`, {
+            headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+          })
+        ),
+        retry(() =>
+          axios.get(`${API_BASE_URL}/api/classes?page=1&limit=100`, {
+            headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+          })
+        ),
+      ]);
+      setExams(examsRes.data || []);
+      setClasses(classesRes.data || []);
+      setDebugData({ exams: examsRes.data, classes: classesRes.data });
     } catch (err) {
       console.error("Fetch exams error:", err.response?.data || err.message);
       setError(err.response?.data?.error || "Failed to load exams. Check network or login status.");
@@ -747,7 +1061,7 @@ function Exams() {
   const handleAddQuestion = () => {
     setExamData({
       ...examData,
-      questions: [...examData.questions, { text: "", type: "short", options: [] }],
+      questions: [...examData.questions, { text: "", type: "short", options: [], correctAnswer: "" }],
     });
   };
 
@@ -758,8 +1072,8 @@ function Exams() {
   };
 
   const handleCreateExam = async () => {
-    if (!examData.title || examData.questions.some((q) => !q.text)) {
-      setError("Title and question text are required");
+    if (!examData.title || !examData.class || examData.questions.some((q) => !q.text)) {
+      setError("Title, class, and question text are required");
       setShowToast(true);
       return;
     }
@@ -773,7 +1087,7 @@ function Exams() {
       );
       await fetchExams();
       setShowCreateModal(false);
-      setExamData({ title: "", description: "", questions: [{ text: "", type: "short", options: [] }] });
+      setExamData({ title: "", description: "", class: "", questions: [{ text: "", type: "short", options: [], correctAnswer: "" }] });
       setError("Exam created successfully!");
       setShowToast(true);
     } catch (err) {
@@ -823,8 +1137,9 @@ function Exams() {
       <Table striped bordered hover responsive style={{ tableLayout: "fixed" }}>
         <thead>
           <tr>
-            <th style={{ width: "25%" }}>Title</th>
-            <th style={{ width: "40%" }}>Description</th>
+            <th style={{ width: "20%" }}>Title</th>
+            <th style={{ width: "25%" }}>Description</th>
+            <th style={{ width: "20%" }}>Class</th>
             <th style={{ width: "20%" }}>Created By</th>
             <th style={{ width: "15%" }}>Questions</th>
           </tr>
@@ -832,7 +1147,7 @@ function Exams() {
         <tbody>
           {exams.length === 0 && (
             <tr>
-              <td colSpan={4} className="text-center text-muted">
+              <td colSpan={5} className="text-center text-muted">
                 No exams found. Create an exam to get started!
               </td>
             </tr>
@@ -843,6 +1158,7 @@ function Exams() {
               <td style={{ whiteSpace: "pre-wrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                 {e.description}
               </td>
+              <td>{e.class}</td>
               <td>{e.createdBy}</td>
               <td>{e.questions.length}</td>
             </tr>
@@ -853,7 +1169,7 @@ function Exams() {
         show={showCreateModal}
         onHide={() => {
           setShowCreateModal(false);
-          setExamData({ title: "", description: "", questions: [{ text: "", type: "short", options: [] }] });
+          setExamData({ title: "", description: "", class: "", questions: [{ text: "", type: "short", options: [], correctAnswer: "" }] });
           setError("");
         }}
         centered
@@ -863,6 +1179,22 @@ function Exams() {
         </Modal.Header>
         <Modal.Body>
           <Form>
+            <Form.Group className="mb-3">
+              <Form.Label>Class</Form.Label>
+              <Form.Select
+                value={examData.class}
+                onChange={(e) => setExamData({ ...examData, class: e.target.value })}
+                required
+                aria-required="true"
+              >
+                <option value="">Select Class</option>
+                {classes.map((cls) => (
+                  <option key={cls._id || cls.id} value={cls.name}>
+                    {cls.name}
+                  </option>
+                ))}
+              </Form.Select>
+            </Form.Group>
             <Form.Group className="mb-3">
               <Form.Label>Title</Form.Label>
               <Form.Control
@@ -908,11 +1240,50 @@ function Exams() {
                     <option value="multiple">Multiple Choice</option>
                   </Form.Select>
                 </Form.Group>
+                {q.type === "multiple" && (
+                  <>
+                    <Form.Group className="mb-2">
+                      <Form.Label>Options (one per line)</Form.Label>
+                      <Form.Control
+                        as="textarea"
+                        rows={2}
+                        value={(q.options || []).join("\n")}
+                        onChange={(e) => handleQuestionChange(idx, "options", e.target.value.split("\n"))}
+                        placeholder={"Option A\nOption B\nOption C"}
+                      />
+                    </Form.Group>
+                    <Form.Group className="mb-2">
+                      <Form.Label>Correct Answer</Form.Label>
+                      <Form.Select
+                        value={q.correctAnswer || ""}
+                        onChange={(e) => handleQuestionChange(idx, "correctAnswer", e.target.value)}
+                      >
+                        <option value="">Select correct answer</option>
+                        {(q.options || []).map((opt, i) => (
+                          <option key={i} value={opt}>{opt}</option>
+                        ))}
+                      </Form.Select>
+                    </Form.Group>
+                  </>
+                )}
+                {q.type === "short" && (
+                  <Form.Group className="mb-2">
+                    <Form.Label>Correct Answer (optional)</Form.Label>
+                    <Form.Control
+                      type="text"
+                      value={q.correctAnswer || ""}
+                      onChange={(e) => handleQuestionChange(idx, "correctAnswer", e.target.value)}
+                      placeholder="Enter correct answer for auto-grading"
+                    />
+                  </Form.Group>
+                )}
+                <div className="d-flex justify-content-end">
+                  <Button variant="outline-secondary" size="sm" onClick={handleAddQuestion} aria-label="Add another question">
+                    + Add Question
+                  </Button>
+                </div>
               </div>
             ))}
-            <Button variant="outline-secondary" onClick={handleAddQuestion} aria-label="Add another question">
-              + Add Question
-            </Button>
           </Form>
         </Modal.Body>
         <Modal.Footer>
@@ -920,7 +1291,7 @@ function Exams() {
             variant="secondary"
             onClick={() => {
               setShowCreateModal(false);
-              setExamData({ title: "", description: "", questions: [{ text: "", type: "short", options: [] }] });
+              setExamData({ title: "", description: "", class: "", questions: [{ text: "", type: "short", options: [], correctAnswer: "" }] });
               setError("");
             }}
           >
@@ -929,7 +1300,7 @@ function Exams() {
           <Button
             variant="success"
             onClick={handleCreateExam}
-            disabled={!examData.title || examData.questions.some((q) => !q.text)}
+            disabled={!examData.title || !examData.class || examData.questions.some((q) => !q.text)}
             aria-label="Create exam"
           >
             Create
@@ -956,18 +1327,20 @@ function Grades() {
     setLoading(true);
     try {
       const headers = { Authorization: `Bearer ${localStorage.getItem("token")}` };
-      const [gradesRes, classesRes, usersRes] = await Promise.all([
+      const [gradesRes, classesRes] = await Promise.all([
         retry(() => axios.get(`${API_BASE_URL}/api/grades?page=1&limit=100`, { headers })),
         retry(() => axios.get(`${API_BASE_URL}/api/classes?page=1&limit=100`, { headers })),
-        retry(() => axios.get(`${API_BASE_URL}/api/admin/users?page=1&limit=100`, { headers })),
       ]);
       setGrades(gradesRes.data || []);
       setClasses(classesRes.data || []);
-      setStudents(usersRes.data.filter((u) => u.role === "Student") || []);
-      setDebugData({ grades: gradesRes.data, classes: classesRes.data, students: usersRes.data });
+      // Derive students from classes (usernames)
+      const usernameSet = new Set();
+      (classesRes.data || []).forEach((cls) => (cls.students || []).forEach((u) => usernameSet.add(u)));
+      setStudents(Array.from(usernameSet));
+      setDebugData({ grades: gradesRes.data, classes: classesRes.data });
     } catch (err) {
       console.error("Fetch grades error:", err.response?.data || err.message);
-      setError(err.response?.data?.error || "Failed to load grades, classes, or students. Check network or login status.");
+      setError(err.response?.data?.error || "Failed to load grades or classes. Check network or login status.");
       setShowToast(true);
     } finally {
       setLoading(false);
@@ -1034,46 +1407,67 @@ function Grades() {
       )}
       {debugData && (
         <Alert variant="info" className="mb-4">
-          <strong>Debug Info:</strong> Grades: {JSON.stringify(debugData.grades.length)} items, Classes: {JSON.stringify(debugData.classes.length)}, Students: {JSON.stringify(debugData.students.length)}
+          <strong>Debug Info:</strong> Grades: {JSON.stringify(debugData.grades.length)} items, Classes: {JSON.stringify(debugData.classes.length)}
         </Alert>
       )}
       <Button
         variant="outline-primary"
-        className="mb-3"
+        className="mb-3 me-2"
         onClick={() => setShowCreateModal(true)}
         aria-label="Assign new grade"
       >
         + Assign Grade
       </Button>
-      <Table striped bordered hover responsive style={{ tableLayout: "fixed" }}>
-        <thead>
-          <tr>
-            <th style={{ width: "30%" }}>Class</th>
-            <th style={{ width: "20%" }}>Student</th>
-            <th style={{ width: "15%" }}>Grade</th>
-            <th style={{ width: "35%" }}>Feedback</th>
-          </tr>
-        </thead>
-        <tbody>
-          {grades.length === 0 && (
-            <tr>
-              <td colSpan={4} className="text-center text-muted">
-                No grades found. Assign a grade to get started!
-              </td>
-            </tr>
-          )}
+      <Button
+        variant="outline-secondary"
+        className="mb-3"
+        onClick={fetchData}
+        aria-label="Refresh grades"
+      >
+        Refresh
+      </Button>
+
+      {grades.length === 0 ? (
+        <Card className="p-4 text-center text-muted">No grades yet.</Card>
+      ) : (
+        <Row>
           {grades.map((g, idx) => (
-            <tr key={g._id || idx}>
-              <td>{g.class}</td>
-              <td>{g.student}</td>
-              <td>{g.grade}</td>
-              <td style={{ whiteSpace: "pre-wrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                {g.feedback}
-              </td>
-            </tr>
+            <Col key={g._id || idx} md={6} lg={4} className="mb-3">
+              <Card className="h-100">
+                <Card.Body>
+                  <div className="d-flex justify-content-between align-items-start">
+                    <div>
+                      <div className="fw-bold">{g.class}</div>
+                      <div className="text-muted" style={{ fontSize: 12 }}>{g.student}</div>
+                    </div>
+                    <span className="badge bg-primary">{g.grade}</span>
+                  </div>
+                  {g.feedback && <div className="mt-2" style={{ whiteSpace: "pre-wrap" }}>{g.feedback}</div>}
+                </Card.Body>
+                <Card.Footer className="d-flex justify-content-end gap-2">
+                  <Button
+                    variant="outline-danger"
+                    size="sm"
+                    onClick={async () => {
+                      try {
+                        await retry(() => axios.delete(`${API_BASE_URL}/api/grades/${g._id || idx}`, { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }));
+                        await fetchData();
+                      } catch (err) {
+                        console.error("Delete grade error:", err.response?.data || err.message);
+                        setError(err.response?.data?.error || "Failed to delete grade.");
+                        setShowToast(true);
+                      }
+                    }}
+                  >
+                    Delete
+                  </Button>
+                </Card.Footer>
+              </Card>
+            </Col>
           ))}
-        </tbody>
-      </Table>
+        </Row>
+      )}
+
       <Modal
         show={showCreateModal}
         onHide={() => {
@@ -1113,9 +1507,9 @@ function Grades() {
                 aria-required="true"
               >
                 <option value="">Select Student</option>
-                {students.map((s) => (
-                  <option key={s._id || s.id} value={s.username}>
-                    {s.name} ({s.username})
+                {students.map((username) => (
+                  <option key={username} value={username}>
+                    {username}
                   </option>
                 ))}
               </Form.Select>
@@ -1326,22 +1720,8 @@ export default function TeacherDashboard() {
             >
               🏠 Dashboard & Classes
             </Nav.Link>
-            <Nav.Link
-              as={NavLink}
-              to="/teacher/assignments"
-              className="nav-link-custom"
-              aria-label="Assignments"
-            >
-              📝 Assignments
-            </Nav.Link>
-            <Nav.Link
-              as={NavLink}
-              to="/teacher/exams"
-              className="nav-link-custom"
-              aria-label="Exams"
-            >
-              📚 Exams
-            </Nav.Link>
+            {/* Removed Assignments and Announcements from sidebar to follow per-class stream */}
+            {/* Remove Exams from sidebar to merge into class stream */}
             <Nav.Link
               as={NavLink}
               to="/teacher/grades"
@@ -1349,14 +1729,6 @@ export default function TeacherDashboard() {
               aria-label="Grades"
             >
               📊 Grades
-            </Nav.Link>
-            <Nav.Link
-              as={NavLink}
-              to="/teacher/announcements"
-              className="nav-link-custom"
-              aria-label="Announcements"
-            >
-              📢 Announcements / Stream
             </Nav.Link>
             <Nav.Link
               as={NavLink}
@@ -1390,22 +1762,8 @@ export default function TeacherDashboard() {
               >
                 🏠 Dashboard & Classes
               </Nav.Link>
-              <Nav.Link
-                as={Link}
-                to="/teacher/assignments"
-                className="text-white"
-                aria-label="Assignments"
-              >
-                📝 Assignments
-              </Nav.Link>
-              <Nav.Link
-                as={Link}
-                to="/teacher/exams"
-                className="text-white"
-                aria-label="Exams"
-              >
-                📚 Exams
-              </Nav.Link>
+              {/* Removed Assignments and Announcements from mobile nav to follow per-class stream */}
+              {/* Remove Exams from mobile nav */}
               <Nav.Link
                 as={Link}
                 to="/teacher/grades"
@@ -1413,14 +1771,6 @@ export default function TeacherDashboard() {
                 aria-label="Grades"
               >
                 📊 Grades
-              </Nav.Link>
-              <Nav.Link
-                as={Link}
-                to="/teacher/announcements"
-                className="text-white"
-                aria-label="Announcements"
-              >
-                📢 Announcements / Stream
               </Nav.Link>
               <Nav.Link
                 as={Link}
@@ -1445,10 +1795,10 @@ export default function TeacherDashboard() {
         <Col md={10} className="main-content-responsive">
           <Routes>
             <Route path="dashboard" element={<DashboardAndClasses />} />
-            <Route path="assignments" element={<Assignments />} />
-            <Route path="exams" element={<Exams />} />
+            {/* Removed global Assignments and Announcements to match per-class stream */}
+            {/* Removed Exams route; exams are managed within class stream */}
             <Route path="grades" element={<Grades />} />
-            <Route path="announcements" element={<Announcements />} />
+            <Route path="class/:name" element={<TeacherClassStream />} />
             <Route path="profile" element={<Profile />} />
           </Routes>
         </Col>
