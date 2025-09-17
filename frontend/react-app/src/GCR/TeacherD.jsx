@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import axios from "axios";
+import { API_BASE_URL } from "../api";
 import { NavLink, Link, Routes, Route, useNavigate } from "react-router-dom";
 import {
   Container,
@@ -45,8 +46,8 @@ function DashboardAndClasses() {
     try {
       const headers = { Authorization: `Bearer ${localStorage.getItem("token")}` };
       const [classesRes, userRes] = await Promise.all([
-        retry(() => axios.get(`${process.env.REACT_APP_API_URL}/api/classes?page=1&limit=100`, { headers })),
-        retry(() => axios.get(`${process.env.REACT_APP_API_URL}/api/profile`, { headers })),
+        retry(() => axios.get(`${API_BASE_URL}/api/classes?page=1&limit=100`, { headers })),
+        retry(() => axios.get(`${API_BASE_URL}/api/profile`, { headers })),
       ]);
       setClasses(classesRes.data || []);
       setUser(userRes.data);
@@ -77,7 +78,7 @@ function DashboardAndClasses() {
     try {
       await retry(() =>
         axios.post(
-          `${process.env.REACT_APP_API_URL}/api/classes`,
+          `${API_BASE_URL}/api/classes`,
           { ...classData, code: classData.code.toUpperCase() },
           { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
         )
@@ -179,7 +180,15 @@ function DashboardAndClasses() {
                 </p>
               </Card.Body>
               <Card.Footer className="text-end">
-                <Button variant="primary" size="sm" aria-label={`Manage class ${cls.name}`}>
+                <Button 
+                  variant="primary" 
+                  size="sm" 
+                  aria-label={`Manage class ${cls.name}`}
+                  onClick={() => {
+                    setError(`Managing class: ${cls.name}. Students: ${cls.students.length}`);
+                    setShowToast(true);
+                  }}
+                >
                   Manage Class
                 </Button>
               </Card.Footer>
@@ -235,15 +244,18 @@ function DashboardAndClasses() {
               />
             </Form.Group>
             <Form.Group className="mb-3">
-              <Form.Label>Teacher Name</Form.Label>
+              <Form.Label>Teacher Username</Form.Label>
               <Form.Control
                 type="text"
                 value={classData.teacher}
                 onChange={(e) => setClassData({ ...classData, teacher: e.target.value })}
-                placeholder="e.g., John Doe"
+                placeholder="e.g., teacher1"
                 required
                 aria-required="true"
               />
+              <Form.Text className="text-muted">
+                Use your username (e.g., teacher1)
+              </Form.Text>
             </Form.Group>
             <Form.Group className="mb-3">
               <Form.Label>Background Color</Form.Label>
@@ -297,8 +309,8 @@ function Assignments() {
     try {
       const headers = { Authorization: `Bearer ${localStorage.getItem("token")}` };
       const [assignmentsRes, classesRes] = await Promise.all([
-        retry(() => axios.get(`${process.env.REACT_APP_API_URL}/api/assignments?page=1&limit=100`, { headers })),
-        retry(() => axios.get(`${process.env.REACT_APP_API_URL}/api/classes?page=1&limit=100`, { headers })),
+        retry(() => axios.get(`${API_BASE_URL}/api/assignments?page=1&limit=100`, { headers })),
+        retry(() => axios.get(`${API_BASE_URL}/api/classes?page=1&limit=100`, { headers })),
       ]);
       setAssignments(assignmentsRes.data || []);
       setClasses(classesRes.data || []);
@@ -329,7 +341,7 @@ function Assignments() {
     try {
       await retry(() =>
         axios.post(
-          `${process.env.REACT_APP_API_URL}/api/assignments`,
+          `${API_BASE_URL}/api/assignments`,
           assignmentData,
           { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
         )
@@ -517,7 +529,7 @@ function Announcements() {
     setLoading(true);
     try {
       const res = await retry(() =>
-        axios.get(`${process.env.REACT_APP_API_URL}/api/announcements?page=1&limit=100`, {
+        axios.get(`${API_BASE_URL}/api/announcements?page=1&limit=100`, {
           headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
         })
       );
@@ -549,7 +561,7 @@ function Announcements() {
     try {
       await retry(() =>
         axios.post(
-          `${process.env.REACT_APP_API_URL}/api/announcements`,
+          `${API_BASE_URL}/api/announcements`,
           { ...announcementData, teacher: localStorage.getItem("username") },
           { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
         )
@@ -709,7 +721,7 @@ function Exams() {
     setLoading(true);
     try {
       const res = await retry(() =>
-        axios.get(`${process.env.REACT_APP_API_URL}/api/exams?page=1&limit=100`, {
+        axios.get(`${API_BASE_URL}/api/exams?page=1&limit=100`, {
           headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
         })
       );
@@ -754,7 +766,7 @@ function Exams() {
     try {
       await retry(() =>
         axios.post(
-          `${process.env.REACT_APP_API_URL}/api/exams`,
+          `${API_BASE_URL}/api/exams`,
           { ...examData, createdBy: localStorage.getItem("username") },
           { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
         )
@@ -945,13 +957,13 @@ function Grades() {
     try {
       const headers = { Authorization: `Bearer ${localStorage.getItem("token")}` };
       const [gradesRes, classesRes, usersRes] = await Promise.all([
-        retry(() => axios.get(`${process.env.REACT_APP_API_URL}/api/grades?page=1&limit=100`, { headers })),
-        retry(() => axios.get(`${process.env.REACT_APP_API_URL}/api/classes?page=1&limit=100`, { headers })),
-        retry(() => axios.get(`${process.env.REACT_APP_API_URL}/api/admin/users?page=1&limit=100`, { headers })),
+        retry(() => axios.get(`${API_BASE_URL}/api/grades?page=1&limit=100`, { headers })),
+        retry(() => axios.get(`${API_BASE_URL}/api/classes?page=1&limit=100`, { headers })),
+        retry(() => axios.get(`${API_BASE_URL}/api/admin/users?page=1&limit=100`, { headers })),
       ]);
       setGrades(gradesRes.data || []);
       setClasses(classesRes.data || []);
-      setStudents(usersRes.data.filter((u) => u.role === "student") || []);
+      setStudents(usersRes.data.filter((u) => u.role === "Student") || []);
       setDebugData({ grades: gradesRes.data, classes: classesRes.data, students: usersRes.data });
     } catch (err) {
       console.error("Fetch grades error:", err.response?.data || err.message);
@@ -979,7 +991,7 @@ function Grades() {
     try {
       await retry(() =>
         axios.post(
-          `${process.env.REACT_APP_API_URL}/api/grades`,
+          `${API_BASE_URL}/api/grades`,
           gradeData,
           { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
         )
@@ -1168,7 +1180,7 @@ function Profile() {
     setLoading(true);
     try {
       const res = await retry(() =>
-        axios.get(`${process.env.REACT_APP_API_URL}/api/profile`, {
+        axios.get(`${API_BASE_URL}/api/profile`, {
           headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
         })
       );
@@ -1248,11 +1260,11 @@ export default function TeacherDashboard() {
     setAuthLoading(true);
     try {
       const res = await retry(() =>
-        axios.get(`${process.env.REACT_APP_API_URL}/api/profile`, {
+        axios.get(`${API_BASE_URL}/api/profile`, {
           headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
         })
       );
-      if (res.data.role !== "teacher") {
+      if (res.data.role !== "Teacher") {
         throw new Error("Access denied: Not a teacher");
       }
       localStorage.setItem("username", res.data.username);
@@ -1303,7 +1315,7 @@ export default function TeacherDashboard() {
     <Container fluid>
       <Row>
         {/* Sidebar for desktop */}
-        <Col md={2} className="d-none d-md-block bg-dark text-white vh-100 p-3">
+        <Col md={2} className="d-none d-md-block bg-dark text-white vh-100 p-3 position-fixed" style={{top: 0, left: 0, zIndex: 1000}}>
           <h4 className="text-center mb-4">Teacher Panel</h4>
           <Nav className="flex-column">
             <Nav.Link
@@ -1364,7 +1376,8 @@ export default function TeacherDashboard() {
           </Nav>
         </Col>
         {/* Mobile navbar */}
-        <Navbar bg="dark" variant="dark" expand="md" className="d-md-none">
+        <div className="d-md-none position-fixed w-100" style={{top: 0, zIndex: 1000}}>
+          <Navbar bg="dark" variant="dark" expand="md">
           <Navbar.Brand className="ms-2">Teacher Panel</Navbar.Brand>
           <Navbar.Toggle aria-controls="mobile-nav" />
           <Navbar.Collapse id="mobile-nav">
@@ -1426,9 +1439,10 @@ export default function TeacherDashboard() {
               </Nav.Link>
             </Nav>
           </Navbar.Collapse>
-        </Navbar>
+          </Navbar>
+        </div>
         {/* Main Content */}
-        <Col md={10} className="p-4">
+        <Col md={10} className="main-content-responsive">
           <Routes>
             <Route path="dashboard" element={<DashboardAndClasses />} />
             <Route path="assignments" element={<Assignments />} />

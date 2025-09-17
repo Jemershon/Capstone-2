@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button, Modal, Form, Toast, Spinner } from "react-bootstrap";
 import axios from "axios";
+import { API_BASE_URL } from "../api";
 
 // Retry function for API calls
 const retry = async (fn, retries = 3, delay = 1000) => {
@@ -58,7 +59,7 @@ export default function LandingPage() {
     setLoading(true);
     try {
       const res = await retry(() =>
-        axios.post(`${process.env.REACT_APP_API_URL}/api/register`, formData)
+        axios.post(`${API_BASE_URL}/api/register`, formData)
       );
       console.log("Register response:", res.data); // Debug log
       setError("Account created successfully! Please login.");
@@ -84,7 +85,7 @@ export default function LandingPage() {
     setLoading(true);
     try {
       const res = await retry(() =>
-        axios.post(`${process.env.REACT_APP_API_URL}/api/login`, {
+        axios.post(`${API_BASE_URL}/api/login`, {
           username: formData.username,
           password: formData.password,
         })

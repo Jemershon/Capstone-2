@@ -14,3 +14,58 @@
   background-color: rgba(255, 255, 255, 0.3);
   color: white !important;
 }
+
+/* Fixed navbar styles */
+.position-fixed {
+  position: fixed !important;
+}
+
+/* Responsive main content spacing */
+.main-content-responsive {
+  padding: 1rem !important;
+}
+
+/* Desktop: Add left margin for fixed sidebar */
+@media (min-width: 768px) {
+  .main-content-responsive {
+    margin-left: 16.666667% !important;
+  }
+}
+
+/* Mobile: Add top margin for fixed navbar, no left margin */
+@media (max-width: 767.98px) {
+  .main-content-responsive {
+    margin-left: 0 !important;
+    margin-top: 60px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow-x: hidden !important;
+  }
+  
+  /* Ensure no horizontal scrolling on mobile */
+  body {
+    overflow-x: hidden !important;
+  }
+  
+  .container-fluid {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+  
+  /* Make tables responsive on mobile */
+  .table-responsive {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+  
+  /* Ensure cards and content fit mobile screens */
+  .card {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
+  
+  /* Fix button spacing on mobile */
+  .btn {
+    white-space: nowrap !important;
+  }
+}

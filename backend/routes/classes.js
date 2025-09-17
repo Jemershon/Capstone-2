@@ -5,16 +5,36 @@ const router = express.Router();
 
 // Get all classes
 router.get("/classes", async (req, res) => {
-  const classes = await Class.find().populate("students", "name email");
-  res.json(classes);
+  try {
+    const { page = 1, limit = 100 } = req.query;
+    const classes = await Class.find()
+      .skip((page - 1) * limit)
+      .limit(parseInt(limit));
+    res.json(classes);
+  } catch (err) {
+    console.error("Get classes error:", err);
+    res.status(500).json({ error: "Failed to fetch classes" });
+  }
 });
 
 // Add class
 router.post("/classes", async (req, res) => {
-  const { name, teacher } = req.body;
-  if (!name || !teacher) return res.status(400).json({ error: "Name and teacher required" });
-  const newClass = await Class.create({ name, teacher });
-  res.json(newClass);
+  try {
+    const { name, section, code, teacher, bg } = req.body;
+    if (!name || !section || !code || !teacher) {
+      return res.status(400).json({ error: "All fields are required" });
+    }
+    const existingClass = await Class.findOne({ code });
+    if (existingClass) {
+      return res.status(400).json({ error: "Class code already exists" });
+    }
+    const cls = new Class({ name, section, code: code.toUpperCase(), teacher, students: [], bg });
+    await cls.save();
+    res.status(201).json({ message: "Class created successfully" });
+  } catch (err) {
+    console.error("Create class error:", err);
+    res.status(500).json({ error: "Failed to create class" });
+  }
 });
 
 export default router;

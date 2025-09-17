@@ -2,8 +2,11 @@ import mongoose from "mongoose";
 
 const classSchema = new mongoose.Schema({
   name: String,
+  section: String,
+  code: { type: String, unique: true },
   teacher: String,
-  students: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+  students: [{ type: String }],
+  bg: { type: String, default: "#FFF0D8" },
 });
 
 export default mongoose.model("Class", classSchema);

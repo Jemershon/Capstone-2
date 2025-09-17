@@ -7,6 +7,7 @@ import bcrypt from "bcryptjs";
 import cors from "cors";
 import multer from "multer";
 import path from "path";
+import fs from "fs";
 import { fileURLToPath } from "url";
 
 // Fix __dirname for ES Modules
@@ -16,11 +17,15 @@ const __dirname = path.dirname(__filename);
 // Initialize Express
 const app = express();
 app.use(express.json());
-app.use(cors({ origin: "http://localhost:3000" }));
-app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+app.use(cors({ origin: process.env.CORS_ORIGIN || "http://localhost:5173" }));
+const uploadsDir = path.join(__dirname, "uploads");
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+app.use("/uploads", express.static(uploadsDir));
 
 // MongoDB Connection
-mongoose.connect("mongodb://localhost:27017/notetify", {
+mongoose.connect(process.env.MONGODB_URI || "mongodb://localhost:27017/notetify", {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 }).then(() => console.log("Connected to MongoDB"))
@@ -28,7 +33,7 @@ mongoose.connect("mongodb://localhost:27017/notetify", {
 
 // Multer for file uploads
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, "uploads/"),
+  destination: (req, file, cb) => cb(null, uploadsDir),
   filename: (req, file, cb) => cb(null, `${Date.now()}-${file.originalname}`),
 });
 const upload = multer({
@@ -82,7 +87,11 @@ const AnnouncementSchema = new mongoose.Schema({
 const ExamSchema = new mongoose.Schema({
   title: String,
   description: String,
-  questions: [{ text: String, type: String, options: [String] }],
+  questions: [{ 
+    text: { type: String, required: true },
+    type: { type: String, enum: ['short', 'multiple'], default: 'short' },
+    options: { type: [String], default: [] }
+  }],
   createdBy: String,
 });
 
@@ -105,7 +114,7 @@ const authenticateToken = async (req, res, next) => {
   const token = req.headers["authorization"]?.split(" ")[1];
   if (!token) return res.status(401).json({ error: "No token provided" });
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || "devsecret123");
     req.user = decoded;
     next();
   } catch (err) {
@@ -235,7 +244,8 @@ app.post("/api/seed", async (req, res) => {
     ];
 
     console.log("Inserting users...");
-    await User.insertMany(users);
+    const insertedUsers = await User.insertMany(users);
+    console.log("Users inserted:", insertedUsers.length);
     console.log("Inserting classes...");
     await Class.insertMany(classes);
     console.log("Inserting assignments...");
@@ -279,14 +289,20 @@ app.post("/api/register", async (req, res) => {
 app.post("/api/login", async (req, res) => {
   try {
     const { username, password } = req.body;
+    console.log("Login attempt for username:", username);
     if (!username || !password) {
       return res.status(400).json({ error: "Username and password are required" });
     }
     const user = await User.findOne({ username });
+    console.log("User found:", user ? "Yes" : "No");
+    if (user) {
+      console.log("User role:", user.role);
+      console.log("Password match:", await bcrypt.compare(password, user.password));
+    }
     if (!user || !(await bcrypt.compare(password, user.password))) {
       return res.status(401).json({ error: "Invalid credentials" });
     }
-    const token = jwt.sign({ id: user._id, role: user.role, username: user.username }, process.env.JWT_SECRET, {
+    const token = jwt.sign({ id: user._id, role: user.role, username: user.username }, process.env.JWT_SECRET || "devsecret123", {
       expiresIn: "1h",
     });
     res.json({ token, user: { role: user.role, username: user.username } });
@@ -439,7 +455,7 @@ app.post("/api/classes", authenticateToken, requireTeacherOrAdmin, async (req, r
       return res.status(400).json({ error: "All fields are required" });
     }
     if (req.user.role === "Teacher" && req.user.username !== teacher) {
-      return res.status(403).json({ error: "Teachers can only create classes for themselves" });
+      return res.status(403).json({ error: "Teachers can only create classes for themselves. Use your username: " + req.user.username });
     }
     const existingClass = await Class.findOne({ code });
     if (existingClass) {
@@ -738,6 +754,15 @@ app.get("/api/student/grades", authenticateToken, requireStudent, async (req, re
   }
 });
 
+// Test endpoint
+app.get("/api/test", (req, res) => {
+  res.json({ message: "Backend is working", timestamp: new Date().toISOString() });
+});
+
 // Start server
 const PORT = process.env.PORT || 4000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+  console.log(`JWT_SECRET: ${process.env.JWT_SECRET ? 'Set' : 'Not set'}`);
+  console.log(`MongoDB URI: ${process.env.MONGODB_URI || 'mongodb://localhost:27017/notetify'}`);
+});

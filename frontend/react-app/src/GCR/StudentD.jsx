@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import axios from "axios";
+import { API_BASE_URL } from "../api";
 import { NavLink, Link, Routes, Route, useNavigate } from "react-router-dom";
 import {
   Container,
@@ -47,9 +48,9 @@ function DashboardAndClasses() {
       const headers = { Authorization: `Bearer ${localStorage.getItem("token")}` };
       const [classesRes, userRes] = await Promise.all([
         retry(() =>
-          axios.get(`${process.env.REACT_APP_API_URL}/api/classes?page=1&limit=100`, { headers })
+          axios.get(`${API_BASE_URL}/api/student/classes?page=1&limit=100`, { headers })
         ),
-        retry(() => axios.get(`${process.env.REACT_APP_API_URL}/api/profile`, { headers })),
+        retry(() => axios.get(`${API_BASE_URL}/api/profile`, { headers })),
       ]);
       setClasses(classesRes.data || []);
       setUser(userRes.data);
@@ -80,7 +81,7 @@ function DashboardAndClasses() {
     try {
       await retry(() =>
         axios.post(
-          `${process.env.REACT_APP_API_URL}/api/classes/join`,
+          `${API_BASE_URL}/api/classes/join`,
           { code: joinCode.toUpperCase() },
           { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
         )
@@ -182,7 +183,15 @@ function DashboardAndClasses() {
                 </p>
               </Card.Body>
               <Card.Footer className="text-end">
-                <Button variant="primary" size="sm" aria-label={`Enter class ${cls.name}`}>
+                <Button 
+                  variant="primary" 
+                  size="sm" 
+                  aria-label={`Enter class ${cls.name}`}
+                  onClick={() => {
+                    setError(`Entered class: ${cls.name}. Class code: ${cls.code}`);
+                    setShowToast(true);
+                  }}
+                >
                   Enter Class
                 </Button>
               </Card.Footer>
@@ -262,10 +271,10 @@ function Assignments() {
       const headers = { Authorization: `Bearer ${localStorage.getItem("token")}` };
       const [assignmentsRes, classesRes, userRes] = await Promise.all([
         retry(() =>
-          axios.get(`${process.env.REACT_APP_API_URL}/api/assignments?page=1&limit=100`, { headers })
+          axios.get(`${API_BASE_URL}/api/student/assignments?page=1&limit=100`, { headers })
         ),
-        retry(() => axios.get(`${process.env.REACT_APP_API_URL}/api/classes?page=1&limit=100`, { headers })),
-        retry(() => axios.get(`${process.env.REACT_APP_API_URL}/api/profile`, { headers })),
+        retry(() => axios.get(`${API_BASE_URL}/api/student/classes?page=1&limit=100`, { headers })),
+        retry(() => axios.get(`${API_BASE_URL}/api/profile`, { headers })),
       ]);
       setAssignments(assignmentsRes.data || []);
       setClasses(classesRes.data || []);
@@ -313,7 +322,7 @@ function Assignments() {
       formData.append("file", submitFile);
       const uploadRes = await retry(() =>
         axios.post(
-          `${process.env.REACT_APP_API_URL}/api/assignments/upload`,
+          `${API_BASE_URL}/api/assignments/upload`,
           formData,
           {
             headers: {
@@ -329,7 +338,7 @@ function Assignments() {
       );
       await retry(() =>
         axios.put(
-          `${process.env.REACT_APP_API_URL}/api/assignments/${selectedAssignment._id}`,
+          `${API_BASE_URL}/api/assignments/${selectedAssignment._id}`,
           {
             status: "Submitted",
             submittedFile: uploadRes.data.filename,
@@ -552,7 +561,7 @@ function Announcements() {
     setLoading(true);
     try {
       const res = await retry(() =>
-        axios.get(`${process.env.REACT_APP_API_URL}/api/announcements?page=1&limit=100`, {
+        axios.get(`${API_BASE_URL}/api/student/announcements?page=1&limit=100`, {
           headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
         })
       );
@@ -652,8 +661,8 @@ function Grades() {
     try {
       const headers = { Authorization: `Bearer ${localStorage.getItem("token")}` };
       const [gradesRes, classesRes] = await Promise.all([
-        retry(() => axios.get(`${process.env.REACT_APP_API_URL}/api/grades?page=1&limit=100`, { headers })),
-        retry(() => axios.get(`${process.env.REACT_APP_API_URL}/api/classes?page=1&limit=100`, { headers })),
+        retry(() => axios.get(`${API_BASE_URL}/api/student/grades?page=1&limit=100`, { headers })),
+        retry(() => axios.get(`${API_BASE_URL}/api/student/classes?page=1&limit=100`, { headers })),
       ]);
       setGrades(gradesRes.data || []);
       setClasses(classesRes.data || []);
@@ -766,7 +775,7 @@ function Profile() {
     setLoading(true);
     try {
       const res = await retry(() =>
-        axios.get(`${process.env.REACT_APP_API_URL}/api/profile`, {
+        axios.get(`${API_BASE_URL}/api/profile`, {
           headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
         })
       );
@@ -846,11 +855,11 @@ export default function StudentDashboard() {
     setAuthLoading(true);
     try {
       const res = await retry(() =>
-        axios.get(`${process.env.REACT_APP_API_URL}/api/profile`, {
+        axios.get(`${API_BASE_URL}/api/profile`, {
           headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
         })
       );
-      if (res.data.role !== "student") {
+      if (res.data.role !== "Student") {
         throw new Error("Access denied: Not a student");
       }
     } catch (err) {
@@ -899,7 +908,7 @@ export default function StudentDashboard() {
     <Container fluid>
       <Row>
         {/* Sidebar for desktop */}
-        <Col md={2} className="d-none d-md-block bg-dark text-white vh-100 p-3">
+        <Col md={2} className="d-none d-md-block bg-dark text-white vh-100 p-3 position-fixed" style={{top: 0, left: 0, zIndex: 1000}}>
           <h4 className="text-center mb-4">Student Panel</h4>
           <Nav className="flex-column">
             <Nav.Link
@@ -952,7 +961,8 @@ export default function StudentDashboard() {
           </Nav>
         </Col>
         {/* Mobile navbar */}
-        <Navbar bg="dark" variant="dark" expand="md" className="d-md-none">
+        <div className="d-md-none position-fixed w-100" style={{top: 0, zIndex: 1000}}>
+          <Navbar bg="dark" variant="dark" expand="md">
           <Navbar.Brand className="ms-2">Student Panel</Navbar.Brand>
           <Navbar.Toggle aria-controls="mobile-nav" />
           <Navbar.Collapse id="mobile-nav">
@@ -1006,9 +1016,10 @@ export default function StudentDashboard() {
               </Nav.Link>
             </Nav>
           </Navbar.Collapse>
-        </Navbar>
+          </Navbar>
+        </div>
         {/* Main Content */}
-        <Col md={10} className="p-4">
+        <Col md={10} className="main-content-responsive">
           <Routes>
             <Route path="dashboard" element={<DashboardAndClasses />} />
             <Route path="assignments" element={<Assignments />} />

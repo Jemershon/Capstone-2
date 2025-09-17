@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import axios from "axios";
+import { API_BASE_URL } from "../api";
 import { Routes, Route, NavLink, useNavigate } from "react-router-dom";
 import {
   Container,
@@ -41,7 +42,7 @@ function AdminLogin({ onLogin }) {
     e.preventDefault();
     try {
       const res = await retry(() =>
-        axios.post(`${process.env.REACT_APP_API_URL}/api/login`, {
+        axios.post(`${API_BASE_URL}/api/login`, {
           username,
           password,
         })
@@ -149,8 +150,8 @@ function DashboardHome() {
     try {
       const headers = { Authorization: `Bearer ${localStorage.getItem("token")}` };
       const [classesRes, usersRes] = await Promise.all([
-        retry(() => axios.get(`${process.env.REACT_APP_API_URL}/api/admin/classes?page=1&limit=100`, { headers })),
-        retry(() => axios.get(`${process.env.REACT_APP_API_URL}/api/admin/users?page=1&limit=100`, { headers })),
+        retry(() => axios.get(`${API_BASE_URL}/api/admin/classes?page=1&limit=100`, { headers })),
+        retry(() => axios.get(`${API_BASE_URL}/api/admin/users?page=1&limit=100`, { headers })),
       ]);
       setClasses(classesRes.data || []);
       setUsers(usersRes.data || []);
@@ -181,7 +182,7 @@ function DashboardHome() {
     try {
       await retry(() =>
         axios.post(
-          `${process.env.REACT_APP_API_URL}/api/admin/users`,
+          `${API_BASE_URL}/api/admin/users`,
           userData,
           { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
         )
@@ -201,7 +202,7 @@ function DashboardHome() {
   const handleDeleteUser = async (userId) => {
     try {
       await retry(() =>
-        axios.delete(`${process.env.REACT_APP_API_URL}/api/admin/users/${userId}`, {
+        axios.delete(`${API_BASE_URL}/api/admin/users/${userId}`, {
           headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
         })
       );
@@ -224,7 +225,7 @@ function DashboardHome() {
     try {
       await retry(() =>
         axios.post(
-          `${process.env.REACT_APP_API_URL}/api/admin/classes`,
+          `${API_BASE_URL}/api/admin/classes`,
           { ...classData, code: classData.code.toUpperCase() },
           { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
         )
@@ -244,7 +245,7 @@ function DashboardHome() {
   const handleDeleteClass = async (classId) => {
     try {
       await retry(() =>
-        axios.delete(`${process.env.REACT_APP_API_URL}/api/admin/classes/${classId}`, {
+        axios.delete(`${API_BASE_URL}/api/admin/classes/${classId}`, {
           headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
         })
       );
@@ -550,6 +551,9 @@ function DashboardHome() {
                 required
                 aria-required="true"
               />
+              <Form.Text className="text-muted">
+                Use the teacher's username (e.g., teacher1)
+              </Form.Text>
             </Form.Group>
           </Form>
         </Modal.Body>
@@ -592,11 +596,11 @@ export default function AdminDashboard() {
     setAuthLoading(true);
     try {
       const res = await retry(() =>
-        axios.get(`${process.env.REACT_APP_API_URL}/api/profile`, {
+        axios.get(`${API_BASE_URL}/api/profile`, {
           headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
         })
       );
-      if (res.data.role !== "admin") {
+      if (res.data.role !== "Admin") {
         throw new Error("Access denied: Not an admin");
       }
     } catch (err) {
@@ -640,7 +644,7 @@ export default function AdminDashboard() {
     <Container fluid>
       <Row>
         {/* Sidebar */}
-        <Col md={2} className="d-none d-md-block bg-dark text-white vh-100 p-3">
+        <Col md={2} className="d-none d-md-block bg-dark text-white vh-100 p-3 position-fixed" style={{top: 0, left: 0, zIndex: 1000}}>
           <h4 className="text-center mb-4">Admin Panel</h4>
           <Nav className="flex-column">
             <Nav.Link
@@ -662,7 +666,7 @@ export default function AdminDashboard() {
         </Col>
 
         {/* Mobile Navbar */}
-        <Col xs={12} className="d-md-none p-0">
+        <div className="d-md-none position-fixed w-100" style={{top: 0, zIndex: 1000}}>
           <Navbar bg="dark" variant="dark" expand="md">
             <Navbar.Brand className="ms-2">Admin Panel</Navbar.Brand>
             <Navbar.Toggle aria-controls="mobile-nav" />
@@ -686,10 +690,10 @@ export default function AdminDashboard() {
               </Nav>
             </Navbar.Collapse>
           </Navbar>
-        </Col>
+        </div>
 
         {/* Main Content */}
-        <Col md={10} xs={12} className="p-4">
+        <Col md={10} xs={12} className="main-content-responsive">
           <Routes>
             <Route path="dashboard" element={<DashboardHome />} />
           </Routes>
