@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import axios from "axios";
-import { API_BASE_URL } from "../api";
+import { API_BASE_URL, getAuthToken, getUsername, getUserRole, checkAuth } from "../api";
 import { Routes, Route, NavLink, useNavigate } from "react-router-dom";
 import {
   Container,
@@ -587,7 +587,7 @@ function DashboardHome() {
 export default function AdminDashboard() {
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [showToast, setShowToast] = useState(false);
-  const [isAuthenticated, setIsAuthenticated] = useState(!!localStorage.getItem("token"));
+  const [isAuthenticated, setIsAuthenticated] = useState(checkAuth());
   const [authLoading, setAuthLoading] = useState(true);
   const [authError, setAuthError] = useState("");
   const navigate = useNavigate();
@@ -595,19 +595,36 @@ export default function AdminDashboard() {
   const verifyToken = useCallback(async () => {
     setAuthLoading(true);
     try {
+      // Get the token using our helper function
+      const token = getAuthToken();
+      
       const res = await retry(() =>
         axios.get(`${API_BASE_URL}/api/profile`, {
-          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+          headers: { Authorization: `Bearer ${token}` },
         })
       );
+      
+      // Check if the user has the correct role
       if (res.data.role !== "Admin") {
         throw new Error("Access denied: Not an admin");
       }
+      
+      // Import helper functions
+      const { setAuthData } = await import("../api");
+      
+      // Update auth data with the fresh information
+      setAuthData(token, res.data.username, res.data.role);
+      console.log("✅ Admin authentication verified successfully");
     } catch (err) {
       console.error("Auth error:", err.response?.data || err.message);
       setAuthError(err.response?.data?.error || "Authentication failed. Please log in as an admin.");
       setIsAuthenticated(false);
-      localStorage.removeItem("token");
+      
+      // Import helper function
+      const { clearAuthData } = await import("../api");
+      
+      // Clear all auth data
+      clearAuthData();
       localStorage.removeItem("username");
       setTimeout(() => navigate("/"), 3000);
     } finally {
@@ -720,12 +737,20 @@ export default function AdminDashboard() {
           </Button>
           <Button
             variant="danger"
-            onClick={() => {
+            onClick={async () => {
               setShowLogoutModal(false);
               setShowToast(true);
-              localStorage.removeItem("token");
-              localStorage.removeItem("username");
+              
+              // Import the clearAuthData function
+              const { clearAuthData } = await import('../api');
+              
+              // Clear all auth data using our helper function
+              clearAuthData();
+              
+              // Update authentication state
               setIsAuthenticated(false);
+              
+              // Redirect to login page after a short delay
               setTimeout(() => {
                 setShowToast(false);
                 navigate("/");

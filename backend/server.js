@@ -10,6 +10,32 @@ import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
 
+// Import middleware and routes
+import { authenticateToken, requireAdmin, requireTeacherOrAdmin, requireStudent } from "./middlewares/auth.js";
+import materialsRoutes from "./routes/materials.js";
+import commentsRoutes from "./routes/comments.js";
+import notificationsRoutes from "./routes/notifications.js";
+import uploadRoutes from "./routes/upload.js";
+import examsRoutes, { setupModels } from "./routes/exams.js";
+import Exam from "./models/Exam.js";
+
+// Debug middleware for logging API requests
+const debugMiddleware = (req, res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl}`);
+  const token = req.headers.authorization?.split(' ')[1];
+  if (token) {
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      console.log(`  Authenticated user: ${decoded.username} (${decoded.role})`);
+    } catch (err) {
+      console.log(`  Invalid token: ${err.message}`);
+    }
+  } else {
+    console.log('  No authorization token');
+  }
+  next();
+};
+
 // Fix __dirname for ES Modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -17,14 +43,46 @@ const __dirname = path.dirname(__filename);
 // Initialize Express
 const app = express();
 app.use(express.json());
-app.use(cors({ origin: process.env.CORS_ORIGIN || "http://localhost:5173" }));
+app.use(cors({ origin: [process.env.CORS_ORIGIN || "http://localhost:5173", "http://localhost:5174"] }));
+app.use(debugMiddleware); // Add debug middleware to all routes
 const uploadsDir = path.join(__dirname, "uploads");
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
 app.use("/uploads", express.static(uploadsDir));
 
-// MongoDB Connection
+// Use a default JWT secret if none is provided in environment
+if (!process.env.JWT_SECRET) {
+  console.log("WARNING: JWT_SECRET not set in environment. Using default value for development.");
+  process.env.JWT_SECRET = "default_jwt_secret_for_development_only";
+}
+
+// Test route for API connectivity (public)
+app.get('/api/test', (req, res) => {
+  res.json({ 
+    status: 'API is working', 
+    timestamp: new Date().toISOString(),
+    env: {
+      jwtSecret: process.env.JWT_SECRET ? 'Set (first few chars: ' + process.env.JWT_SECRET.substring(0,3) + '...)' : 'Not set',
+      nodeEnv: process.env.NODE_ENV,
+      port: process.env.PORT || 3000
+    }
+  });
+});
+
+// Auth test route (protected)
+app.get('/api/auth-test', authenticateToken, (req, res) => {
+  res.json({
+    authenticated: true,
+    user: {
+      username: req.user.username,
+      role: req.user.role,
+    },
+    timestamp: new Date().toISOString()
+  });
+});
+
+// MongoDB Connection     
 mongoose.connect(process.env.MONGODB_URI || "mongodb://localhost:27017/notetify", {
   useNewUrlParser: true,
   useUnifiedTopology: true,
@@ -72,11 +130,27 @@ const AssignmentSchema = new mongoose.Schema(
     class: String,
     title: String,
     description: String,
+    instructions: String,
     due: Date,
-    status: { type: String, default: "Pending" },
+    pointsPossible: { type: Number, default: 100 },
+    status: { type: String, enum: ["Assigned", "Submitted", "Returned", "Missing"], default: "Assigned" },
     createdBy: String,
-    submittedFile: String,
-    studentUsername: String,
+    attachments: [{ 
+      filename: String,
+      path: String,
+      mimetype: String,
+      uploadDate: { type: Date, default: Date.now }
+    }],
+    submissions: [{
+      studentUsername: String,
+      submittedFile: String,
+      submittedAt: { type: Date, default: Date.now },
+      grade: Number,
+      feedback: String,
+      status: { type: String, enum: ["Submitted", "Graded", "Late"], default: "Submitted" }
+    }],
+    topic: String, // For categorizing assignments
+    allowLateSubmissions: { type: Boolean, default: true },
   },
   { timestamps: true }
 );
@@ -93,24 +167,7 @@ const AnnouncementSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-const ExamSchema = new mongoose.Schema(
-  {
-    title: String,
-    description: String,
-    class: String,
-    due: Date,
-    questions: [
-      {
-        text: { type: String, required: true },
-        type: { type: String, enum: ["short", "multiple"], default: "short" },
-        options: { type: [String], default: [] },
-        correctAnswer: { type: String, default: "" },
-      },
-    ],
-    createdBy: String,
-  },
-  { timestamps: true }
-);
+// Exam schema is now imported from models/Exam.js
 
 const ExamSubmissionSchema = new mongoose.Schema(
   {
@@ -141,43 +198,10 @@ const User = mongoose.model("User", UserSchema);
 const Class = mongoose.model("Class", ClassSchema);
 const Assignment = mongoose.model("Assignment", AssignmentSchema);
 const Announcement = mongoose.model("Announcement", AnnouncementSchema);
-const Exam = mongoose.model("Exam", ExamSchema);
+// Exam model imported from models/Exam.js
 const ExamSubmission = mongoose.model("ExamSubmission", ExamSubmissionSchema);
 const Grade = mongoose.model("Grade", GradeSchema);
 
-// Middleware
-const authenticateToken = async (req, res, next) => {
-  const token = req.headers["authorization"]?.split(" ")[1];
-  if (!token) return res.status(401).json({ error: "No token provided" });
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || "devsecret123");
-    req.user = decoded;
-    next();
-  } catch (err) {
-    res.status(403).json({ error: "Invalid token" });
-  }
-};
-
-const requireAdmin = (req, res, next) => {
-  if (req.user.role !== "Admin") {
-    return res.status(403).json({ error: "Admin access required" });
-  }
-  next();
-};
-
-const requireTeacherOrAdmin = (req, res, next) => {
-  if (req.user.role !== "Teacher" && req.user.role !== "Admin") {
-    return res.status(403).json({ error: "Teacher or Admin access required" });
-  }
-  next();
-};
-
-const requireStudent = (req, res, next) => {
-  if (req.user.role !== "Student") {
-    return res.status(403).json({ error: "Student access required" });
-  }
-  next();
-};
 
 // Seed data endpoint
 app.post("/api/seed", async (req, res) => {
@@ -339,13 +363,62 @@ app.post("/api/login", async (req, res) => {
     if (!user || !(await bcrypt.compare(password, user.password))) {
       return res.status(401).json({ error: "Invalid credentials" });
     }
-    const token = jwt.sign({ id: user._id, role: user.role, username: user.username }, process.env.JWT_SECRET || "devsecret123", {
-      expiresIn: "1h",
+    
+    // Create JWT token with user information
+    const token = jwt.sign(
+      { 
+        id: user._id, 
+        role: user.role, 
+        username: user.username,
+        email: user.email,
+        name: user.name
+      }, 
+      process.env.JWT_SECRET || "devsecret123", 
+      { expiresIn: "1d" } // Increased token lifetime
+    );
+    
+    console.log("Login successful for", username, "with role", user.role);
+    console.log("Token generated:", token.substring(0, 20) + "...");
+    
+    // Return token and user info
+    res.json({ 
+      token, 
+      user: { 
+        id: user._id,
+        role: user.role, 
+        username: user.username,
+        name: user.name
+      }
     });
-    res.json({ token, user: { role: user.role, username: user.username } });
   } catch (err) {
     console.error("Login error:", err);
     res.status(500).json({ error: "Login failed" });
+  }
+});
+
+// Token verification endpoint
+app.get("/api/verify-token", authenticateToken, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select("-password");
+    if (!user) {
+      return res.status(404).json({ valid: false, error: "User not found" });
+    }
+    
+    console.log("Token verified for user:", user.username, "with role:", user.role);
+    
+    res.json({ 
+      valid: true,
+      user: { 
+        id: user._id,
+        role: user.role, 
+        username: user.username,
+        name: user.name,
+        email: user.email
+      }
+    });
+  } catch (err) {
+    console.error("Token verification error:", err);
+    res.status(500).json({ valid: false, error: "Token verification failed" });
   }
 });
 
@@ -435,7 +508,7 @@ app.get("/api/admin/classes", authenticateToken, requireTeacherOrAdmin, async (r
   }
 });
 
-// Admin/Teacher: Create class
+// Admin/Teacher: Create class (admin path)
 app.post("/api/admin/classes", authenticateToken, requireTeacherOrAdmin, async (req, res) => {
   try {
     const { name, section, code, teacher, bg } = req.body;
@@ -455,7 +528,7 @@ app.post("/api/admin/classes", authenticateToken, requireTeacherOrAdmin, async (
   }
 });
 
-// Admin: Delete class
+// Admin: Delete class (admin path)
 app.delete("/api/admin/classes/:id", authenticateToken, requireAdmin, async (req, res) => {
   try {
     const cls = await Class.findById(req.params.id);
@@ -484,26 +557,168 @@ app.get("/api/classes", authenticateToken, async (req, res) => {
   }
 });
 
-// Teacher: Create class
+// Teacher: Create class (FRONTEND uses POST /api/classes — this auto-assigns teacher)
 app.post("/api/classes", authenticateToken, requireTeacherOrAdmin, async (req, res) => {
   try {
-    const { name, section, code, teacher, bg } = req.body;
-    if (!name || !section || !code || !teacher) {
+    // NOTE: we ignore any teacher field from the client and assign the logged-in user's username
+    const { name, section, code, bg } = req.body;
+    if (!name || !section || !code) {
       return res.status(400).json({ error: "All fields are required" });
     }
-    if (req.user.role === "Teacher" && req.user.username !== teacher) {
-      return res.status(403).json({ error: "Teachers can only create classes for themselves. Use your username: " + req.user.username });
-    }
-    const existingClass = await Class.findOne({ code });
+    // teacher is from token
+    const teacherUsername = req.user.username;
+    const existingClass = await Class.findOne({ code: code.toUpperCase() });
     if (existingClass) {
       return res.status(400).json({ error: "Class code already exists" });
     }
-    const cls = new Class({ name, section, code: code.toUpperCase(), teacher, students: [], bg });
+    const cls = new Class({ name, section, code: code.toUpperCase(), teacher: teacherUsername, students: [], bg });
     await cls.save();
-    res.status(201).json({ message: "Class created successfully" });
+    res.status(201).json({ message: "Class created successfully", cls });
   } catch (err) {
     console.error("Create class error:", err);
     res.status(500).json({ error: "Failed to create class" });
+  }
+});
+
+// NEW: Allow Teacher or Admin to DELETE a class by id (frontend uses this)
+app.delete("/api/classes/:id", authenticateToken, requireTeacherOrAdmin, async (req, res) => {
+  try {
+    const cls = await Class.findById(req.params.id);
+    if (!cls) {
+      return res.status(404).json({ error: "Class not found" });
+    }
+    // Teachers may only delete their own classes
+    if (req.user.role === "Teacher" && cls.teacher !== req.user.username) {
+      return res.status(403).json({ error: "Not authorized to delete this class" });
+    }
+    await Class.deleteOne({ _id: req.params.id });
+    res.json({ message: "Class deleted successfully" });
+  } catch (err) {
+    console.error("Delete class error:", err);
+    res.status(500).json({ error: "Failed to delete class" });
+  }
+});
+
+// Student: Get classes for a specific student
+app.get("/api/student-classes/:username", authenticateToken, requireStudent, async (req, res) => {
+  try {
+    const { username } = req.params;
+    
+    // Ensure student can only access their own classes
+    if (req.user.username !== username) {
+      return res.status(403).json({ error: "Access denied" });
+    }
+    
+    const classes = await Class.find({ students: username });
+    console.log(`Found ${classes.length} classes for student ${username}`);
+    res.json(classes);
+  } catch (err) {
+    console.error("Get student classes error:", err);
+    res.status(500).json({ error: "Failed to fetch student classes" });
+  }
+});
+
+// Student: Join a class using class code
+app.post("/api/join-class", authenticateToken, requireStudent, async (req, res) => {
+  try {
+    const { code, student } = req.body;
+    console.log(`Join class request - Code: ${code}, Student: ${student}, Authenticated user: ${req.user.username}`);
+    
+    if (!code || !student) {
+      console.log("Missing required fields");
+      return res.status(400).json({ error: "Class code and student username are required" });
+    }
+    
+    // Ensure student can only join classes for themselves
+    if (req.user.username !== student) {
+      console.log(`Access denied: ${req.user.username} tried to join class for ${student}`);
+      return res.status(403).json({ error: "Access denied" });
+    }
+    
+    // Find the class by code (case-insensitive)
+    const classToJoin = await Class.findOne({ code: code.toUpperCase() });
+    
+    if (!classToJoin) {
+      console.log(`Class not found with code: ${code.toUpperCase()}`);
+      // Debug: Show all available class codes
+      const allClasses = await Class.find({}, 'name code');
+      console.log('Available classes:', allClasses.map(c => `${c.name} (${c.code})`));
+      return res.status(404).json({ error: "Class not found. Please check the class code." });
+    }
+    
+    // Check if student is already enrolled
+    if (classToJoin.students.includes(student)) {
+      console.log(`Student ${student} already enrolled in ${classToJoin.name}`);
+      return res.status(400).json({ error: "You are already enrolled in this class" });
+    }
+    
+    // Add student to the class
+    classToJoin.students.push(student);
+    await classToJoin.save();
+    
+    console.log(`Student ${student} successfully joined class ${classToJoin.name} (${code.toUpperCase()})`);
+    res.json({ 
+      message: "Successfully joined the class", 
+      class: classToJoin 
+    });
+  } catch (err) {
+    console.error("Join class error:", err);
+    res.status(500).json({ error: "Failed to join class", details: err.message });
+  }
+});
+
+// Student: Unenroll/Leave a class
+app.delete("/api/leave-class/:classId", authenticateToken, requireStudent, async (req, res) => {
+  try {
+    const { classId } = req.params;
+    const studentUsername = req.user.username;
+    
+    console.log(`Student ${studentUsername} attempting to leave class ${classId}`);
+    
+    // Find the class
+    const classToLeave = await Class.findById(classId);
+    
+    if (!classToLeave) {
+      console.log(`Class not found with ID: ${classId}`);
+      return res.status(404).json({ error: "Class not found" });
+    }
+    
+    // Check if student is enrolled in this class
+    if (!classToLeave.students.includes(studentUsername)) {
+      return res.status(400).json({ error: "You are not enrolled in this class" });
+    }
+    
+    // Remove student from the class
+    classToLeave.students = classToLeave.students.filter(student => student !== studentUsername);
+    await classToLeave.save();
+    
+    console.log(`Student ${studentUsername} successfully left class ${classToLeave.name}`);
+    res.json({ 
+      message: `Successfully left ${classToLeave.name}`, 
+      class: classToLeave 
+    });
+  } catch (err) {
+    console.error("Leave class error:", err);
+    res.status(500).json({ error: "Failed to leave class" });
+  }
+});
+
+// Student: Get grades for a specific student
+app.get("/api/student-grades/:username", authenticateToken, requireStudent, async (req, res) => {
+  try {
+    const { username } = req.params;
+    
+    // Ensure student can only access their own grades
+    if (req.user.username !== username) {
+      return res.status(403).json({ error: "Access denied" });
+    }
+    
+    const grades = await Grade.find({ student: username });
+    console.log(`Found ${grades.length} grades for student ${username}`);
+    res.json(grades);
+  } catch (err) {
+    console.error("Get student grades error:", err);
+    res.status(500).json({ error: "Failed to fetch student grades" });
   }
 });
 
@@ -555,35 +770,47 @@ app.post("/api/assignments", authenticateToken, requireTeacherOrAdmin, async (re
 app.get("/api/announcements", authenticateToken, async (req, res) => {
   try {
     const { page = 1, limit = 100, className } = req.query;
-    const filter = { teacher: req.user.username };
+    // If the requester is a teacher, only return that teacher's announcements (unless Admin)
+    const filter = {};
+    if (req.user.role === "Teacher") filter.teacher = req.user.username;
     if (className) filter.class = className;
     const announcements = await Announcement.find(filter)
       .skip((page - 1) * limit)
       .limit(parseInt(limit));
     res.json(announcements);
   } catch (err) {
-    console.error("Get announcements error:", err);
+    console.error("Get announcements error:", err.response?.data || err.message);
     res.status(500).json({ error: "Failed to fetch announcements" });
   }
 });
 
 // Teacher: Create class-scoped announcement (optionally attach examId)
+// Changes: server will set teacher = req.user.username and date = now if not provided
 app.post("/api/announcements", authenticateToken, requireTeacherOrAdmin, async (req, res) => {
   try {
-    const { message, date, teacher, class: className, examId } = req.body;
-    if (!message || !date || !teacher || !className) {
-      return res.status(400).json({ error: "Message, date, teacher, and class are required" });
+    let { message, date, teacher, class: className, examId } = req.body;
+
+    // Normalize className
+    if (!message || !className) {
+      return res.status(400).json({ error: "Message and class are required" });
     }
-    if (req.user.role === "Teacher" && req.user.username !== teacher) {
-      return res.status(403).json({ error: "You can only post announcements as yourself" });
-    }
+
+    // Use logged-in user as teacher (ignore client-supplied teacher)
+    teacher = req.user.username;
+
+    // Default date to now if not provided
+    date = date ? new Date(date) : new Date();
+
+    // Ensure class exists
     const cls = await Class.findOne({ name: className });
     if (!cls) {
       return res.status(404).json({ error: "Class not found" });
     }
+
     if (req.user.role === "Teacher" && cls.teacher !== req.user.username) {
       return res.status(403).json({ error: "You are not authorized to post to this class" });
     }
+
     const announcement = new Announcement({ message, date, teacher, class: className, examId: examId || null, likes: 0 });
     await announcement.save();
     res.status(201).json({ message: "Announcement created successfully", announcement });
@@ -594,136 +821,19 @@ app.post("/api/announcements", authenticateToken, requireTeacherOrAdmin, async (
 });
 
 // Teacher: Get exams (optionally by class)
-app.get("/api/exams", authenticateToken, async (req, res) => {
-  try {
-    const { page = 1, limit = 100, className } = req.query;
-    const filter = { createdBy: req.user.username };
-    if (className) filter.class = className;
-    const exams = await Exam.find(filter)
-      .skip((page - 1) * limit)
-      .limit(parseInt(limit));
-    res.json(exams);
-  } catch (err) {
-    console.error("Get exams error:", err);
-    res.status(500).json({ error: "Failed to fetch exams" });
-  }
-});
+// Now handled by exams.js router
 
 // Teacher: Create exam (Google Form-like)
-app.post("/api/exams", authenticateToken, requireTeacherOrAdmin, async (req, res) => {
-  try {
-    const { title, description, questions, createdBy, class: className, due } = req.body;
-    if (!title || !questions || !createdBy || !className) {
-      return res.status(400).json({ error: "Title, questions, class, and creator are required" });
-    }
-    if (req.user.role === "Teacher" && req.user.username !== createdBy) {
-      return res.status(403).json({ error: "You can only create exams as yourself" });
-    }
-    const cls = await Class.findOne({ name: className });
-    if (!cls) {
-      return res.status(404).json({ error: "Class not found" });
-    }
-    if (req.user.role === "Teacher" && cls.teacher !== req.user.username) {
-      return res.status(403).json({ error: "You are not authorized to create exams for this class" });
-    }
-    const exam = new Exam({ title, description, class: className, due: due ? new Date(due) : null, questions, createdBy });
-    await exam.save();
-    res.status(201).json({ message: "Exam created successfully", exam });
-  } catch (err) {
-    console.error("Create exam error:", err);
-    res.status(500).json({ error: "Failed to create exam" });
-  }
-});
+// Now handled by exams.js router
 
 // Teacher/Student: Get exam by id (teacher must own; student must be enrolled)
-app.get("/api/exams/:id", authenticateToken, async (req, res) => {
-  try {
-    const exam = await Exam.findById(req.params.id);
-    if (!exam) return res.status(404).json({ error: "Exam not found" });
-    // Teacher can view own exam
-    if (req.user.role === "Teacher" && exam.createdBy !== req.user.username) {
-      return res.status(403).json({ error: "Not authorized to view this exam" });
-    }
-    if (req.user.role === "Student") {
-      const cls = await Class.findOne({ name: exam.class });
-      if (!cls || !cls.students.includes(req.user.username)) {
-        return res.status(403).json({ error: "Not enrolled in this class" });
-      }
-    }
-    res.json(exam);
-  } catch (err) {
-    console.error("Get exam by id error:", err);
-    res.status(500).json({ error: "Failed to fetch exam" });
-  }
-});
+// Now handled by exams.js router
 
 // Student: Submit exam answers; auto-score and save to grades
-app.post("/api/exams/:id/submit", authenticateToken, requireStudent, async (req, res) => {
-  try {
-    const { answers } = req.body; // [{questionIndex, answer}]
-    const exam = await Exam.findById(req.params.id);
-    if (!exam) return res.status(404).json({ error: "Exam not found" });
-    const cls = await Class.findOne({ name: exam.class });
-    if (!cls || !cls.students.includes(req.user.username)) {
-      return res.status(403).json({ error: "Not enrolled in this class" });
-    }
-    // Prevent multiple submissions
-    const existing = await ExamSubmission.findOne({ examId: exam._id, student: req.user.username });
-    if (existing) {
-      return res.status(400).json({ error: "You have already submitted this exam" });
-    }
-    // Score raw
-    let rawScore = 0;
-    const total = exam.questions.length;
-    for (const ans of answers || []) {
-      const q = exam.questions[ans.questionIndex];
-      if (!q) continue;
-      if (q.type === "multiple" && q.correctAnswer && ans.answer === q.correctAnswer) rawScore++;
-      if (q.type === "short" && q.correctAnswer && ans.answer?.trim().toLowerCase() === q.correctAnswer.trim().toLowerCase()) rawScore++;
-    }
-    // Determine early/late and adjust credit points
-    const now = new Date();
-    const user = await User.findOne({ username: req.user.username });
-    if (!user) return res.status(404).json({ error: "User not found" });
-    let creditDelta = 0;
-    if (exam.due) {
-      if (now < new Date(exam.due)) creditDelta = 1; else creditDelta = -2;
-    }
-    user.creditPoints = Math.max(0, (user.creditPoints || 0) + creditDelta);
-    // Fill missing points using available credits
-    const missing = Math.max(0, total - rawScore);
-    const creditsToUse = Math.min(user.creditPoints, missing);
-    const finalScore = rawScore + creditsToUse;
-    user.creditPoints = Math.max(0, user.creditPoints - creditsToUse);
-    await user.save();
-
-    const submission = new ExamSubmission({ examId: exam._id, student: req.user.username, answers, rawScore, finalScore, creditsUsed: creditsToUse });
-    await submission.save();
-    // Create grade entry for this exam with breakdown
-    const gradeEntry = new Grade({ class: exam.class, student: req.user.username, grade: `${finalScore}/${total}`, feedback: `Exam: ${exam.title} (raw ${rawScore}/${total}, +${creditsToUse} credits)` });
-    await gradeEntry.save();
-    res.json({ message: "Submission recorded", rawScore, finalScore, total, creditsUsed: creditsToUse, creditBalance: user.creditPoints });
-  } catch (err) {
-    console.error("Submit exam error:", err);
-    res.status(500).json({ error: "Failed to submit exam" });
-  }
-});
+// Now handled by exams.js router
 
 // Teacher: List submissions for an exam
-app.get("/api/exams/:id/submissions", authenticateToken, requireTeacherOrAdmin, async (req, res) => {
-  try {
-    const exam = await Exam.findById(req.params.id);
-    if (!exam) return res.status(404).json({ error: "Exam not found" });
-    if (req.user.role === "Teacher" && exam.createdBy !== req.user.username) {
-      return res.status(403).json({ error: "Not authorized" });
-    }
-    const submissions = await ExamSubmission.find({ examId: exam._id });
-    res.json(submissions);
-  } catch (err) {
-    console.error("List submissions error:", err);
-    res.status(500).json({ error: "Failed to fetch submissions" });
-  }
-});
+// Now handled by exams.js router
 
 // Common delete endpoints
 app.delete("/api/announcements/:id", authenticateToken, requireTeacherOrAdmin, async (req, res) => {
@@ -736,26 +846,13 @@ app.delete("/api/announcements/:id", authenticateToken, requireTeacherOrAdmin, a
     await Announcement.deleteOne({ _id: ann._id });
     res.json({ message: "Announcement deleted" });
   } catch (err) {
-    console.error("Delete announcement error:", err);
+    console.error("Delete announcement error:", err.response?.data || err.message);
     res.status(500).json({ error: "Failed to delete announcement" });
   }
 });
 
-app.delete("/api/exams/:id", authenticateToken, requireTeacherOrAdmin, async (req, res) => {
-  try {
-    const exam = await Exam.findById(req.params.id);
-    if (!exam) return res.status(404).json({ error: "Exam not found" });
-    if (req.user.role === "Teacher" && exam.createdBy !== req.user.username) {
-      return res.status(403).json({ error: "Not authorized" });
-    }
-    await Exam.deleteOne({ _id: exam._id });
-    await ExamSubmission.deleteMany({ examId: exam._id });
-    res.json({ message: "Exam and submissions deleted" });
-  } catch (err) {
-    console.error("Delete exam error:", err);
-    res.status(500).json({ error: "Failed to delete exam" });
-  }
-});
+// Delete exam endpoint now handled by exams.js router
+
 
 app.delete("/api/grades/:id", authenticateToken, requireTeacherOrAdmin, async (req, res) => {
   try {
@@ -953,9 +1050,44 @@ app.get("/api/student/grades", authenticateToken, requireStudent, async (req, re
   }
 });
 
+// Set up models for exams routes
+setupModels({
+  User,
+  Class,
+  Grade,
+  ExamSubmission
+});
+
+// Use route modules
+app.use("/api", materialsRoutes);
+app.use("/api", commentsRoutes);
+app.use("/api", notificationsRoutes);
+app.use("/api", uploadRoutes);
+app.use("/api/exams", examsRoutes);
+
 // Test endpoint
 app.get("/api/test", (req, res) => {
   res.json({ message: "Backend is working", timestamp: new Date().toISOString() });
+});
+
+// Debug endpoint to list all classes (for testing)
+app.get("/api/debug/classes", async (req, res) => {
+  try {
+    const classes = await Class.find({}, 'name code teacher students');
+    res.json({
+      message: 'All classes in database',
+      count: classes.length,
+      classes: classes.map(c => ({
+        name: c.name,
+        code: c.code,
+        teacher: c.teacher,
+        studentCount: c.students.length
+      }))
+    });
+  } catch (err) {
+    console.error("Debug classes error:", err);
+    res.status(500).json({ error: "Failed to fetch classes" });
+  }
 });
 
 // Start server

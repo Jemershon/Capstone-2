@@ -90,11 +90,26 @@ export default function LandingPage() {
           password: formData.password,
         })
       );
-      console.log("Login response:", res.data); // Debug log
-      localStorage.setItem("token", res.data.token);
-      localStorage.setItem("username", formData.username);
+      
+      console.log("Login response received:", {
+        status: res.status,
+        role: res.data.user.role,
+        tokenReceived: !!res.data.token
+      });
+      
+      // Import the setAuthData function from api.js
+      const { setAuthData } = await import('../api');
+      
+      // Store authentication data using our helper function
+      setAuthData(res.data.token, res.data.user.username, res.data.user.role);
+      
+      // Show success message
       setError("Login successful!");
       setShowToast(true);
+      
+      console.log("Redirecting to dashboard for role:", res.data.user.role);
+      
+      // Redirect after a short delay
       setTimeout(() => {
         if (res.data.user.role === "Student") navigate("/student/dashboard");
         else if (res.data.user.role === "Teacher") navigate("/teacher/dashboard");

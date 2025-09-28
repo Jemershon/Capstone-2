@@ -1,1012 +1,122 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from "react";
+import { Routes, Route, NavLink, useNavigate, useParams, Link } from "react-router-dom";
 import axios from "axios";
-import { API_BASE_URL } from "../api";
-import { NavLink, Link, Routes, Route, useNavigate, useParams } from "react-router-dom";
-import {
-  Container,
-  Row,
-  Col,
-  Nav,
-  Navbar,
-  Card,
-  Button,
-  Form,
-  Table,
-  Modal,
-  Toast,
-  Spinner,
-  ProgressBar,
-  Alert,
-} from "react-bootstrap";
+import { Container, Row, Col, Nav, Navbar, Card, Button, Table, Modal, Form, Tab, Tabs, Badge, Alert, Spinner, Toast, ListGroup, Dropdown } from "react-bootstrap";
+import { getAuthToken, getUsername, getUserRole, checkAuth, clearAuthData, API_BASE_URL } from "../api";
+import NotificationsDropdown from "./components/NotificationsDropdown";
 
-// Retry function for API calls
-const retry = async (fn, retries = 3, delay = 1000) => {
-  for (let i = 0; i < retries; i++) {
-    try {
-      return await fn();
-    } catch (err) {
-      if (i === retries - 1) throw err;
-      await new Promise((resolve) => setTimeout(resolve, delay));
+// Add custom styles for responsive design
+const customStyles = `
+  .main-content-responsive {
+    margin-left: 0;
+    padding: 20px;
+  }
+  
+  @media (min-width: 768px) {
+    .main-content-responsive {
+      margin-left: 16.666667%;
+      padding: 20px;
     }
   }
-};
-
-// ================= Dashboard & Classes =================
-function DashboardAndClasses() {
-  const [classes, setClasses] = useState([]);
-  const [showJoinModal, setShowJoinModal] = useState(false);
-  const [joinCode, setJoinCode] = useState("");
-  const [user, setUser] = useState({ username: "" });
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [showToast, setShowToast] = useState(false);
-  const [debugData, setDebugData] = useState(null);
-
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    try {
-      const headers = { Authorization: `Bearer ${localStorage.getItem("token")}` };
-      const [classesRes, userRes] = await Promise.all([
-        retry(() =>
-          axios.get(`${API_BASE_URL}/api/student/classes?page=1&limit=100`, { headers })
-        ),
-        retry(() => axios.get(`${API_BASE_URL}/api/profile`, { headers })),
-      ]);
-      setClasses(classesRes.data || []);
-      setUser(userRes.data);
-      setDebugData({ classes: classesRes.data, user: userRes.data });
-    } catch (err) {
-      console.error("Fetch error:", err.response?.data || err.message);
-      setError(err.response?.data?.error || "Failed to load classes or profile. Check network or login status.");
-      setShowToast(true);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-    if (!cancelled) fetchData();
-    return () => {
-      cancelled = true;
-    };
-  }, [fetchData]);
-
-  const handleJoinClass = async () => {
-    if (!joinCode.trim()) {
-      setError("Class code is required");
-      setShowToast(true);
-      return;
-    }
-    try {
-      await retry(() =>
-        axios.post(
-          `${API_BASE_URL}/api/classes/join`,
-          { code: joinCode.toUpperCase() },
-          { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
-        )
-      );
-      await fetchData();
-      setShowJoinModal(false);
-      setJoinCode("");
-      setError("Joined class successfully!");
-      setShowToast(true);
-    } catch (err) {
-      console.error("Join class error:", err.response?.data || err.message);
-      setError(err.response?.data?.error || "Failed to join class. Check code or network.");
-      setShowToast(true);
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="text-center py-4">
-        <Spinner animation="border" role="status" aria-label="Loading classes" />
-        <p>Loading classes...</p>
-      </div>
-    );
+  
+  .nav-link-custom {
+    border-radius: 4px;
+    margin-bottom: 5px;
+    transition: background-color 0.2s;
   }
+  
+  .nav-link-custom:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+  }
+  
+  .nav-link-custom.active {
+    background-color: rgba(255, 255, 255, 0.2);
+  }
+`;
 
-  return (
-    <div>
-      <h2 className="fw-bold mb-4">Dashboard & Classes</h2>
-      {error && (
-        <Toast
-          show={showToast}
-          onClose={() => setShowToast(false)}
-          delay={5000}
-          autohide
-          bg={error.includes("successfully") ? "success" : "danger"}
-          style={{ position: "fixed", top: "20px", right: "20px", zIndex: 10000 }}
-        >
-          <Toast.Body className="text-white">{error}</Toast.Body>
-        </Toast>
-      )}
-      {debugData && (
-        <Alert variant="info" className="mb-4">
-          <strong>Debug Info:</strong> Classes: {JSON.stringify(debugData.classes.length)} items, User: {JSON.stringify(debugData.user.username)}
-        </Alert>
-      )}
-      <Row className="mb-4">
-        <Col md={4}>
-          <Card className="p-3 bg-primary text-white">
-            <h5>Total Classes</h5>
-            <h3>{classes.length}</h3>
-          </Card>
-        </Col>
-        <Col md={4}>
-          <Card className="p-3 bg-success text-white">
-            <h5>Assignments Due</h5>
-            <h3>{classes.reduce((acc, cls) => acc + (cls.assignments?.length || 0), 0)}</h3>
-          </Card>
-        </Col>
-        <Col md={4}>
-          <Card className="p-3 bg-warning text-dark">
-            <h5>Quizzes Pending</h5>
-            <h3>{classes.reduce((acc, cls) => acc + (cls.exams?.length || 0), 0)}</h3>
-          </Card>
-        </Col>
-      </Row>
-      <h4 className="fw-bold mb-3 d-flex justify-content-between align-items-center">
-        <span>Your enrolled classes:</span>
-        <Button
-          size="sm"
-          variant="outline-primary"
-          onClick={() => setShowJoinModal(true)}
-          aria-label="Join a new class"
-        >
-          + Join Class
-        </Button>
-      </h4>
-      <Row>
-        {classes.length === 0 && (
-          <Col xs={12}>
-            <Card className="p-4 text-center text-muted">
-              No classes enrolled. Join a class using a code!
-            </Card>
-          </Col>
-        )}
-        {classes.map((cls) => (
-          <Col key={cls._id || cls.id} md={4} className="mb-3">
-            <Card
-              className="p-3 h-100"
-              style={{ backgroundColor: cls.bg || "#FFF0D8", border: "1px solid #ccc", borderRadius: "8px" }}
-            >
-              <Card.Body>
-                <Card.Title className="fw-bold">{cls.name}</Card.Title>
-                <Card.Subtitle className="mb-2 text-muted">{cls.teacher}</Card.Subtitle>
-                <p className="mb-1">
-                  <strong>Class Code:</strong> {cls.code}
-                </p>
-                <p className="mb-0">
-                  <strong>Students:</strong> {cls.students.length}
-                </p>
-              </Card.Body>
-              <Card.Footer className="text-end">
-                <Button 
-                  variant="primary" 
-                  size="sm" 
-                  as={Link}
-                  to={`/student/class/${encodeURIComponent(cls.name)}`}
-                  aria-label={`Enter class ${cls.name}`}
-                >
-                  Enter Class
-                </Button>
-              </Card.Footer>
-            </Card>
-          </Col>
-        ))}
-      </Row>
-      <Modal
-        show={showJoinModal}
-        onHide={() => {
-          setShowJoinModal(false);
-          setJoinCode("");
-          setError("");
-        }}
-        centered
-      >
-        <Modal.Header closeButton>
-          <Modal.Title>Join Class</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          <Form.Group>
-            <Form.Label>Enter Class Code</Form.Label>
-            <Form.Control
-              type="text"
-              value={joinCode}
-              onChange={(e) => setJoinCode(e.target.value)}
-              placeholder="ABC123"
-              required
-              aria-required="true"
-            />
-          </Form.Group>
-        </Modal.Body>
-        <Modal.Footer>
-          <Button
-            variant="secondary"
-            onClick={() => {
-              setShowJoinModal(false);
-              setJoinCode("");
-              setError("");
-            }}
-          >
-            Cancel
-          </Button>
-          <Button
-            variant="success"
-            onClick={handleJoinClass}
-            disabled={!joinCode.trim()}
-            aria-label="Join class"
-          >
-            Join
-          </Button>
-        </Modal.Footer>
-      </Modal>
-    </div>
-  );
+// Inject styles
+if (typeof document !== 'undefined') {
+  const styleElement = document.createElement('style');
+  styleElement.textContent = customStyles;
+  document.head.appendChild(styleElement);
 }
 
-// ================= Assignments =================
-function Assignments() {
-  const [assignments, setAssignments] = useState([]);
-  const [classes, setClasses] = useState([]);
-  const [selectedClass, setSelectedClass] = useState("");
-  const [showSubmitModal, setShowSubmitModal] = useState(false);
-  const [selectedAssignment, setSelectedAssignment] = useState(null);
-  const [submitFile, setSubmitFile] = useState(null);
+function StudentDashboard() {
+  const [user, setUser] = useState({ name: "", username: "", role: "" });
+  const [isAuthenticated, setIsAuthenticated] = useState(checkAuth());
   const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState("");
-  const [showToast, setShowToast] = useState(false);
-  const [user, setUser] = useState({ username: "" });
-  const [uploadProgress, setUploadProgress] = useState(0);
-  const [debugData, setDebugData] = useState(null);
-
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    try {
-      const headers = { Authorization: `Bearer ${localStorage.getItem("token")}` };
-      const [assignmentsRes, classesRes, userRes] = await Promise.all([
-        retry(() =>
-          axios.get(`${API_BASE_URL}/api/student/assignments?page=1&limit=100`, { headers })
-        ),
-        retry(() => axios.get(`${API_BASE_URL}/api/student/classes?page=1&limit=100`, { headers })),
-        retry(() => axios.get(`${API_BASE_URL}/api/profile`, { headers })),
-      ]);
-      setAssignments(assignmentsRes.data || []);
-      setClasses(classesRes.data || []);
-      setUser(userRes.data);
-      setDebugData({ assignments: assignmentsRes.data, classes: classesRes.data, user: userRes.data });
-    } catch (err) {
-      console.error("Fetch error:", err.response?.data || err.message);
-      setError(err.response?.data?.error || "Failed to load assignments or classes. Check network or login status.");
-      setShowToast(true);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-    if (!cancelled) fetchData();
-    return () => {
-      cancelled = true;
-    };
-  }, [fetchData]);
-
-  const handleOpenSubmit = (assignment) => {
-    setSelectedAssignment(assignment);
-    setShowSubmitModal(true);
-    setSubmitFile(null);
-    setError("");
-    setUploadProgress(0);
-  };
-
-  const handleSubmitAssignment = async () => {
-    if (!submitFile) {
-      setError("Please select a file to submit");
-      setShowToast(true);
-      return;
-    }
-    if (submitFile.size > 5 * 1024 * 1024) {
-      setError("File size exceeds 5MB limit");
-      setShowToast(true);
-      return;
-    }
-    setSubmitting(true);
-    try {
-      const formData = new FormData();
-      formData.append("file", submitFile);
-      const uploadRes = await retry(() =>
-        axios.post(
-          `${API_BASE_URL}/api/assignments/upload`,
-          formData,
-          {
-            headers: {
-              Authorization: `Bearer ${localStorage.getItem("token")}`,
-              "Content-Type": "multipart/form-data",
-            },
-            onUploadProgress: (progressEvent) => {
-              const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-              setUploadProgress(percent);
-            },
-          }
-        )
-      );
-      await retry(() =>
-        axios.put(
-          `${API_BASE_URL}/api/assignments/${selectedAssignment._id}`,
-          {
-            status: "Submitted",
-            submittedFile: uploadRes.data.filename,
-            studentUsername: user.username,
-          },
-          { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
-        )
-      );
-      await fetchData();
-      setShowSubmitModal(false);
-      setSubmitFile(null);
-      setUploadProgress(0);
-      setError("Assignment submitted successfully!");
-      setShowToast(true);
-    } catch (err) {
-      console.error("Submit assignment error:", err.response?.data || err.message);
-      setError(err.response?.data?.error || "Failed to submit assignment. Check file or network.");
-      setShowToast(true);
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const filteredAssignments = selectedClass
-    ? assignments.filter((a) => a.class === selectedClass)
-    : assignments;
-
-  if (loading) {
-    return (
-      <div className="text-center py-4">
-        <Spinner animation="border" role="status" aria-label="Loading assignments" />
-        <p>Loading assignments...</p>
-      </div>
-    );
-  }
-
-  return (
-    <div>
-      <h2 className="fw-bold mb-3">Assignments</h2>
-      {error && (
-        <Toast
-          show={showToast}
-          onClose={() => setShowToast(false)}
-          delay={5000}
-          autohide
-          bg={error.includes("successfully") ? "success" : "danger"}
-          style={{ position: "fixed", top: "20px", right: "20px", zIndex: 10000 }}
-        >
-          <Toast.Body className="text-white">{error}</Toast.Body>
-        </Toast>
-      )}
-      {debugData && (
-        <Alert variant="info" className="mb-4">
-          <strong>Debug Info:</strong> Assignments: {JSON.stringify(debugData.assignments.length)} items, Classes: {JSON.stringify(debugData.classes.length)}
-        </Alert>
-      )}
-      <Form.Group className="mb-3" style={{ maxWidth: 300 }}>
-        <Form.Label>Filter by Class</Form.Label>
-        <Form.Select
-          value={selectedClass}
-          onChange={(e) => setSelectedClass(e.target.value)}
-          aria-label="Filter assignments by class"
-        >
-          <option value="">All Classes</option>
-          {classes.map((cls) => (
-            <option key={cls._id || cls.id} value={cls.name}>
-              {cls.name}
-            </option>
-          ))}
-        </Form.Select>
-      </Form.Group>
-      <Table striped bordered hover responsive style={{ tableLayout: "fixed" }}>
-        <thead>
-          <tr>
-            <th style={{ width: "15%" }}>Class</th>
-            <th style={{ width: "15%" }}>Task</th>
-            <th style={{ width: "25%" }}>Description</th>
-            <th style={{ width: "15%" }}>Due</th>
-            <th style={{ width: "15%" }}>Status</th>
-            <th style={{ width: "15%" }}>Submission</th>
-            <th style={{ width: "15%" }}>Action</th>
-          </tr>
-        </thead>
-        <tbody>
-          {filteredAssignments.length === 0 ? (
-            <tr>
-              <td colSpan={7} className="text-center text-muted">
-                No assignments found. Try joining a class or checking another class.
-              </td>
-            </tr>
-          ) : (
-            filteredAssignments.map((a) => (
-              <tr key={a._id || a.id}>
-                <td>{a.class}</td>
-                <td>{a.title}</td>
-                <td style={{ whiteSpace: "pre-wrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                  {a.description}
-                </td>
-                <td>{new Date(a.due).toLocaleDateString()}</td>
-                <td className={a.status === "Submitted" ? "text-success" : "text-warning"}>
-                  {a.status}
-                </td>
-                <td>
-                  {a.submittedFile ? (
-                    <span className="badge bg-success">{a.submittedFile}</span>
-                  ) : (
-                    <span className="text-muted">Not submitted</span>
-                  )}
-                </td>
-                <td>
-                  {a.status === "Pending" ? (
-                    <Button
-                      size="sm"
-                      variant="primary"
-                      onClick={() => handleOpenSubmit(a)}
-                      aria-label={`Submit assignment ${a.title}`}
-                    >
-                      Submit
-                    </Button>
-                  ) : (
-                    <span className="text-success">Done</span>
-                  )}
-                </td>
-              </tr>
-            ))
-          )}
-        </tbody>
-      </Table>
-      <Modal
-        show={showSubmitModal}
-        onHide={() => {
-          setShowSubmitModal(false);
-          setSubmitFile(null);
-          setError("");
-          setUploadProgress(0);
-        }}
-        centered
-      >
-        <Modal.Header closeButton>
-          <Modal.Title>Submit Assignment</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          {selectedAssignment && (
-            <>
-              <p>
-                <strong>Task:</strong> {selectedAssignment.title}
-              </p>
-              <p>
-                <strong>Description:</strong> {selectedAssignment.description}
-              </p>
-              <p>
-                <strong>Due:</strong> {new Date(selectedAssignment.due).toLocaleDateString()}
-              </p>
-              <Form.Group className="mb-3">
-                <Form.Label>Upload your work</Form.Label>
-                <Form.Control
-                  type="file"
-                  onChange={(e) => setSubmitFile(e.target.files[0])}
-                  accept="image/jpeg,image/png,application/pdf"
-                  aria-label="Upload assignment file"
-                />
-                <Form.Text className="text-muted">
-                  Only JPEG, PNG, or PDF files up to 5MB are allowed.
-                </Form.Text>
-              </Form.Group>
-              {uploadProgress > 0 && (
-                <ProgressBar now={uploadProgress} label={`${uploadProgress}%`} className="mt-2" />
-              )}
-            </>
-          )}
-        </Modal.Body>
-        <Modal.Footer>
-          <Button
-            variant="secondary"
-            onClick={() => {
-              setShowSubmitModal(false);
-              setSubmitFile(null);
-              setError("");
-              setUploadProgress(0);
-            }}
-          >
-            Cancel
-          </Button>
-          <Button
-            variant="success"
-            onClick={handleSubmitAssignment}
-            disabled={!submitFile || submitting}
-            aria-label="Submit assignment"
-          >
-            {submitting ? (
-              <>
-                <Spinner
-                  as="span"
-                  animation="border"
-                  size="sm"
-                  role="status"
-                  aria-hidden
-                />
-                <span className="ms-2">Submitting...</span>
-              </>
-            ) : (
-              "Submit"
-            )}
-          </Button>
-        </Modal.Footer>
-      </Modal>
-    </div>
-  );
-}
-
-// ================= Student Class Stream (per class) =================
-function StudentClassStream() {
-  const { name } = useParams();
-  const className = decodeURIComponent(name || "");
-  const [announcements, setAnnouncements] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [showToast, setShowToast] = useState(false);
-  const [showExamModal, setShowExamModal] = useState(false);
-  const [activeExam, setActiveExam] = useState(null);
-  const [answers, setAnswers] = useState([]);
-  const [submitting, setSubmitting] = useState(false);
-  const [submittedExamIds, setSubmittedExamIds] = useState({});
-
-  const fetchAnnouncements = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await retry(() =>
-        axios.get(`${API_BASE_URL}/api/student/announcements?page=1&limit=100&className=${encodeURIComponent(className)}`, {
-          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-        })
-      );
-      setAnnouncements(res.data || []);
-    } catch (err) {
-      console.error("Fetch announcements error:", err.response?.data || err.message);
-      setError(err.response?.data?.error || "Failed to load class stream.");
-      setShowToast(true);
-    } finally {
-      setLoading(false);
-    }
-  }, [className]);
-
-  const checkSubmitted = useCallback(async (examId) => {
-    try {
-      // try to fetch exam submissions by this student; endpoint denies listing for students, so infer by 400 on submit attempt
-      // simpler approach: query exam and ignore; backend prevents retake on submit
-      return submittedExamIds[examId] === true;
-    } catch {
-      return false;
-    }
-  }, [submittedExamIds]);
-
-  useEffect(() => {
-    let cancelled = false;
-    if (!cancelled) fetchAnnouncements();
-    return () => {
-      cancelled = true;
-    };
-  }, [fetchAnnouncements]);
-
-  const openTakeExam = async (examId) => {
-    if (await checkSubmitted(examId)) return; // block if already submitted
-    try {
-      const res = await retry(() =>
-        axios.get(`${API_BASE_URL}/api/exams/${examId}`, {
-          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-        })
-      );
-      const exam = res.data;
-      setActiveExam(exam);
-      setAnswers(exam.questions.map(() => ""));
-      setShowExamModal(true);
-    } catch (err) {
-      console.error("Load exam error:", err.response?.data || err.message);
-      setError(err.response?.data?.error || "Failed to load exam.");
-      setShowToast(true);
-    }
-  };
-
-  const submitExam = async () => {
-    if (!activeExam) return;
-    setSubmitting(true);
-    try {
-      const payload = { answers: answers.map((ans, idx) => ({ questionIndex: idx, answer: ans })) };
-      await retry(() =>
-        axios.post(`${API_BASE_URL}/api/exams/${activeExam._id}/submit`, payload, {
-          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-        })
-      );
-      setShowExamModal(false);
-      setActiveExam(null);
-      setAnswers([]);
-      setSubmittedExamIds((prev) => ({ ...prev, [activeExam._id]: true }));
-      await fetchAnnouncements();
-    } catch (err) {
-      console.error("Submit exam error:", err.response?.data || err.message);
-      setError(err.response?.data?.error || "Failed to submit exam.");
-      setShowToast(true);
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="text-center py-4">
-        <Spinner animation="border" role="status" aria-label="Loading class stream" />
-        <p>Loading class stream...</p>
-      </div>
-    );
-  }
-
-  return (
-    <div>
-      <h2 className="fw-bold mb-3">{className} — Stream</h2>
-      {error && (
-        <Toast
-          show={showToast}
-          onClose={() => setShowToast(false)}
-          delay={5000}
-          autohide
-          bg="danger"
-          style={{ position: "fixed", top: "20px", right: "20px", zIndex: 10000 }}
-        >
-          <Toast.Body className="text-white">{error}</Toast.Body>
-        </Toast>
-      )}
-
-      {announcements.length === 0 ? (
-        <Card className="p-4 text-center text-muted">No posts yet.</Card>
-      ) : (
-        announcements.map((a) => (
-          <Card key={a._id || a.id} className="mb-3">
-            <Card.Body>
-              <div className="d-flex justify-content-between align-items-start">
-                <div>
-                  <div className="fw-bold">{a.teacher}</div>
-                  <div className="text-muted" style={{ fontSize: 12 }}>{new Date(a.date).toLocaleString()}</div>
-                </div>
-                {a.examId && submittedExamIds[a.examId] && (
-                  <span className="badge bg-success">Submitted</span>
-                )}
-              </div>
-              <div className="mt-2" style={{ whiteSpace: "pre-wrap" }}>{a.message}</div>
-              {a.examId && !submittedExamIds[a.examId] && (
-                <div className="mt-3">
-                  <Button variant="primary" onClick={() => openTakeExam(a.examId)} aria-label="Take exam">Take Exam</Button>
-                </div>
-              )}
-            </Card.Body>
-          </Card>
-        ))
-      )}
-
-      <Modal show={showExamModal} onHide={() => setShowExamModal(false)} centered size="lg">
-        <Modal.Header closeButton>
-          <Modal.Title>{activeExam ? activeExam.title : "Exam"}</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          {activeExam && (
-            <>
-              {activeExam.description && <p className="text-muted">{activeExam.description}</p>}
-              {activeExam.questions.map((q, idx) => (
-                <div key={idx} className="mb-3 p-3 border rounded">
-                  <div className="fw-bold mb-2">Q{idx + 1}. {q.text}</div>
-                  {q.type === "multiple" ? (
-                    <div>
-                      {(q.options || []).map((opt, i) => (
-                        <Form.Check
-                          key={i}
-                          type="radio"
-                          id={`q${idx}-opt${i}`}
-                          name={`q${idx}`}
-                          label={opt}
-                          checked={answers[idx] === opt}
-                          onChange={() => {
-                            const next = [...answers];
-                            next[idx] = opt;
-                            setAnswers(next);
-                          }}
-                        />
-                      ))}
-                    </div>
-                  ) : (
-                    <Form.Control
-                      type="text"
-                      value={answers[idx]}
-                      onChange={(e) => {
-                        const next = [...answers];
-                        next[idx] = e.target.value;
-                        setAnswers(next);
-                      }}
-                      placeholder="Your answer"
-                    />
-                  )}
-                </div>
-              ))}
-            </>
-          )}
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowExamModal(false)}>Cancel</Button>
-          <Button variant="success" onClick={submitExam} disabled={submitting}>{submitting ? "Submitting..." : "Submit"}</Button>
-        </Modal.Footer>
-      </Modal>
-    </div>
-  );
-}
-
-// ================= Grades =================
-function Grades() {
-  const [grades, setGrades] = useState([]);
-  const [classes, setClasses] = useState([]);
-  const [selectedClass, setSelectedClass] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [showToast, setShowToast] = useState(false);
-  const [debugData, setDebugData] = useState(null);
-
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    try {
-      const headers = { Authorization: `Bearer ${localStorage.getItem("token")}` };
-      const [gradesRes, classesRes] = await Promise.all([
-        retry(() => axios.get(`${API_BASE_URL}/api/student/grades?page=1&limit=100`, { headers })),
-        retry(() => axios.get(`${API_BASE_URL}/api/student/classes?page=1&limit=100`, { headers })),
-      ]);
-      setGrades(gradesRes.data || []);
-      setClasses(classesRes.data || []);
-      setDebugData({ grades: gradesRes.data, classes: classesRes.data });
-    } catch (err) {
-      console.error("Fetch grades error:", err.response?.data || err.message);
-      setError(err.response?.data?.error || "Failed to load grades or classes. Check network or login status.");
-      setShowToast(true);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-    if (!cancelled) fetchData();
-    return () => {
-      cancelled = true;
-    };
-  }, [fetchData]);
-
-  const filteredGrades = selectedClass
-    ? grades.filter((g) => g.class === selectedClass)
-    : grades;
-
-  if (loading) {
-    return (
-      <div className="text-center py-4">
-        <Spinner animation="border" role="status" aria-label="Loading grades" />
-        <p>Loading grades...</p>
-      </div>
-    );
-  }
-
-  return (
-    <div>
-      <h2 className="fw-bold mb-3">Grades</h2>
-      {error && (
-        <Toast
-          show={showToast}
-          onClose={() => setShowToast(false)}
-          delay={5000}
-          autohide
-          bg="danger"
-          style={{ position: "fixed", top: "20px", right: "20px", zIndex: 10000 }}
-        >
-          <Toast.Body className="text-white">{error}</Toast.Body>
-        </Toast>
-      )}
-      {debugData && (
-        <Alert variant="info" className="mb-4">
-          <strong>Debug Info:</strong> Grades: {JSON.stringify(debugData.grades.length)} items, Classes: {JSON.stringify(debugData.classes.length)}
-        </Alert>
-      )}
-      <Form.Group className="mb-3" style={{ maxWidth: 300 }}>
-        <Form.Label>Filter by Class</Form.Label>
-        <Form.Select
-          value={selectedClass}
-          onChange={(e) => setSelectedClass(e.target.value)}
-          aria-label="Filter grades by class"
-        >
-          <option value="">All Classes</option>
-          {classes.map((cls) => (
-            <option key={cls._id || cls.id} value={cls.name}>
-              {cls.name}
-            </option>
-          ))}
-        </Form.Select>
-      </Form.Group>
-      <Table striped bordered hover responsive style={{ tableLayout: "fixed" }}>
-        <thead>
-          <tr>
-            <th style={{ width: "30%" }}>Class</th>
-            <th style={{ width: "20%" }}>Grade</th>
-            <th style={{ width: "50%" }}>Feedback</th>
-          </tr>
-        </thead>
-        <tbody>
-          {filteredGrades.length === 0 && (
-            <tr>
-              <td colSpan={3} className="text-center text-muted">
-                No grades found. Try selecting a class or check with your teacher.
-              </td>
-            </tr>
-          )}
-          {filteredGrades.map((g, idx) => (
-            <tr key={g._id || idx}>
-              <td>{g.class}</td>
-              <td>{g.grade}</td>
-              <td style={{ whiteSpace: "pre-wrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                {g.feedback}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </Table>
-    </div>
-  );
-}
-
-// ================= Profile =================
-function Profile() {
-  const [profile, setProfile] = useState({});
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [showToast, setShowToast] = useState(false);
-  const [debugData, setDebugData] = useState(null);
-
-  const fetchProfile = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await retry(() =>
-        axios.get(`${API_BASE_URL}/api/profile`, {
-          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-        })
-      );
-      setProfile(res.data);
-      setDebugData({ profile: res.data });
-    } catch (err) {
-      console.error("Fetch profile error:", err.response?.data || err.message);
-      setError(err.response?.data?.error || "Failed to load profile. Check login status.");
-      setShowToast(true);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-    if (!cancelled) fetchProfile();
-    return () => {
-      cancelled = true;
-    };
-  }, [fetchProfile]);
-
-  if (loading) {
-    return (
-      <div className="text-center py-4">
-        <Spinner animation="border" role="status" aria-label="Loading profile" />
-        <p>Loading profile...</p>
-      </div>
-    );
-  }
-
-  return (
-    <div>
-      <h2 className="fw-bold">Profile</h2>
-      {error && (
-        <Toast
-          show={showToast}
-          onClose={() => setShowToast(false)}
-          delay={5000}
-          autohide
-          bg="danger"
-          style={{ position: "fixed", top: "20px", right: "20px", zIndex: 10000 }}
-        >
-          <Toast.Body className="text-white">{error}</Toast.Body>
-        </Toast>
-      )}
-      {debugData && (
-        <Alert variant="info" className="mb-4">
-          <strong>Debug Info:</strong> Profile: {JSON.stringify(debugData.profile.username)}
-        </Alert>
-      )}
-      <Card className="p-3 mt-3">
-        <p>
-          <strong>Name:</strong> {profile.name || "N/A"}
-        </p>
-        <p>
-          <strong>Username:</strong> {profile.username || "N/A"}
-        </p>
-        <p>
-          <strong>Role:</strong> {profile.role || "N/A"}
-        </p>
-      </Card>
-      <Card className="p-3 mt-3">
-        <h5 className="mb-2">Credit Points</h5>
-        <p className="mb-0" style={{ fontSize: 24 }}>
-          <strong>{profile.creditPoints ?? 0}</strong>
-        </p>
-        <small className="text-muted">Earn +1 for early submit, −2 for late. Used to fill exam gaps.</small>
-      </Card>
-    </div>
-  );
-}
-
-// ================= Student Dashboard =================
-export default function StudentDashboard() {
-  const navigate = useNavigate();
   const [showLogoutModal, setShowLogoutModal] = useState(false);
-  const [showToast, setShowToast] = useState(false);
-  const [isAuthenticated, setIsAuthenticated] = useState(!!localStorage.getItem("token"));
-  const [authLoading, setAuthLoading] = useState(true);
-  const [authError, setAuthError] = useState("");
-
-  const verifyToken = useCallback(async () => {
-    setAuthLoading(true);
-    try {
-      const res = await retry(() =>
-        axios.get(`${API_BASE_URL}/api/profile`, {
-          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-        })
-      );
-      if (res.data.role !== "Student") {
-        throw new Error("Access denied: Not a student");
-      }
-    } catch (err) {
-      console.error("Auth error:", err.response?.data || err.message);
-      setAuthError(err.response?.data?.error || "Authentication failed. Please log in again.");
-      setIsAuthenticated(false);
-      localStorage.removeItem("token");
-      setTimeout(() => navigate("/"), 3000);
-    } finally {
-      setAuthLoading(false);
-    }
-  }, [navigate]);
+  const navigate = useNavigate();
 
   useEffect(() => {
-    let cancelled = false;
-    if (isAuthenticated && !cancelled) {
+    const verifyToken = async () => {
+      try {
+        const token = getAuthToken();
+        const username = getUsername();
+        const role = getUserRole();
+        
+        if (!token || !username || role !== "Student") {
+          throw new Error("Invalid authentication data");
+        }
+
+        const response = await axios.get(`${API_BASE_URL}/api/verify-token`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+
+        if (response.data.valid && response.data.user.role === "Student") {
+          setUser({
+            name: response.data.user.name || username,
+            username: username,
+            role: "Student"
+          });
+          setIsAuthenticated(true);
+        } else {
+          throw new Error("Invalid token or role");
+        }
+      } catch (error) {
+        console.error("🚫 Authentication failed:", error);
+        clearAuthData();
+        setIsAuthenticated(false);
+        navigate("/");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (isAuthenticated) {
       verifyToken();
     } else {
-      setAuthLoading(false);
+      setLoading(false);
     }
-    return () => {
-      cancelled = true;
-    };
-  }, [isAuthenticated, verifyToken]);
+  }, [navigate, isAuthenticated]);
 
-  if (authLoading) {
+  const handleLogout = () => {
+    clearAuthData();
+    setIsAuthenticated(false);
+    navigate("/");
+  };
+
+  if (loading) {
     return (
-      <div className="text-center py-4">
-        <Spinner animation="border" role="status" aria-label="Verifying authentication" />
-        <p>Verifying authentication...</p>
+      <div className="d-flex justify-content-center align-items-center vh-100">
+        <div className="text-center">
+          <div className="spinner-border text-primary mb-3"></div>
+          <p>🔐 Verifying authentication... (Token: {getAuthToken() ? "✅ Present" : "❌ Missing"})</p>
+        </div>
       </div>
     );
   }
 
   if (!isAuthenticated) {
     return (
-      <div className="container text-center py-5">
-        <Alert variant="danger">
-          {authError || "You are not authenticated. Redirecting to login..."}
-        </Alert>
+      <div className="d-flex justify-content-center align-items-center vh-100">
+        <div className="text-center">
+          <h3>🚫 Authentication Required</h3>
+          <p>Please log in to access the student dashboard.</p>
+          <Button variant="primary" onClick={() => navigate("/")}>
+            Return to Login
+          </Button>
+        </div>
       </div>
     );
   }
@@ -1021,17 +131,23 @@ export default function StudentDashboard() {
             <Nav.Link
               as={NavLink}
               to="/student/dashboard"
-              className="nav-link-custom"
+              className="text-white nav-link-custom"
               aria-label="Dashboard and Classes"
             >
               🏠 Dashboard & Classes
             </Nav.Link>
-            {/* Removed Assignments and Announcements links for per-class stream */}
-            {/* Remove Grades from student sidebar */}
+            <Nav.Link
+              as={NavLink}
+              to="/student/grades"
+              className="text-white nav-link-custom"
+              aria-label="My Grades"
+            >
+              📊 My Grades
+            </Nav.Link>
             <Nav.Link
               as={NavLink}
               to="/student/profile"
-              className="nav-link-custom"
+              className="text-white nav-link-custom"
               aria-label="Profile"
             >
               👤 Profile
@@ -1045,93 +161,84 @@ export default function StudentDashboard() {
             </Nav.Link>
           </Nav>
         </Col>
+        
         {/* Mobile navbar */}
         <div className="d-md-none position-fixed w-100" style={{top: 0, zIndex: 1000}}>
           <Navbar bg="dark" variant="dark" expand="md">
-          <Navbar.Brand className="ms-2">Student Panel</Navbar.Brand>
-          <Navbar.Toggle aria-controls="mobile-nav" />
-          <Navbar.Collapse id="mobile-nav">
-            <Nav className="flex-column p-2">
-              <Nav.Link
-                as={Link}
-                to="/student/dashboard"
-                className="text-white"
-                aria-label="Dashboard and Classes"
-              >
-                🏠 Dashboard & Classes
-              </Nav.Link>
-              {/* Removed Assignments and Announcements from mobile nav */}
-              {/* Remove Grades from student mobile nav */}
-              <Nav.Link
-                as={Link}
-                to="/student/profile"
-                className="text-white"
-                aria-label="Profile"
-              >
-                👤 Profile
-              </Nav.Link>
-              <Nav.Link
-                onClick={() => setShowLogoutModal(true)}
-                className="text-danger"
-                aria-label="Logout"
-              >
-                🚪 Logout
-              </Nav.Link>
-            </Nav>
-          </Navbar.Collapse>
+            <Navbar.Brand className="ms-2">Student Panel</Navbar.Brand>
+            <Navbar.Toggle aria-controls="mobile-nav" />
+            <Navbar.Collapse id="mobile-nav">
+              <Nav className="flex-column p-2">
+                <Nav.Link
+                  as={Link}
+                  to="/student/dashboard"
+                  className="text-white"
+                  aria-label="Dashboard and Classes"
+                >
+                  🏠 Dashboard & Classes
+                </Nav.Link>
+                <Nav.Link
+                  as={Link}
+                  to="/student/grades"
+                  className="text-white"
+                  aria-label="My Grades"
+                >
+                  📊 My Grades
+                </Nav.Link>
+                <Nav.Link
+                  as={Link}
+                  to="/student/profile"
+                  className="text-white"
+                  aria-label="Profile"
+                >
+                  👤 Profile
+                </Nav.Link>
+                <Nav.Link
+                  onClick={() => setShowLogoutModal(true)}
+                  className="text-danger"
+                  aria-label="Logout"
+                >
+                  🚪 Logout
+                </Nav.Link>
+              </Nav>
+            </Navbar.Collapse>
           </Navbar>
         </div>
+        
         {/* Main Content */}
         <Col md={10} className="main-content-responsive">
           <Routes>
-            <Route path="dashboard" element={<DashboardAndClasses />} />
-            {/* Removed global Assignments and Announcements; use class stream */}
-            {/* Removed Grades route so only teachers see grades */}
-            <Route path="class/:name" element={<StudentClassStream />} />
-            <Route path="profile" element={<Profile />} />
+            <Route path="/" element={<StudentMainDashboard />} />
+            <Route path="/dashboard" element={<StudentMainDashboard />} />
+            <Route path="/class/:className" element={<StudentClassStream />} />
+            <Route path="/grades" element={<StudentGrades />} />
+            <Route path="/profile" element={<StudentProfile />} />
+            {/* Default route - redirect to dashboard */}
+            <Route path="*" element={<StudentMainDashboard />} />
           </Routes>
         </Col>
       </Row>
+
       {/* Logout Confirmation Modal */}
-      <Modal
-        show={showLogoutModal}
-        onHide={() => setShowLogoutModal(false)}
-        centered
-      >
+      <Modal show={showLogoutModal} onHide={() => setShowLogoutModal(false)} centered>
         <Modal.Header closeButton>
           <Modal.Title>Confirm Logout</Modal.Title>
         </Modal.Header>
-        <Modal.Body>Are you sure you want to log out?</Modal.Body>
+        <Modal.Body>Are you sure you want to logout?</Modal.Body>
         <Modal.Footer>
-          <Button
-            variant="secondary"
-            onClick={() => setShowLogoutModal(false)}
-            aria-label="Cancel logout"
-          >
+          <Button variant="secondary" onClick={() => setShowLogoutModal(false)}>
             Cancel
           </Button>
-          <Button
-            variant="danger"
-            onClick={() => {
-              setShowLogoutModal(false);
-              setShowToast(true);
-              localStorage.removeItem("token");
-              setIsAuthenticated(false);
-              setTimeout(() => {
-                setShowToast(false);
-                navigate("/");
-              }, 1500);
-            }}
-            aria-label="Confirm logout"
-          >
+          <Button variant="danger" onClick={handleLogout}>
             Logout
           </Button>
         </Modal.Footer>
       </Modal>
-      {/* Toast Notification */}
+      
+      {/* Success toast for logout */}
       <Toast
-        show={showToast}
-        onClose={() => setShowToast(false)}
+        show={showLogoutModal && false} // This will be controlled by logout success
+        onClose={() => setShowLogoutModal(false)}
         delay={1500}
         autohide
         bg="success"
@@ -1152,3 +259,1053 @@ export default function StudentDashboard() {
     </Container>
   );
 }
+
+function StudentMainDashboard() {
+  const [classes, setClasses] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [showToast, setShowToast] = useState(false);
+  const [joinCode, setJoinCode] = useState("");
+  const [showJoinModal, setShowJoinModal] = useState(false);
+  const [showUnenrollModal, setShowUnenrollModal] = useState(false);
+  const [selectedClassToUnenroll, setSelectedClassToUnenroll] = useState(null);
+  const [debugData, setDebugData] = useState(null);
+
+  useEffect(() => {
+    fetchClasses();
+  }, []);
+
+  const fetchClasses = async () => {
+    setLoading(true);
+    try {
+      const token = getAuthToken();
+      const username = getUsername();
+      const response = await axios.get(`${API_BASE_URL}/api/student-classes/${username}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setClasses(response.data || []);
+      setDebugData({ classes: response.data });
+    } catch (err) {
+      console.error("Error fetching classes:", err);
+      setError("Failed to fetch classes");
+      setShowToast(true);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleJoinClass = async () => {
+    if (!joinCode.trim()) {
+      setError("Please enter a class code");
+      setShowToast(true);
+      return;
+    }
+    
+    try {
+      const token = getAuthToken();
+      const username = getUsername();
+      await axios.post(`${API_BASE_URL}/api/join-class`, {
+        code: joinCode.toUpperCase(),
+        student: username
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setJoinCode("");
+      setShowJoinModal(false);
+      fetchClasses();
+      setError("Successfully joined the class!");
+      setShowToast(true);
+    } catch (err) {
+      console.error("Join class error:", err);
+      setError(err.response?.data?.error || "Failed to join class. Please check the code.");
+      setShowToast(true);
+    }
+  };
+
+  const handleUnenrollClass = async () => {
+    if (!selectedClassToUnenroll) return;
+    
+    try {
+      const token = getAuthToken();
+      await axios.delete(`${API_BASE_URL}/api/leave-class/${selectedClassToUnenroll._id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      setShowUnenrollModal(false);
+      setSelectedClassToUnenroll(null);
+      fetchClasses();
+      setError(`Successfully left ${selectedClassToUnenroll.name}`);
+      setShowToast(true);
+    } catch (err) {
+      console.error("Unenroll class error:", err);
+      setError(err.response?.data?.error || "Failed to leave class. Please try again.");
+      setShowToast(true);
+    }
+  };
+
+  const openUnenrollModal = (classItem) => {
+    setSelectedClassToUnenroll(classItem);
+    setShowUnenrollModal(true);
+  };
+
+  if (loading) {
+    return (
+      <div className="text-center py-4">
+        <Spinner animation="border" role="status" aria-label="Loading classes" />
+        <p>Loading your classes...</p>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ marginTop: '60px', padding: '20px' }}>
+      <h2 className="fw-bold mb-4">Dashboard & Classes</h2>
+      
+      {error && (
+        <Toast
+          show={showToast}
+          onClose={() => setShowToast(false)}
+          delay={5000}
+          autohide
+          bg={error.includes("successfully") ? "success" : "danger"}
+          style={{ position: "fixed", top: "20px", right: "20px", zIndex: 10000 }}
+        >
+          <Toast.Body className="text-white">{error}</Toast.Body>
+        </Toast>
+      )}
+      
+      {debugData && (
+        <Alert variant="info" className="mb-4">
+          <strong>Debug Info:</strong> Classes: {JSON.stringify(debugData.classes?.length || 0)} items
+        </Alert>
+      )}
+      
+      {/* Statistics Cards */}
+      <Row className="mb-4">
+        <Col md={4}>
+          <Card className="p-3 bg-primary text-white">
+            <h5>Enrolled Classes</h5>
+            <h3>{classes.length}</h3>
+          </Card>
+        </Col>
+        <Col md={4}>
+          <Card className="p-3 bg-success text-white">
+            <h5>Total Assignments</h5>
+            <h3>{classes.reduce((acc, cls) => acc + (cls.assignments?.length || 0), 0)}</h3>
+          </Card>
+        </Col>
+        <Col md={4}>
+          <Card className="p-3 bg-info text-white">
+            <h5>Active Exams</h5>
+            <h3>{classes.reduce((acc, cls) => acc + (cls.exams?.length || 0), 0)}</h3>
+          </Card>
+        </Col>
+      </Row>
+
+      <h4 className="fw-bold mb-3 d-flex justify-content-between align-items-center">
+        <span>My Classes:</span>
+        <Button
+          size="sm"
+          variant="outline-primary"
+          onClick={() => setShowJoinModal(true)}
+          aria-label="Join a new class"
+        >
+          + Join Class
+        </Button>
+      </h4>
+
+      <Row>
+        {classes.length === 0 && (
+          <Col xs={12}>
+            <Card className="p-4 text-center text-muted">
+              No classes joined yet. Join your first class using a class code from your teacher!
+            </Card>
+          </Col>
+        )}
+        {classes.map((cls) => (
+          <Col key={cls._id || cls.id} md={4} className="mb-3">
+            <Card
+              className="p-3 h-100"
+              style={{ backgroundColor: cls.bg || "#F8F9FA", border: "1px solid #ccc", borderRadius: "8px" }}
+            >
+              <Card.Body>
+                <div className="d-flex justify-content-between align-items-start mb-2">
+                  <div>
+                    <Card.Title className="fw-bold">{cls.name}</Card.Title>
+                    <Card.Subtitle className="mb-2 text-muted">{cls.section}</Card.Subtitle>
+                  </div>
+                  {/* Three dots menu like Google Classroom */}
+                  <Dropdown align="end">
+                    <Dropdown.Toggle 
+                      variant="light" 
+                      size="sm"
+                      className="p-1 border-0 shadow-none"
+                      style={{ fontSize: '16px', width: '30px', height: '30px' }}
+                    >
+                      •••
+                    </Dropdown.Toggle>
+                    
+                    <Dropdown.Menu>
+                      <Dropdown.Item 
+                        className="text-danger d-flex align-items-center"
+                        onClick={() => openUnenrollModal(cls)}
+                      >
+                        <span style={{ marginRight: '8px' }}>🚪</span>
+                        Leave class
+                      </Dropdown.Item>
+                    </Dropdown.Menu>
+                  </Dropdown>
+                </div>
+                <p className="mb-1">
+                  <strong>Teacher:</strong> {cls.teacher}
+                </p>
+                <p className="mb-0">
+                  <strong>Classmates:</strong> {(cls.students?.length || 1) - 1}
+                </p>
+              </Card.Body>
+              <Card.Footer className="d-flex justify-content-end">
+                <Button 
+                  variant="primary" 
+                  size="sm" 
+                  aria-label={`Enter class ${cls.name}`}
+                  as={Link}
+                  to={`/student/class/${encodeURIComponent(cls.name)}`}
+                >
+                  Enter Class
+                </Button>
+              </Card.Footer>
+            </Card>
+          </Col>
+        ))}
+      </Row>
+
+      {/* Join Class Modal */}
+      <Modal show={showJoinModal} onHide={() => setShowJoinModal(false)} centered>
+        <Modal.Header closeButton>
+          <Modal.Title>Join a Class</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Form>
+            <Form.Group>
+              <Form.Label>Class Code</Form.Label>
+              <Form.Control
+                type="text"
+                placeholder="Enter class code from your teacher"
+                value={joinCode}
+                onChange={(e) => setJoinCode(e.target.value)}
+                required
+              />
+              <Form.Text className="text-muted">
+                Ask your teacher for the class code to join their class.
+              </Form.Text>
+            </Form.Group>
+          </Form>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowJoinModal(false)}>
+            Cancel
+          </Button>
+          <Button variant="primary" onClick={handleJoinClass} disabled={!joinCode.trim()}>
+            Join Class
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* Unenroll Confirmation Modal - Similar to Google Classroom */}
+      <Modal 
+        show={showUnenrollModal} 
+        onHide={() => setShowUnenrollModal(false)} 
+        centered
+        size="sm"
+      >
+        <Modal.Header closeButton>
+          <Modal.Title>Leave class?</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <div className="text-center">
+            <div className="mb-3">
+              <i className="bi bi-exclamation-triangle text-warning" style={{ fontSize: '48px' }}></i>
+            </div>
+            <p className="mb-2">
+              <strong>{selectedClassToUnenroll?.name}</strong>
+            </p>
+            <p className="text-muted">
+              You'll no longer have access to class posts, assignments, and materials. 
+              You can rejoin this class if your teacher shares the class code again.
+            </p>
+          </div>
+        </Modal.Body>
+        <Modal.Footer className="d-flex justify-content-between">
+          <Button 
+            variant="outline-secondary" 
+            onClick={() => setShowUnenrollModal(false)}
+          >
+            Cancel
+          </Button>
+          <Button 
+            variant="danger" 
+            onClick={handleUnenrollClass}
+            disabled={!selectedClassToUnenroll}
+          >
+            Leave class
+          </Button>
+        </Modal.Footer>
+      </Modal>
+    </div>
+  );
+}
+
+function StudentClassStream() {
+  const { className } = useParams();
+  const [announcements, setAnnouncements] = useState([]);
+  const [assignments, setAssignments] = useState([]);
+  const [exams, setExams] = useState([]);
+  const [materials, setMaterials] = useState([]);
+  const [classmates, setClassmates] = useState([]);
+  const [teacher, setTeacher] = useState("");
+  const [grades, setGrades] = useState([]);
+  const [activeTab, setActiveTab] = useState("stream");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [selectedAssignment, setSelectedAssignment] = useState(null);
+  const [submissionText, setSubmissionText] = useState("");
+  const [submissionFile, setSubmissionFile] = useState(null);
+  const [showSubmissionModal, setShowSubmissionModal] = useState(false);
+  const [currentClass, setCurrentClass] = useState(null);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    fetchClassData();
+  }, [className]);
+
+  const fetchClassData = async () => {
+    setLoading(true);
+    try {
+      const token = getAuthToken();
+      const username = getUsername();
+
+      await Promise.all([
+        fetchAnnouncements(token),
+        fetchAssignments(token),
+        fetchExams(token),
+        fetchMaterials(token),
+        fetchClassmates(token),
+        fetchGrades(token, username)
+      ]);
+    } catch (err) {
+      console.error("Error fetching class data:", err);
+      setError("Failed to load class data");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchAnnouncements = async (token) => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/api/classes/${className}/announcements`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setAnnouncements(response.data);
+    } catch (err) {
+      console.error("Error fetching announcements:", err);
+    }
+  };
+
+  const fetchAssignments = async (token) => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/api/assignments?className=${className}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setAssignments(response.data);
+    } catch (err) {
+      console.error("Error fetching assignments:", err);
+    }
+  };
+
+  const fetchExams = async (token) => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/api/exams?className=${className}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setExams(response.data);
+    } catch (err) {
+      console.error("Error fetching exams:", err);
+    }
+  };
+
+  const fetchMaterials = async (token) => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/api/materials?className=${className}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setMaterials(response.data);
+    } catch (err) {
+      console.error("Error fetching materials:", err);
+    }
+  };
+
+  const fetchClassmates = async (token) => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/api/classes/${className}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setClassmates(response.data.students || []);
+      setTeacher(response.data.teacher);
+      setCurrentClass(response.data); // Store the current class data
+    } catch (err) {
+      console.error("Error fetching classmates:", err);
+    }
+  };
+
+  const handleLeaveClass = async () => {
+    if (!currentClass) return;
+    
+    if (window.confirm(`Are you sure you want to leave ${className}? You'll lose access to all class materials and assignments.`)) {
+      try {
+        const token = getAuthToken();
+        await axios.delete(`${API_BASE_URL}/api/leave-class/${currentClass._id}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        
+        // Navigate back to dashboard
+        navigate('/student/dashboard');
+      } catch (err) {
+        console.error("Leave class error:", err);
+        alert("Failed to leave class. Please try again.");
+      }
+    }
+  };
+
+  const fetchGrades = async (token, username) => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/api/grades?class=${className}&student=${username}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setGrades(response.data);
+    } catch (err) {
+      console.error("Error fetching grades:", err);
+    }
+  };
+
+  const handleSubmitAssignment = async () => {
+    try {
+      const token = getAuthToken();
+      const username = getUsername();
+      
+      const formData = new FormData();
+      formData.append('student', username);
+      formData.append('submissionText', submissionText);
+      if (submissionFile) {
+        formData.append('file', submissionFile);
+      }
+
+      await axios.post(
+        `${API_BASE_URL}/api/assignments/${selectedAssignment._id}/submit`,
+        formData,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'multipart/form-data'
+          }
+        }
+      );
+
+      setShowSubmissionModal(false);
+      setSubmissionText("");
+      setSubmissionFile(null);
+      alert("Assignment submitted successfully!");
+      fetchAssignments(getAuthToken());
+    } catch (err) {
+      console.error("Submission error:", err);
+      alert("Failed to submit assignment");
+    }
+  };
+
+  const handleTakeExam = (exam) => {
+    window.location.href = `/student/exam/${exam._id}`;
+  };
+
+  if (loading) {
+    return (
+      <Container className="d-flex justify-content-center align-items-center" style={{ minHeight: "50vh" }}>
+        <div className="text-center">
+          <div className="spinner-border text-primary mb-3"></div>
+          <p>Loading class content...</p>
+        </div>
+      </Container>
+    );
+  }
+
+  if (error) {
+    return (
+      <Container className="mt-4">
+        <Alert variant="danger">{error}</Alert>
+      </Container>
+    );
+  }
+
+  return (
+    <Container fluid className="p-4">
+      <Row>
+        <Col>
+          <div className="d-flex justify-content-between align-items-center mb-4">
+            <h2 className="fw-bold text-primary">{className}</h2>
+            <div className="d-flex align-items-center gap-3">
+              <NotificationsDropdown />
+              {/* Leave class dropdown menu */}
+              <Dropdown align="end">
+                <Dropdown.Toggle 
+                  variant="outline-secondary" 
+                  size="sm"
+                  className="d-flex align-items-center px-2"
+                  style={{ minWidth: '35px' }}
+                >
+                  •••
+                </Dropdown.Toggle>
+                
+                <Dropdown.Menu>
+                  <Dropdown.Item 
+                    className="text-danger d-flex align-items-center"
+                    onClick={handleLeaveClass}
+                  >
+                    <span style={{ marginRight: '8px' }}>🚪</span>
+                    Leave class
+                  </Dropdown.Item>
+                </Dropdown.Menu>
+              </Dropdown>
+            </div>
+          </div>
+
+          <Tabs activeKey={activeTab} onSelect={(tab) => setActiveTab(tab)} className="mb-4">
+            {/* Stream Tab */}
+            <Tab eventKey="stream" title="Stream">
+              <div className="stream-content">
+                {announcements.length === 0 ? (
+                  <Card className="text-center p-4">
+                    <p className="text-muted">No announcements yet</p>
+                  </Card>
+                ) : (
+                  announcements.map((announcement, index) => (
+                    <Card key={index} className="mb-3">
+                      <Card.Body>
+                        <div className="d-flex align-items-center mb-2">
+                          <div className="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-3" 
+                               style={{ width: 40, height: 40 }}>
+                            {teacher ? teacher[0].toUpperCase() : 'T'}
+                          </div>
+                          <div>
+                            <strong>{teacher}</strong>
+                            <br />
+                            <small className="text-muted">{new Date(announcement.date).toLocaleString()}</small>
+                          </div>
+                        </div>
+                        <p>{announcement.text}</p>
+                        {announcement.examId && (
+                          <Badge bg="info" className="me-2">Exam Posted</Badge>
+                        )}
+                      </Card.Body>
+                    </Card>
+                  ))
+                )}
+              </div>
+            </Tab>
+
+            {/* Classwork Tab */}
+            <Tab eventKey="classwork" title="Classwork">
+              <Row>
+                <Col md={6}>
+                  <h5 className="mb-3">📝 Assignments</h5>
+                  {assignments.length === 0 ? (
+                    <Card className="text-center p-4">
+                      <p className="text-muted">No assignments yet</p>
+                    </Card>
+                  ) : (
+                    assignments.map((assignment) => (
+                      <Card key={assignment._id} className="mb-3">
+                        <Card.Body>
+                          <div className="d-flex justify-content-between align-items-start">
+                            <div>
+                              <h6 className="fw-bold">{assignment.title}</h6>
+                              <p className="text-muted small mb-2">{assignment.description}</p>
+                              {assignment.dueDate && (
+                                <Badge bg="warning" className="me-2">
+                                  Due: {new Date(assignment.dueDate).toLocaleDateString()}
+                                </Badge>
+                              )}
+                              <Badge bg="secondary">{assignment.points} points</Badge>
+                            </div>
+                            <Button 
+                              variant="outline-primary" 
+                              size="sm"
+                              onClick={() => {
+                                setSelectedAssignment(assignment);
+                                setShowSubmissionModal(true);
+                              }}
+                            >
+                              Submit
+                            </Button>
+                          </div>
+                        </Card.Body>
+                      </Card>
+                    ))
+                  )}
+                </Col>
+
+                <Col md={6}>
+                  <h5 className="mb-3">📊 Exams</h5>
+                  {exams.length === 0 ? (
+                    <Card className="text-center p-4">
+                      <p className="text-muted">No exams yet</p>
+                    </Card>
+                  ) : (
+                    exams.map((exam) => (
+                      <Card key={exam._id} className="mb-3">
+                        <Card.Body>
+                          <div className="d-flex justify-content-between align-items-start">
+                            <div>
+                              <h6 className="fw-bold">{exam.title}</h6>
+                              <p className="text-muted small mb-2">{exam.description}</p>
+                              <Badge bg="info" className="me-2">
+                                {exam.questions?.length || 0} questions
+                              </Badge>
+                              {exam.dueDate && (
+                                <Badge bg="warning">
+                                  Due: {new Date(exam.dueDate).toLocaleDateString()}
+                                </Badge>
+                              )}
+                            </div>
+                            <Button 
+                              variant="success" 
+                              size="sm"
+                              onClick={() => handleTakeExam(exam)}
+                            >
+                              Take Exam
+                            </Button>
+                          </div>
+                        </Card.Body>
+                      </Card>
+                    ))
+                  )}
+                </Col>
+              </Row>
+            </Tab>
+
+            {/* People Tab */}
+            <Tab eventKey="people" title="People">
+              <Row>
+                <Col md={6}>
+                  <h5 className="mb-3">👨‍🏫 Teacher</h5>
+                  <Card>
+                    <Card.Body>
+                      <div className="d-flex align-items-center">
+                        <div className="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-3" 
+                             style={{ width: 50, height: 50 }}>
+                          {teacher ? teacher[0].toUpperCase() : 'T'}
+                        </div>
+                        <div>
+                          <h6 className="mb-0">{teacher}</h6>
+                          <small className="text-muted">Class Teacher</small>
+                        </div>
+                      </div>
+                    </Card.Body>
+                  </Card>
+                </Col>
+                <Col md={6}>
+                  <h5 className="mb-3">👥 Classmates ({classmates.length})</h5>
+                  <Card style={{ maxHeight: '400px', overflowY: 'auto' }}>
+                    <Card.Body>
+                      {classmates.map((student, index) => (
+                        <div key={index} className="d-flex align-items-center mb-2">
+                          <div className="bg-secondary text-white rounded-circle d-flex align-items-center justify-content-center me-3" 
+                               style={{ width: 35, height: 35 }}>
+                            {student[0].toUpperCase()}
+                          </div>
+                          <span>{student}</span>
+                        </div>
+                      ))}
+                    </Card.Body>
+                  </Card>
+                </Col>
+              </Row>
+            </Tab>
+
+            {/* Materials Tab */}
+            <Tab eventKey="materials" title="Materials">
+              {materials.length === 0 ? (
+                <Card className="text-center p-4">
+                  <p className="text-muted">No materials shared yet</p>
+                </Card>
+              ) : (
+                <Row>
+                  {materials.map((material) => (
+                    <Col md={4} key={material._id} className="mb-3">
+                      <Card>
+                        <Card.Body>
+                          <div className="text-center mb-3">
+                            {material.type === 'file' && (
+                              <div className="text-primary fs-1">📄</div>
+                            )}
+                            {material.type === 'video' && (
+                              <div className="text-danger fs-1">🎥</div>
+                            )}
+                            {material.type === 'link' && (
+                              <div className="text-info fs-1">🔗</div>
+                            )}
+                          </div>
+                          <h6 className="text-center">{material.title}</h6>
+                          {material.description && (
+                            <p className="text-muted small text-center">{material.description}</p>
+                          )}
+                          {material.type === 'file' && (
+                            <Button
+                              variant="outline-primary"
+                              size="sm"
+                              className="w-100"
+                              as="a"
+                              href={material.url}
+                              target="_blank"
+                              download
+                            >
+                              Download
+                            </Button>
+                          )}
+                          {(material.type === 'video' || material.type === 'link') && (
+                            <Button
+                              variant="outline-primary"
+                              size="sm"
+                              className="w-100"
+                              as="a"
+                              href={material.url}
+                              target="_blank"
+                            >
+                              Open
+                            </Button>
+                          )}
+                        </Card.Body>
+                      </Card>
+                    </Col>
+                  ))}
+                </Row>
+              )}
+            </Tab>
+
+            {/* Grades Tab */}
+            <Tab eventKey="grades" title="Grades">
+              <Card>
+                <Card.Header>
+                  <h5 className="mb-0">📊 Your Grades</h5>
+                </Card.Header>
+                <Card.Body>
+                  {grades.length === 0 ? (
+                    <p className="text-muted text-center">No grades yet</p>
+                  ) : (
+                    <Table striped bordered hover responsive>
+                      <thead>
+                        <tr>
+                          <th>Assignment</th>
+                          <th>Grade</th>
+                          <th>Feedback</th>
+                          <th>Date</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {grades.map((grade, index) => (
+                          <tr key={index}>
+                            <td>{grade.assignment || 'General'}</td>
+                            <td>
+                              <Badge 
+                                bg={parseFloat(grade.grade) >= 80 ? 'success' : 
+                                    parseFloat(grade.grade) >= 70 ? 'warning' : 'danger'}
+                              >
+                                {grade.grade}
+                              </Badge>
+                            </td>
+                            <td>{grade.feedback || '-'}</td>
+                            <td>{new Date(grade.date).toLocaleDateString()}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </Table>
+                  )}
+                </Card.Body>
+              </Card>
+            </Tab>
+          </Tabs>
+        </Col>
+      </Row>
+
+      {/* Assignment Submission Modal */}
+      <Modal show={showSubmissionModal} onHide={() => setShowSubmissionModal(false)} size="lg">
+        <Modal.Header closeButton>
+          <Modal.Title>Submit Assignment: {selectedAssignment?.title}</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Form>
+            <Form.Group className="mb-3">
+              <Form.Label>Submission Text</Form.Label>
+              <Form.Control
+                as="textarea"
+                rows={5}
+                value={submissionText}
+                onChange={(e) => setSubmissionText(e.target.value)}
+                placeholder="Enter your submission text here..."
+              />
+            </Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Label>Upload File (optional)</Form.Label>
+              <Form.Control
+                type="file"
+                onChange={(e) => setSubmissionFile(e.target.files[0])}
+              />
+            </Form.Group>
+          </Form>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowSubmissionModal(false)}>
+            Cancel
+          </Button>
+          <Button variant="primary" onClick={handleSubmitAssignment}>
+            Submit Assignment
+          </Button>
+        </Modal.Footer>
+      </Modal>
+    </Container>
+  );
+}
+
+// ================= Student Grades =================
+function StudentGrades() {
+  const [grades, setGrades] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [showToast, setShowToast] = useState(false);
+  const [debugData, setDebugData] = useState(null);
+
+  useEffect(() => {
+    fetchGrades();
+  }, []);
+
+  const fetchGrades = async () => {
+    setLoading(true);
+    try {
+      const token = getAuthToken();
+      const username = getUsername();
+      const response = await axios.get(`${API_BASE_URL}/api/student-grades/${username}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setGrades(response.data || []);
+      setDebugData({ grades: response.data });
+    } catch (err) {
+      console.error("Error fetching grades:", err);
+      setError(err.response?.data?.error || "Failed to fetch grades");
+      setShowToast(true);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="text-center py-4">
+        <Spinner animation="border" role="status" aria-label="Loading grades" />
+        <p>Loading your grades...</p>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ marginTop: '60px', padding: '20px' }}>
+      <h2 className="fw-bold mb-4">My Grades</h2>
+      
+      {error && (
+        <Toast
+          show={showToast}
+          onClose={() => setShowToast(false)}
+          delay={5000}
+          autohide
+          bg="danger"
+          style={{ position: "fixed", top: "20px", right: "20px", zIndex: 10000 }}
+        >
+          <Toast.Body className="text-white">{error}</Toast.Body>
+        </Toast>
+      )}
+      
+      {debugData && (
+        <Alert variant="info" className="mb-4">
+          <strong>Debug Info:</strong> Grades: {JSON.stringify(debugData.grades?.length || 0)} items
+        </Alert>
+      )}
+
+      {grades.length === 0 ? (
+        <Card className="p-4 text-center text-muted">
+          <h5>No grades available yet</h5>
+          <p>Your grades will appear here once your teachers have graded your assignments and exams.</p>
+        </Card>
+      ) : (
+        <Row>
+          {grades.map((grade, index) => (
+            <Col key={grade._id || index} md={6} lg={4} className="mb-3">
+              <Card className="h-100">
+                <Card.Body>
+                  <div className="d-flex justify-content-between align-items-start">
+                    <div>
+                      <div className="fw-bold">{grade.class}</div>
+                      <div className="text-muted" style={{ fontSize: 12 }}>
+                        {grade.assignment || 'Assignment'}
+                      </div>
+                    </div>
+                    <span className={`badge ${grade.grade >= 90 ? 'bg-success' : grade.grade >= 80 ? 'bg-warning' : 'bg-danger'}`}>
+                      {grade.grade}
+                    </span>
+                  </div>
+                  {grade.feedback && (
+                    <div className="mt-2">
+                      <small className="text-muted">Feedback:</small>
+                      <div style={{ whiteSpace: "pre-wrap", fontSize: 14 }}>{grade.feedback}</div>
+                    </div>
+                  )}
+                  {grade.submittedAt && (
+                    <div className="mt-2">
+                      <small className="text-muted">
+                        Submitted: {new Date(grade.submittedAt).toLocaleDateString()}
+                      </small>
+                    </div>
+                  )}
+                </Card.Body>
+              </Card>
+            </Col>
+          ))}
+        </Row>
+      )}
+    </div>
+  );
+}
+
+// ================= Student Profile =================
+function StudentProfile() {
+  const [profile, setProfile] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [showToast, setShowToast] = useState(false);
+  const [debugData, setDebugData] = useState(null);
+
+  useEffect(() => {
+    fetchProfile();
+  }, []);
+
+  const fetchProfile = async () => {
+    setLoading(true);
+    try {
+      const token = getAuthToken();
+      const response = await axios.get(`${API_BASE_URL}/api/profile`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setProfile(response.data);
+      setDebugData({ profile: response.data });
+    } catch (err) {
+      console.error("Error fetching profile:", err);
+      setError(err.response?.data?.error || "Failed to load profile");
+      setShowToast(true);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="text-center py-4">
+        <Spinner animation="border" role="status" aria-label="Loading profile" />
+        <p>Loading your profile...</p>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ marginTop: '60px', padding: '20px' }}>
+      <h2 className="fw-bold mb-4">Profile</h2>
+      
+      {error && (
+        <Toast
+          show={showToast}
+          onClose={() => setShowToast(false)}
+          delay={5000}
+          autohide
+          bg="danger"
+          style={{ position: "fixed", top: "20px", right: "20px", zIndex: 10000 }}
+        >
+          <Toast.Body className="text-white">{error}</Toast.Body>
+        </Toast>
+      )}
+      
+      {debugData && (
+        <Alert variant="info" className="mb-4">
+          <strong>Debug Info:</strong> Profile loaded for: {JSON.stringify(debugData.profile?.username)}
+        </Alert>
+      )}
+
+      <Row>
+        <Col md={8}>
+          <Card className="p-4">
+            <Row>
+              <Col md={4} className="text-center">
+                <div className="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center mx-auto mb-3"
+                     style={{ width: 100, height: 100, fontSize: 36 }}>
+                  {profile.name ? profile.name[0].toUpperCase() : profile.username ? profile.username[0].toUpperCase() : 'S'}
+                </div>
+              </Col>
+              <Col md={8}>
+                <h4 className="fw-bold mb-3">{profile.name || profile.username}</h4>
+                <Table borderless>
+                  <tbody>
+                    <tr>
+                      <td><strong>Username:</strong></td>
+                      <td>{profile.username || "N/A"}</td>
+                    </tr>
+                    <tr>
+                      <td><strong>Email:</strong></td>
+                      <td>{profile.email || "N/A"}</td>
+                    </tr>
+                    <tr>
+                      <td><strong>Role:</strong></td>
+                      <td>
+                        <Badge bg="success">{profile.role || "Student"}</Badge>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td><strong>Credit Points:</strong></td>
+                      <td>
+                        <Badge bg="info">{profile.creditPoints || 0} points</Badge>
+                      </td>
+                    </tr>
+                  </tbody>
+                </Table>
+              </Col>
+            </Row>
+          </Card>
+        </Col>
+        <Col md={4}>
+          <Card className="p-3 mb-3 bg-light">
+            <h6 className="fw-bold">Account Statistics</h6>
+            <div className="mt-2">
+              <small className="text-muted">Member since</small>
+              <div>{profile.createdAt ? new Date(profile.createdAt).toLocaleDateString() : 'Unknown'}</div>
+            </div>
+          </Card>
+          <Card className="p-3 bg-light">
+            <h6 className="fw-bold">Quick Actions</h6>
+            <div className="d-grid gap-2 mt-2">
+              <Button variant="outline-primary" size="sm" as={Link} to="/student/dashboard">
+                📚 View Classes
+              </Button>
+              <Button variant="outline-success" size="sm" as={Link} to="/student/grades">
+                📊 Check Grades
+              </Button>
+            </div>
+          </Card>
+        </Col>
+      </Row>
+    </div>
+  );
+}
+
+export default StudentDashboard;

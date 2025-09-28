@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import axios from "axios";
-import { API_BASE_URL } from "../api";
+import { API_BASE_URL, getAuthToken, getUsername, checkAuth } from "../api";
 import { NavLink, Link, Routes, Route, useNavigate, useParams } from "react-router-dom";
 import {
   Container,
@@ -16,15 +16,26 @@ import {
   Toast,
   Spinner,
   Alert,
+  Tabs,
+  Tab,
 } from "react-bootstrap";
 
-// Retry function for API calls
-const retry = async (fn, retries = 3, delay = 1000) => {
+// Import components
+import NotificationsDropdown from "./components/NotificationsDropdown";
+import Materials from "./components/Materials";
+import Comments from "./components/Comments";
+import ExamCreator from "./components/ExamCreator";
+
+// Enhanced retry function for API calls with exponential backoff
+const retry = async (fn, retries = 3, initialDelay = 1000) => {
   for (let i = 0; i < retries; i++) {
     try {
+      console.log(`Attempt ${i+1}/${retries}`);
       return await fn();
     } catch (err) {
       if (i === retries - 1) throw err;
+      const delay = initialDelay * Math.pow(2, i); // Exponential backoff
+      console.log(`API call failed. Retrying in ${delay}ms...`);
       await new Promise((resolve) => setTimeout(resolve, delay));
     }
   }
@@ -35,7 +46,7 @@ function DashboardAndClasses() {
   const navigate = useNavigate();
   const [classes, setClasses] = useState([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [classData, setClassData] = useState({ name: "", section: "", code: "", teacher: "", bg: "#FFF0D8" });
+  const [classData, setClassData] = useState({ name: "", section: "", code: "", bg: "#FFF0D8" });
   const [selectedClass, setSelectedClass] = useState(null);
   const [showManageModal, setShowManageModal] = useState(false);
   const [user, setUser] = useState({ username: "" });
@@ -73,7 +84,7 @@ function DashboardAndClasses() {
   }, [fetchData]);
 
   const handleCreateClass = async () => {
-    if (!classData.name || !classData.section || !classData.code || !classData.teacher) {
+    if (!classData.name || !classData.section || !classData.code) {
       setError("All fields are required");
       setShowToast(true);
       return;
@@ -82,13 +93,17 @@ function DashboardAndClasses() {
       await retry(() =>
         axios.post(
           `${API_BASE_URL}/api/classes`,
-          { ...classData, code: classData.code.toUpperCase() },
+          { 
+            ...classData, 
+            code: classData.code.toUpperCase(),
+            teacher: user.username // Use current user's username
+          },
           { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
         )
       );
       await fetchData();
       setShowCreateModal(false);
-      setClassData({ name: "", section: "", code: "", teacher: "", bg: "#FFF0D8" });
+      setClassData({ name: "", section: "", code: "", bg: "#FFF0D8" }); // Remove teacher field
       setError("Class created successfully!");
       setShowToast(true);
     } catch (err) {
@@ -182,7 +197,31 @@ function DashboardAndClasses() {
                   <strong>Students:</strong> {cls.students.length}
                 </p>
               </Card.Body>
-              <Card.Footer className="text-end">
+              <Card.Footer className="d-flex justify-content-between align-items-center">
+                <Button 
+                  variant="outline-danger" 
+                  size="sm" 
+                  aria-label={`Delete class ${cls.name}`}
+                  onClick={async () => {
+                    if (window.confirm(`Are you sure you want to delete the class "${cls.name}"? This action cannot be undone.`)) {
+                      try {
+                        await retry(() => 
+                          axios.delete(`${API_BASE_URL}/api/classes/${cls._id || cls.id}`, 
+                          { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } })
+                        );
+                        await fetchData();
+                        setError("Class deleted successfully!");
+                        setShowToast(true);
+                      } catch (err) {
+                        console.error("Delete class error:", err.response?.data || err.message);
+                        setError(err.response?.data?.error || "Failed to delete class. Please try again.");
+                        setShowToast(true);
+                      }
+                    }
+                  }}
+                >
+                  Delete
+                </Button>
                 <Button 
                   variant="primary" 
                   size="sm" 
@@ -201,7 +240,7 @@ function DashboardAndClasses() {
         show={showCreateModal}
         onHide={() => {
           setShowCreateModal(false);
-          setClassData({ name: "", section: "", code: "", teacher: "", bg: "#FFF0D8" });
+          setClassData({ name: "", section: "", code: "", bg: "#FFF0D8" });
           setError("");
         }}
         centered
@@ -244,20 +283,7 @@ function DashboardAndClasses() {
                 aria-required="true"
               />
             </Form.Group>
-            <Form.Group className="mb-3">
-              <Form.Label>Teacher Username</Form.Label>
-              <Form.Control
-                type="text"
-                value={classData.teacher}
-                onChange={(e) => setClassData({ ...classData, teacher: e.target.value })}
-                placeholder="e.g., teacher1"
-                required
-                aria-required="true"
-              />
-              <Form.Text className="text-muted">
-                Use your username (e.g., teacher1)
-              </Form.Text>
-            </Form.Group>
+
             <Form.Group className="mb-3">
               <Form.Label>Background Color</Form.Label>
               <Form.Control
@@ -274,7 +300,7 @@ function DashboardAndClasses() {
             variant="secondary"
             onClick={() => {
               setShowCreateModal(false);
-              setClassData({ name: "", section: "", code: "", teacher: "", bg: "#FFF0D8" });
+              setClassData({ name: "", section: "", code: "", bg: "#FFF0D8" });
               setError("");
             }}
           >
@@ -283,7 +309,7 @@ function DashboardAndClasses() {
           <Button
             variant="success"
             onClick={handleCreateClass}
-            disabled={!classData.name || !classData.section || !classData.code || !classData.teacher}
+            disabled={!classData.name || !classData.section || !classData.code}
             aria-label="Create class"
           >
             Create
@@ -300,14 +326,25 @@ function TeacherClassStream() {
   const className = decodeURIComponent(name || "");
   const [announcements, setAnnouncements] = useState([]);
   const [message, setMessage] = useState("");
-  const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
+  console.log("API_BASE_URL:", API_BASE_URL);
   const [loading, setLoading] = useState(true);
   const [posting, setPosting] = useState(false);
   const [error, setError] = useState("");
   const [showToast, setShowToast] = useState(false);
   const [showExamModal, setShowExamModal] = useState(false);
-  const [examData, setExamData] = useState({ title: "", description: "", questions: [{ text: "", type: "short", options: [], correctAnswer: "" }] });
+  const [examData, setExamData] = useState({ 
+    title: "", 
+    description: "", 
+    questions: [{ text: "", type: "short", options: [], correctAnswer: "" }] 
+  });
+  const [activeTab, setActiveTab] = useState("stream");
+  const [classInfo, setClassInfo] = useState(null);
+  const [students, setStudents] = useState([]);
+  const [exams, setExams] = useState([]);
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState('');
 
+  // Fetch class announcements
   const fetchAnnouncements = useCallback(async () => {
     setLoading(true);
     try {
@@ -317,6 +354,7 @@ function TeacherClassStream() {
         })
       );
       setAnnouncements(res.data || []);
+      console.log("Fetched announcements:", res.data);
     } catch (err) {
       console.error("Fetch announcements error:", err.response?.data || err.message);
       setError(err.response?.data?.error || "Failed to load class stream.");
@@ -325,15 +363,97 @@ function TeacherClassStream() {
       setLoading(false);
     }
   }, [className]);
+  
+  // Fetch class exams
+  const fetchExams = useCallback(async () => {
+    try {
+      console.log("Fetching exams for class:", className);
+      console.log("API URL:", `${API_BASE_URL}/api/exams?className=${encodeURIComponent(className)}`);
+      console.log("Token:", localStorage.getItem("token")?.substring(0, 10) + "...");
+      
+      // First try with direct API call
+      const res = await retry(() =>
+        axios.get(`${API_BASE_URL}/api/exams?className=${encodeURIComponent(className)}`, {
+          headers: { Authorization: `Bearer ${getAuthToken()}` },
+        })
+      );
+      
+      console.log("Fetched exams response:", res);
+      setExams(res.data || []);
+      console.log("Fetched exams:", res.data);
+      
+      // For debugging, fetch server status
+      try {
+        const testRes = await axios.get(`${API_BASE_URL}/api/test`);
+        console.log("Server status:", testRes.data);
+      } catch (testErr) {
+        console.log("Server test endpoint error:", testErr.message);
+      }
+    } catch (err) {
+      console.error("Fetch exams error:", err.response?.data || err.message);
+      if (err.response?.status === 401) {
+        console.error("Authentication error - token may be invalid");
+        console.log("Trying to refresh token or login again...");
+        // Consider refreshing token or redirecting to login
+      } else if (err.response?.status === 404) {
+        console.error("API endpoint not found - check server routes");
+        setExams([]); // Set empty array to prevent undefined errors
+      } else {
+        console.error("Network or other error:", err.message);
+        setExams([]); // Set empty array to prevent undefined errors
+      }
+    }
+  }, [className]);
+
+  // Fetch class information
+  const fetchClassInfo = useCallback(async () => {
+    try {
+      const res = await retry(() =>
+        axios.get(`${API_BASE_URL}/api/classes?page=1&limit=100`, {
+          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+        })
+      );
+      const classData = res.data.find(c => c.name === className);
+      if (classData) {
+        setClassInfo(classData);
+        // Also fetch student information for this class
+        if (classData.students && classData.students.length > 0) {
+          try {
+            const studentsRes = await retry(() =>
+              axios.get(`${API_BASE_URL}/api/admin/users`, {
+                headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+              })
+            );
+            
+            // Filter users to only get the students enrolled in this class
+            const enrolledStudents = studentsRes.data.filter(user => 
+              user.role === "Student" && classData.students.includes(user.username)
+            );
+            
+            setStudents(enrolledStudents);
+          } catch (err) {
+            console.error("Fetch students error:", err.response?.data || err.message);
+          }
+        }
+      }
+    } catch (err) {
+      console.error("Fetch class info error:", err.response?.data || err.message);
+    }
+  }, [className]);
 
   useEffect(() => {
     let cancelled = false;
-    if (!cancelled) fetchAnnouncements();
+    if (!cancelled) {
+      fetchAnnouncements();
+      fetchExams();
+      fetchClassInfo();
+    }
     return () => {
       cancelled = true;
     };
-  }, [fetchAnnouncements]);
+  }, [fetchAnnouncements, fetchExams, fetchClassInfo]);
 
+  // Post an announcement
   const handlePost = async () => {
     if (!message.trim()) return;
     setPosting(true);
@@ -341,7 +461,12 @@ function TeacherClassStream() {
       await retry(() =>
         axios.post(
           `${API_BASE_URL}/api/announcements`,
-          { message, date, teacher: localStorage.getItem("username"), class: className },
+          { 
+            message, 
+            date: new Date().toISOString(), 
+            teacher: localStorage.getItem("username"), 
+            class: className 
+          },
           { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
         )
       );
@@ -356,6 +481,7 @@ function TeacherClassStream() {
     }
   };
 
+  // Exam creation functions
   const handleAddQuestion = () => {
     setExamData({
       ...examData,
@@ -375,7 +501,11 @@ function TeacherClassStream() {
       setShowToast(true);
       return;
     }
+    
+    setPosting(true);
     try {
+      console.log("Creating exam with data:", { ...examData, class: className });
+      
       const createRes = await retry(() =>
         axios.post(
           `${API_BASE_URL}/api/exams`,
@@ -383,221 +513,587 @@ function TeacherClassStream() {
           { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
         )
       );
+      
+      console.log("Exam creation response:", createRes.data);
       const createdExam = createRes.data?.exam;
+      
+      if (!createdExam || !createdExam._id) {
+        console.error("Created exam has no ID:", createRes.data);
+        throw new Error("Failed to get exam ID from response");
+      }
+      
       // Announce the new exam to the stream with examId
-      await retry(() =>
+      const announcementData = { 
+        message: `New exam posted: ${examData.title}`, 
+        date: new Date().toISOString(), 
+        teacher: localStorage.getItem("username"), 
+        class: className, 
+        examId: createdExam._id 
+      };
+      
+      console.log("Creating announcement with data:", announcementData);
+      
+      const announceRes = await retry(() =>
         axios.post(
           `${API_BASE_URL}/api/announcements`,
-          { message: `New exam posted: ${examData.title}`, date: new Date().toISOString().split("T")[0], teacher: localStorage.getItem("username"), class: className, examId: createdExam?._id },
+          announcementData,
           { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
         )
       );
+      
+      console.log("Announcement creation response:", announceRes.data);
+      
       setShowExamModal(false);
       setExamData({ title: "", description: "", questions: [{ text: "", type: "short", options: [], correctAnswer: "" }] });
-      await fetchAnnouncements();
+      
+      // Refresh both announcements and exams to show the new exam
+      await Promise.all([
+        fetchAnnouncements(),
+        fetchExams()
+      ]);
+      
+      // If we're not on the classwork tab, switch to it to show the new exam
+      if (activeTab !== "classwork") {
+        setActiveTab("classwork");
+      }
+      
+      // Show success message
+      setError("Exam created successfully!");
+      setShowToast(true);
     } catch (err) {
       console.error("Create exam error:", err.response?.data || err.message);
       setError(err.response?.data?.error || "Failed to create exam.");
       setShowToast(true);
+    } finally {
+      setPosting(false);
     }
   };
 
-  if (loading) {
+  if (loading && !classInfo) {
     return (
       <div className="text-center py-4">
-        <Spinner animation="border" role="status" aria-label="Loading class stream" />
-        <p>Loading class stream...</p>
+        <Spinner animation="border" role="status" aria-label="Loading class" />
+        <p>Loading class information...</p>
       </div>
     );
   }
 
   return (
     <div>
-      <h2 className="fw-bold mb-3">{className} — Stream</h2>
+      <div className="d-flex justify-content-between align-items-center mb-3">
+        <h2 className="fw-bold">{className}</h2>
+        <div className="d-flex align-items-center gap-2">
+          <Button 
+            variant="outline-secondary" 
+            size="sm"
+            onClick={() => window.navigator.clipboard.writeText(classInfo?.code)}
+            title="Copy class code"
+          >
+            Class Code: {classInfo?.code}
+          </Button>
+          <NotificationsDropdown />
+        </div>
+      </div>
+
       {error && (
         <Toast
           show={showToast}
           onClose={() => setShowToast(false)}
           delay={5000}
           autohide
-          bg="danger"
+          bg={error.includes("successfully") ? "success" : "danger"}
           style={{ position: "fixed", top: "20px", right: "20px", zIndex: 10000 }}
         >
           <Toast.Body className="text-white">{error}</Toast.Body>
         </Toast>
       )}
-      <Card className="p-3 mb-3">
-        <Form>
-          <Form.Group className="mb-2">
-            <Form.Label className="fw-bold">Share something with your class</Form.Label>
-            <Form.Control as="textarea" rows={3} value={message} onChange={(e) => setMessage(e.target.value)} placeholder="Announce something to your class" />
-          </Form.Group>
-          <div className="d-flex gap-2 align-items-center">
-            <Form.Control style={{ maxWidth: 200 }} type="date" value={date} onChange={(e) => setDate(e.target.value)} />
-            <Button onClick={handlePost} disabled={!message.trim() || posting}>
-              {posting ? "Posting..." : "Post"}
-            </Button>
-            <Button variant="outline-primary" onClick={() => setShowExamModal(true)} aria-label="Create exam for this class">
-              + Create Exam
-            </Button>
-          </div>
-        </Form>
-      </Card>
 
-      {announcements.length === 0 ? (
-        <Card className="p-4 text-center text-muted">No posts yet. Start the conversation!</Card>
-      ) : (
-        announcements.map((a) => (
-          <Card key={a._id || a.id} className="mb-3">
-            <Card.Body>
-              <div className="d-flex justify-content-between align-items-start">
-                <div>
-                  <div className="fw-bold">{a.teacher}</div>
-                  <div className="text-muted" style={{ fontSize: 12 }}>{new Date(a.date).toLocaleString()}</div>
-                </div>
-                <div className="d-flex gap-2">
-                  <Button
-                    variant="outline-danger"
-                    size="sm"
-                    onClick={async () => {
-                      try {
-                        await retry(() => axios.delete(`${API_BASE_URL}/api/announcements/${a._id || a.id}`, { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }));
-                        await fetchAnnouncements();
-                      } catch (err) {
-                        console.error("Delete announcement error:", err.response?.data || err.message);
-                        setError(err.response?.data?.error || "Failed to delete post.");
-                        setShowToast(true);
-                      }
-                    }}
-                  >
-                    Delete
-                  </Button>
-                </div>
+      <Nav variant="tabs" className="mb-3">
+        <Nav.Item>
+          <Nav.Link 
+            active={activeTab === "stream"} 
+            onClick={() => setActiveTab("stream")}
+          >
+            Stream
+          </Nav.Link>
+        </Nav.Item>
+        <Nav.Item>
+          <Nav.Link 
+            active={activeTab === "classwork"} 
+            onClick={() => {
+              console.log("Switching to classwork tab");
+              setActiveTab("classwork");
+              fetchExams(); // Refresh exams when switching to this tab
+            }}
+          >
+            Classwork
+          </Nav.Link>
+        </Nav.Item>
+        <Nav.Item>
+          <Nav.Link 
+            active={activeTab === "people"} 
+            onClick={() => setActiveTab("people")}
+          >
+            People
+          </Nav.Link>
+        </Nav.Item>
+        <Nav.Item>
+          <Nav.Link 
+            active={activeTab === "materials"} 
+            onClick={() => setActiveTab("materials")}
+          >
+            Materials
+          </Nav.Link>
+        </Nav.Item>
+      </Nav>
+
+      {activeTab === "stream" && (
+        <div>
+          <Card className="p-3 mb-3">
+            <Form>
+              <Form.Group className="mb-2">
+                <Form.Label className="fw-bold">Share something with your class</Form.Label>
+                <Form.Control as="textarea" rows={3} value={message} onChange={(e) => setMessage(e.target.value)} placeholder="Announce something to your class" />
+              </Form.Group>
+              <div className="d-flex gap-2 align-items-center">
+                <Button onClick={handlePost} disabled={!message.trim() || posting}>
+                  {posting ? "Posting..." : "Post"}
+                </Button>
+                <Button variant="outline-primary" onClick={() => setShowExamModal(true)} aria-label="Create exam for this class">
+                  + Create Exam
+                </Button>
               </div>
-              <div className="mt-2" style={{ whiteSpace: "pre-wrap" }}>{a.message}</div>
-            </Card.Body>
+            </Form>
           </Card>
-        ))
+
+          {announcements.length === 0 ? (
+            <Card className="p-4 text-center text-muted">No posts yet. Start the conversation!</Card>
+          ) : (
+            announcements.map((a) => (
+              <Card key={a._id || a.id} className="mb-3">
+                <Card.Body>
+                  <div className="d-flex justify-content-between align-items-start">
+                    <div>
+                      <div className="fw-bold">{a.teacher}</div>
+                      <div className="text-muted" style={{ fontSize: 12 }}>{new Date(a.date).toLocaleString()}</div>
+                    </div>
+                    <div className="d-flex gap-2">
+                      <Button
+                        variant="outline-danger"
+                        size="sm"
+                        onClick={async () => {
+                          try {
+                            await retry(() => axios.delete(`${API_BASE_URL}/api/announcements/${a._id || a.id}`, { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }));
+                            await fetchAnnouncements();
+                          } catch (err) {
+                            console.error("Delete announcement error:", err.response?.data || err.message);
+                            setError(err.response?.data?.error || "Failed to delete post.");
+                            setShowToast(true);
+                          }
+                        }}
+                      >
+                        Delete
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="mt-2" style={{ whiteSpace: "pre-wrap" }}>{a.message}</div>
+                  
+                  {/* Add comments section to announcements */}
+                  <Comments 
+                    referenceType="announcement"
+                    referenceId={a._id || a.id}
+                    className={className}
+                  />
+                </Card.Body>
+              </Card>
+            ))
+          )}
+        </div>
       )}
 
-      {/* Create Exam Modal */}
+      {activeTab === "classwork" && (
+        <div className="p-3 border rounded bg-white">
+          <h3>Classwork</h3>
+          
+          {/* Import at top of file: import ExamCreator from './components/ExamCreator'; */}
+          
+          <div className="d-flex justify-content-between align-items-center mb-4">
+            <h5 className="mb-0">Assignments & Exams</h5>
+            <div className="d-flex gap-2">
+              <Button 
+                variant="outline-secondary" 
+                size="sm" 
+                onClick={() => {
+                  console.log("Manual refresh triggered");
+                  fetchExams();
+                }}
+              >
+                🔄 Refresh
+              </Button>
+              <Button variant="primary" size="sm" onClick={() => setShowExamModal(true)}>
+                + Create Assignment
+              </Button>
+            </div>
+          </div>
+          
+          {/* Simplified exam creator for testing */}
+          <div className="mb-4">
+            <ExamCreator 
+              className={className} 
+              onExamCreated={(newExam) => {
+                console.log("New exam created:", newExam);
+                fetchExams(); // Refresh exams list
+              }} 
+            />
+          </div>
+          
+          <div className="mb-4 p-3 bg-light rounded">
+            <h6>Debug Information</h6>
+            <div><strong>API URL:</strong> {API_BASE_URL}/api/exams?className={encodeURIComponent(className)}</div>
+            <div><strong>Exams count:</strong> {exams ? exams.length : 'undefined'}</div>
+            <div><strong>Class name:</strong> {className}</div>
+            <div><strong>Active tab:</strong> {activeTab}</div>
+          </div>
+          
+          <Card>
+            <Card.Header>
+              <Nav variant="tabs" defaultActiveKey="active">
+                <Nav.Item>
+                  <Nav.Link eventKey="active">Active</Nav.Link>
+                </Nav.Item>
+                <Nav.Item>
+                  <Nav.Link eventKey="graded">Graded</Nav.Link>
+                </Nav.Item>
+              </Nav>
+            </Card.Header>
+            <Card.Body>
+              {!exams || exams.length === 0 ? (
+                <Alert variant="info" className="text-center">
+                  No active assignments or exams yet. Create a test exam above to get started.
+                </Alert>
+              ) : (
+                <ListGroup>
+                  {Array.isArray(exams) && exams.map(exam => (
+                    <ListGroup.Item 
+                      key={exam._id || `exam-${Math.random()}`}
+                      className="d-flex justify-content-between align-items-center"
+                    >
+                      <div>
+                        <h6 className="mb-1">{exam.title || "Untitled Exam"}</h6>
+                        <small className="text-muted">
+                          {exam.createdBy && `Posted by ${exam.createdBy}`} 
+                          {exam.description && ` • ${exam.description}`}
+                        </small>
+                      </div>
+                      <div>
+                        <Button 
+                          variant="outline-primary" 
+                          size="sm" 
+                          as={Link}
+                          to={`/teacher/exam/${exam._id}`}
+                        >
+                          View
+                        </Button>
+                      </div>
+                    </ListGroup.Item>
+                  ))}
+                </ListGroup>
+              )}
+            </Card.Body>
+          </Card>
+        </div>
+      )}
+
+      {activeTab === "people" && (
+        <div>
+          <Card className="mb-3">
+            <Card.Header>
+              <h5 className="mb-0">Teacher</h5>
+            </Card.Header>
+            <Card.Body>
+              <div className="d-flex align-items-center">
+                <div className="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center me-3" style={{ width: 40, height: 40 }}>
+                  {classInfo?.teacher?.charAt(0).toUpperCase()}
+                </div>
+                <div>
+                  <div className="fw-bold">{classInfo?.teacher}</div>
+                </div>
+              </div>
+            </Card.Body>
+          </Card>
+
+          <Card>
+            <Card.Header className="d-flex justify-content-between align-items-center">
+              <h5 className="mb-0">Students ({students.length})</h5>
+              <Button variant="outline-primary" size="sm" onClick={() => setShowInviteModal(true)}>Invite Students</Button>
+            </Card.Header>
+            <Card.Body>
+              {students.length === 0 ? (
+                <div className="text-center text-muted py-3">No students enrolled yet</div>
+              ) : (
+                <ListGroup variant="flush">
+                  {students.map(student => (
+                    <ListGroup.Item key={student._id} className="d-flex justify-content-between align-items-center py-2">
+                      <div className="d-flex align-items-center">
+                        <div className="rounded-circle bg-secondary text-white d-flex align-items-center justify-content-center me-3" style={{ width: 32, height: 32 }}>
+                          {student.name?.charAt(0).toUpperCase() || student.username?.charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          <div>{student.name || student.username}</div>
+                          <small className="text-muted">{student.email}</small>
+                        </div>
+                      </div>
+                      <Button 
+                        variant="outline-danger" 
+                        size="sm"
+                        onClick={() => {
+                          // Add remove student functionality here
+                          setError("Student removal coming soon!");
+                          setShowToast(true);
+                        }}
+                      >
+                        Remove
+                      </Button>
+                    </ListGroup.Item>
+                  ))}
+                </ListGroup>
+              )}
+            </Card.Body>
+          </Card>
+        </div>
+      )}
+
+      {activeTab === "materials" && (
+        <Materials className={className} />
+      )}
+
+      {/* Exam Creation Modal */}
       <Modal
         show={showExamModal}
         onHide={() => setShowExamModal(false)}
+        size="lg"
         centered
       >
         <Modal.Header closeButton>
-          <Modal.Title>Create Exam for {className}</Modal.Title>
+          <Modal.Title>Create New Exam</Modal.Title>
         </Modal.Header>
         <Modal.Body>
           <Form>
             <Form.Group className="mb-3">
-              <Form.Label>Title</Form.Label>
+              <Form.Label>Exam Title</Form.Label>
               <Form.Control
                 type="text"
                 value={examData.title}
                 onChange={(e) => setExamData({ ...examData, title: e.target.value })}
-                placeholder="e.g., Midterm"
+                placeholder="e.g., Midterm Exam"
                 required
-                aria-required="true"
               />
             </Form.Group>
             <Form.Group className="mb-3">
-              <Form.Label>Description</Form.Label>
+              <Form.Label>Description (Optional)</Form.Label>
               <Form.Control
                 as="textarea"
-                rows={3}
+                rows={2}
                 value={examData.description}
                 onChange={(e) => setExamData({ ...examData, description: e.target.value })}
-                placeholder="Describe the exam"
+                placeholder="Exam instructions or description"
               />
             </Form.Group>
-            <Form.Group className="mb-3" style={{ maxWidth: 240 }}>
-              <Form.Label>Due Date (optional)</Form.Label>
-              <Form.Control
-                type="date"
-                value={examData.due || ""}
-                onChange={(e) => setExamData({ ...examData, due: e.target.value })}
-              />
-            </Form.Group>
-            {examData.questions.map((q, idx) => (
-              <div key={idx} className="mb-3 p-3 border rounded">
-                <Form.Group className="mb-2">
-                  <Form.Label>Question {idx + 1}</Form.Label>
-                  <Form.Control
-                    type="text"
-                    value={q.text}
-                    onChange={(e) => handleQuestionChange(idx, "text", e.target.value)}
-                    placeholder="Enter question"
-                    required
-                    aria-required="true"
-                  />
-                </Form.Group>
-                <Form.Group className="mb-2">
-                  <Form.Label>Type</Form.Label>
-                  <Form.Select
-                    value={q.type}
-                    onChange={(e) => handleQuestionChange(idx, "type", e.target.value)}
-                    aria-label={`Question ${idx + 1} type`}
-                  >
-                    <option value="short">Short Answer</option>
-                    <option value="multiple">Multiple Choice</option>
-                  </Form.Select>
-                </Form.Group>
-                {q.type === "multiple" && (
-                  <>
-                    <Form.Group className="mb-2">
-                      <Form.Label>Options (one per line)</Form.Label>
+
+            <div className="mt-4 mb-3">
+              <h5>Questions</h5>
+              {examData.questions.map((q, i) => (
+                <Card key={i} className="mb-3">
+                  <Card.Body>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Question {i + 1}</Form.Label>
                       <Form.Control
-                        as="textarea"
-                        rows={2}
-                        value={(q.options || []).join("\n")}
-                        onChange={(e) => handleQuestionChange(idx, "options", e.target.value.split("\n"))}
-                        placeholder={"Option A\nOption B\nOption C"}
+                        type="text"
+                        value={q.text}
+                        onChange={(e) => handleQuestionChange(i, "text", e.target.value)}
+                        placeholder="Enter question text"
+                        required
                       />
                     </Form.Group>
-                    <Form.Group className="mb-2">
-                      <Form.Label>Correct Answer</Form.Label>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Question Type</Form.Label>
                       <Form.Select
-                        value={q.correctAnswer || ""}
-                        onChange={(e) => handleQuestionChange(idx, "correctAnswer", e.target.value)}
+                        value={q.type}
+                        onChange={(e) => handleQuestionChange(i, "type", e.target.value)}
                       >
-                        <option value="">Select correct answer</option>
-                        {(q.options || []).map((opt, i) => (
-                          <option key={i} value={opt}>{opt}</option>
-                        ))}
+                        <option value="short">Short Answer</option>
+                        <option value="multiple">Multiple Choice</option>
                       </Form.Select>
                     </Form.Group>
-                  </>
-                )}
-                {q.type === "short" && (
-                  <Form.Group className="mb-2">
-                    <Form.Label>Correct Answer (optional)</Form.Label>
-                    <Form.Control
-                      type="text"
-                      value={q.correctAnswer || ""}
-                      onChange={(e) => handleQuestionChange(idx, "correctAnswer", e.target.value)}
-                      placeholder="Enter correct answer for auto-grading"
-                    />
-                  </Form.Group>
-                )}
-                <div className="d-flex justify-content-end">
-                  <Button variant="outline-secondary" size="sm" onClick={handleAddQuestion} aria-label="Add another question">
-                    + Add Question
-                  </Button>
-                </div>
-              </div>
-            ))}
+
+                    {q.type === "multiple" && (
+                      <div className="mb-3">
+                        <Form.Label>Options</Form.Label>
+                        <div className="ms-3">
+                          {(q.options || []).map((opt, oi) => (
+                            <Form.Group className="mb-2 d-flex" key={oi}>
+                              <Form.Control
+                                type="text"
+                                value={opt}
+                                onChange={(e) => {
+                                  const newOptions = [...q.options];
+                                  newOptions[oi] = e.target.value;
+                                  handleQuestionChange(i, "options", newOptions);
+                                }}
+                                placeholder={`Option ${oi + 1}`}
+                              />
+                              <Button
+                                variant="outline-danger"
+                                size="sm"
+                                className="ms-2"
+                                onClick={() => {
+                                  const newOptions = [...q.options];
+                                  newOptions.splice(oi, 1);
+                                  handleQuestionChange(i, "options", newOptions);
+                                }}
+                              >
+                                <i className="bi bi-trash"></i>
+                              </Button>
+                            </Form.Group>
+                          ))}
+                          <Button
+                            variant="outline-secondary"
+                            size="sm"
+                            onClick={() => {
+                              const newOptions = [...(q.options || []), ""];
+                              handleQuestionChange(i, "options", newOptions);
+                            }}
+                          >
+                            + Add Option
+                          </Button>
+                        </div>
+
+                        <Form.Group className="mt-3">
+                          <Form.Label>Correct Answer</Form.Label>
+                          <Form.Select
+                            value={q.correctAnswer}
+                            onChange={(e) => handleQuestionChange(i, "correctAnswer", e.target.value)}
+                          >
+                            <option value="">Select correct option</option>
+                            {q.options?.map((opt, oi) => (
+                              <option key={oi} value={opt}>
+                                {opt}
+                              </option>
+                            ))}
+                          </Form.Select>
+                        </Form.Group>
+                      </div>
+                    )}
+
+                    {q.type === "short" && (
+                      <Form.Group className="mb-3">
+                        <Form.Label>Answer Key (Optional)</Form.Label>
+                        <Form.Control
+                          type="text"
+                          value={q.correctAnswer}
+                          onChange={(e) => handleQuestionChange(i, "correctAnswer", e.target.value)}
+                          placeholder="Correct answer (optional)"
+                        />
+                        <Form.Text className="text-muted">
+                          Leave blank for manual grading
+                        </Form.Text>
+                      </Form.Group>
+                    )}
+                    
+                    {examData.questions.length > 1 && (
+                      <Button 
+                        variant="outline-danger" 
+                        size="sm" 
+                        onClick={() => {
+                          const newQuestions = [...examData.questions];
+                          newQuestions.splice(i, 1);
+                          setExamData({...examData, questions: newQuestions});
+                        }}
+                      >
+                        Remove Question
+                      </Button>
+                    )}
+                  </Card.Body>
+                </Card>
+              ))}
+              <Button variant="outline-primary" onClick={handleAddQuestion}>
+                + Add Question
+              </Button>
+            </div>
           </Form>
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowExamModal(false)}>Cancel</Button>
-          <Button variant="success" onClick={handleCreateExam} disabled={!examData.title || examData.questions.some((q) => !q.text)}>Create</Button>
+          <Button variant="secondary" onClick={() => setShowExamModal(false)}>
+            Cancel
+          </Button>
+          <Button variant="primary" onClick={handleCreateExam}>
+            Create Exam
+          </Button>
+        </Modal.Footer>
+      </Modal>
+      
+      {/* Invite Students Modal */}
+      <Modal
+        size="md"
+        centered
+        show={showInviteModal}
+        onHide={() => setShowInviteModal(false)}
+      >
+        <Modal.Header closeButton>
+          <Modal.Title>Invite Students to {className}</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Form>
+            <Form.Group className="mb-3">
+              <Form.Label>Student Email</Form.Label>
+              <Form.Control
+                type="email"
+                placeholder="Enter email address"
+                value={inviteEmail}
+                onChange={(e) => setInviteEmail(e.target.value)}
+              />
+              <Form.Text className="text-muted">
+                Enter the email address of the student you want to invite to this class.
+              </Form.Text>
+            </Form.Group>
+          </Form>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowInviteModal(false)}>Cancel</Button>
+          <Button 
+            variant="primary" 
+            onClick={async () => {
+              try {
+                if (!inviteEmail) {
+                  setError('Email is required');
+                  setShowToast(true);
+                  return;
+                }
+                
+                // Simulate sending invitation - in a real app, this would send an email
+                console.log(`Sending invitation to ${inviteEmail} for class ${className}`);
+                
+                // Add code here to actually send invitation via API
+                // For now we'll just show a success message
+                setInviteEmail('');
+                setShowInviteModal(false);
+                setError('Invitation sent successfully!');
+                setShowToast(true);
+              } catch (err) {
+                console.error('Error sending invitation:', err);
+                setError('Failed to send invitation. Please try again.');
+                setShowToast(true);
+              }
+            }}
+          >
+            Send Invitation
+          </Button>
         </Modal.Footer>
       </Modal>
     </div>
   );
 }
+
 // ================= Assignments =================
 function Assignments() {
   const [assignments, setAssignments] = useState([]);
@@ -1646,28 +2142,45 @@ export default function TeacherDashboard() {
   const navigate = useNavigate();
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [showToast, setShowToast] = useState(false);
-  const [isAuthenticated, setIsAuthenticated] = useState(!!localStorage.getItem("token"));
+  const [isAuthenticated, setIsAuthenticated] = useState(checkAuth());
   const [authLoading, setAuthLoading] = useState(true);
   const [authError, setAuthError] = useState("");
 
   const verifyToken = useCallback(async () => {
     setAuthLoading(true);
     try {
+      // Get the token using our helper function
+      const token = getAuthToken();
+      
       const res = await retry(() =>
         axios.get(`${API_BASE_URL}/api/profile`, {
-          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+          headers: { Authorization: `Bearer ${token}` },
         })
       );
+      
+      // Check if the user has the correct role
       if (res.data.role !== "Teacher") {
         throw new Error("Access denied: Not a teacher");
       }
-      localStorage.setItem("username", res.data.username);
+      
+      // Import helper functions
+      const { setAuthData } = await import("../api");
+      
+      // Update auth data with the fresh information
+      setAuthData(token, res.data.username, res.data.role);
+      console.log("✅ Authentication verified successfully");
     } catch (err) {
       console.error("Auth error:", err.response?.data || err.message);
       setAuthError(err.response?.data?.error || "Authentication failed. Please log in again.");
       setIsAuthenticated(false);
-      localStorage.removeItem("token");
-      localStorage.removeItem("username");
+      
+      // Import helper function
+      const { clearAuthData } = await import("../api");
+      
+      // Clear all auth data
+      clearAuthData();
+      
+      // Redirect after a short delay
       setTimeout(() => navigate("/"), 3000);
     } finally {
       setAuthLoading(false);
@@ -1687,20 +2200,32 @@ export default function TeacherDashboard() {
   }, [isAuthenticated, verifyToken]);
 
   if (authLoading) {
+    console.log("⏳ Auth loading state active");
     return (
       <div className="text-center py-4">
         <Spinner animation="border" role="status" aria-label="Verifying authentication" />
         <p>Verifying authentication...</p>
+        <small className="text-muted">Debug: Token present: {getAuthToken() ? "Yes" : "No"}</small>
       </div>
     );
   }
 
   if (!isAuthenticated) {
+    console.log("🔒 Not authenticated, showing login prompt");
     return (
       <div className="container text-center py-5">
         <Alert variant="danger">
           {authError || "You are not authenticated. Redirecting to login..."}
         </Alert>
+        <div className="mt-4">
+          <Button variant="primary" onClick={() => navigate("/")}>Return to Login</Button>
+        </div>
+        <div className="mt-3 text-muted small">
+          <p>Debug Info:</p>
+          <div>Token present: {getAuthToken() ? "Yes" : "No"}</div>
+          <div>Username in storage: {getUsername() || "None"}</div>
+          <div>API URL: {API_BASE_URL}</div>
+        </div>
       </div>
     );
   }
@@ -1800,6 +2325,8 @@ export default function TeacherDashboard() {
             <Route path="grades" element={<Grades />} />
             <Route path="class/:name" element={<TeacherClassStream />} />
             <Route path="profile" element={<Profile />} />
+            {/* Default route - redirect to dashboard */}
+            <Route path="*" element={<DashboardAndClasses />} />
           </Routes>
         </Col>
       </Row>
@@ -1823,12 +2350,20 @@ export default function TeacherDashboard() {
           </Button>
           <Button
             variant="danger"
-            onClick={() => {
+            onClick={async () => {
               setShowLogoutModal(false);
               setShowToast(true);
-              localStorage.removeItem("token");
-              localStorage.removeItem("username");
+              
+              // Import the clearAuthData function
+              const { clearAuthData } = await import('../api');
+              
+              // Clear all auth data using our helper function
+              clearAuthData();
+              
+              // Update authentication state
               setIsAuthenticated(false);
+              
+              // Redirect to login page after a short delay
               setTimeout(() => {
                 setShowToast(false);
                 navigate("/");
