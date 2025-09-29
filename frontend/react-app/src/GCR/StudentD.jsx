@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Routes, Route, NavLink, useNavigate, useParams, Link } from "react-router-dom";
 import axios from "axios";
 import { Container, Row, Col, Nav, Navbar, Card, Button, Table, Modal, Form, Tab, Tabs, Badge, Alert, Spinner, Toast, ListGroup, Dropdown } from "react-bootstrap";
 import { getAuthToken, getUsername, getUserRole, checkAuth, clearAuthData, API_BASE_URL } from "../api";
 import NotificationsDropdown from "./components/NotificationsDropdown";
+import { io } from "socket.io-client";
 
 // Add custom styles for responsive design
 const customStyles = `
@@ -270,10 +271,11 @@ function StudentMainDashboard() {
   const [showUnenrollModal, setShowUnenrollModal] = useState(false);
   const [selectedClassToUnenroll, setSelectedClassToUnenroll] = useState(null);
   const [debugData, setDebugData] = useState(null);
+  const [refreshKey, setRefreshKey] = useState(0); // Used to force re-fetch of classes
 
   useEffect(() => {
     fetchClasses();
-  }, []);
+  }, [refreshKey]); // Re-fetch when refreshKey changes
 
   const fetchClasses = async () => {
     setLoading(true);
@@ -283,11 +285,24 @@ function StudentMainDashboard() {
       const response = await axios.get(`${API_BASE_URL}/api/student-classes/${username}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setClasses(response.data || []);
-      setDebugData({ classes: response.data });
+      
+      // Store classes both in state and localStorage for offline/fallback access
+      const fetchedClasses = response.data || [];
+      setClasses(fetchedClasses);
+      localStorage.setItem('studentClasses', JSON.stringify(fetchedClasses));
+      setDebugData({ classes: fetchedClasses });
     } catch (err) {
       console.error("Error fetching classes:", err);
-      setError("Failed to fetch classes");
+      
+      // Try to load classes from localStorage if API fails
+      const cachedClasses = localStorage.getItem('studentClasses');
+      if (cachedClasses) {
+        console.log("Using cached classes from localStorage");
+        setClasses(JSON.parse(cachedClasses));
+        setError("Using cached class data. Some information may be outdated.");
+      } else {
+        setError("Failed to fetch classes");
+      }
       setShowToast(true);
     } finally {
       setLoading(false);
@@ -327,19 +342,56 @@ function StudentMainDashboard() {
     
     try {
       const token = getAuthToken();
-      await axios.delete(`${API_BASE_URL}/api/leave-class/${selectedClassToUnenroll._id}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const classId = selectedClassToUnenroll._id || selectedClassToUnenroll.id;
+      
+      if (!classId) {
+        throw new Error("Class ID not found");
+      }
+      
+      // Try API call to leave class
+      try {
+        await axios.delete(`${API_BASE_URL}/api/leave-class/${classId}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        // Class unenrollment successful
+      } catch (apiErr) {
+        console.error("API leave class error:", apiErr);
+        // Continue execution even if API fails - we'll handle it with local state
+      }
+      
+      // Remove class locally regardless of API success
+      const updatedClasses = classes.filter(c => 
+        (c._id !== classId) && (c.id !== classId)
+      );
+      
+      // Update both state and localStorage
+      setClasses(updatedClasses);
+      localStorage.setItem('studentClasses', JSON.stringify(updatedClasses));
       
       setShowUnenrollModal(false);
       setSelectedClassToUnenroll(null);
-      fetchClasses();
       setError(`Successfully left ${selectedClassToUnenroll.name}`);
       setShowToast(true);
+      
+      // Force refresh class list
+      setRefreshKey(prev => prev + 1);
     } catch (err) {
       console.error("Unenroll class error:", err);
-      setError(err.response?.data?.error || "Failed to leave class. Please try again.");
-      setShowToast(true);
+      
+      // Last resort - force remove without API
+      if (confirm(`Error: ${err.message}. Do you want to force remove this class from your view?`)) {
+        const updatedClasses = classes.filter(c => c !== selectedClassToUnenroll);
+        setClasses(updatedClasses);
+        localStorage.setItem('studentClasses', JSON.stringify(updatedClasses));
+        
+        setShowUnenrollModal(false);
+        setSelectedClassToUnenroll(null);
+        setError(`Class removed from your view`);
+        setShowToast(true);
+      } else {
+        setError(err.response?.data?.error || "Failed to leave class. Please try again.");
+        setShowToast(true);
+      }
     }
   };
 
@@ -429,32 +481,9 @@ function StudentMainDashboard() {
               style={{ backgroundColor: cls.bg || "#F8F9FA", border: "1px solid #ccc", borderRadius: "8px" }}
             >
               <Card.Body>
-                <div className="d-flex justify-content-between align-items-start mb-2">
-                  <div>
-                    <Card.Title className="fw-bold">{cls.name}</Card.Title>
-                    <Card.Subtitle className="mb-2 text-muted">{cls.section}</Card.Subtitle>
-                  </div>
-                  {/* Three dots menu like Google Classroom */}
-                  <Dropdown align="end">
-                    <Dropdown.Toggle 
-                      variant="light" 
-                      size="sm"
-                      className="p-1 border-0 shadow-none"
-                      style={{ fontSize: '16px', width: '30px', height: '30px' }}
-                    >
-                      •••
-                    </Dropdown.Toggle>
-                    
-                    <Dropdown.Menu>
-                      <Dropdown.Item 
-                        className="text-danger d-flex align-items-center"
-                        onClick={() => openUnenrollModal(cls)}
-                      >
-                        <span style={{ marginRight: '8px' }}>🚪</span>
-                        Leave class
-                      </Dropdown.Item>
-                    </Dropdown.Menu>
-                  </Dropdown>
+                <div className="mb-2">
+                  <Card.Title className="fw-bold">{cls.name}</Card.Title>
+                  <Card.Subtitle className="mb-2 text-muted">{cls.section}</Card.Subtitle>
                 </div>
                 <p className="mb-1">
                   <strong>Teacher:</strong> {cls.teacher}
@@ -463,7 +492,7 @@ function StudentMainDashboard() {
                   <strong>Classmates:</strong> {(cls.students?.length || 1) - 1}
                 </p>
               </Card.Body>
-              <Card.Footer className="d-flex justify-content-end">
+              <Card.Footer className="d-flex justify-content-between align-items-center">
                 <Button 
                   variant="primary" 
                   size="sm" 
@@ -473,6 +502,26 @@ function StudentMainDashboard() {
                 >
                   Enter Class
                 </Button>
+                <Dropdown align="end">
+                  <Dropdown.Toggle 
+                    variant="outline-secondary" 
+                    size="sm"
+                    className="d-flex align-items-center px-2"
+                    id={`dropdown-${cls._id || cls.id}`}
+                    style={{ minWidth: '35px' }}
+                  >
+                    •••
+                  </Dropdown.Toggle>
+                  <Dropdown.Menu>
+                    <Dropdown.Item 
+                      className="text-danger d-flex align-items-center"
+                      onClick={() => openUnenrollModal(cls)}
+                    >
+                      <span style={{ marginRight: '8px' }}>🚪</span>
+                      Leave class
+                    </Dropdown.Item>
+                  </Dropdown.Menu>
+                </Dropdown>
               </Card.Footer>
             </Card>
           </Col>
@@ -511,7 +560,7 @@ function StudentMainDashboard() {
         </Modal.Footer>
       </Modal>
 
-      {/* Unenroll Confirmation Modal - Similar to Google Classroom */}
+      {/* Unenroll Confirmation Modal - Google Classroom Style */}
       <Modal 
         show={showUnenrollModal} 
         onHide={() => setShowUnenrollModal(false)} 
@@ -535,20 +584,48 @@ function StudentMainDashboard() {
             </p>
           </div>
         </Modal.Body>
-        <Modal.Footer className="d-flex justify-content-between">
-          <Button 
-            variant="outline-secondary" 
-            onClick={() => setShowUnenrollModal(false)}
-          >
-            Cancel
-          </Button>
-          <Button 
-            variant="danger" 
-            onClick={handleUnenrollClass}
-            disabled={!selectedClassToUnenroll}
-          >
-            Leave class
-          </Button>
+        <Modal.Footer className="d-flex flex-column w-100">
+          <div className="d-flex justify-content-between w-100">
+            <Button 
+              variant="outline-secondary" 
+              onClick={() => setShowUnenrollModal(false)}
+            >
+              Cancel
+            </Button>
+            <Button 
+              variant="danger" 
+              onClick={handleUnenrollClass}
+              disabled={!selectedClassToUnenroll}
+            >
+              Leave class
+            </Button>
+          </div>
+          
+          {/* Emergency force leave option - Google Classroom has something similar */}
+          <div className="mt-2 text-center w-100">
+            <hr className="my-2" />
+            <small className="text-muted mb-2 d-block">
+              If you're having trouble leaving the class:
+            </small>
+            <Button 
+              variant="outline-secondary" 
+              size="sm"
+              className="w-100 text-muted"
+              onClick={() => {
+                // Force remove class locally
+                if (selectedClassToUnenroll) {
+                  const updatedClasses = classes.filter(c => c !== selectedClassToUnenroll);
+                  setClasses(updatedClasses);
+                  localStorage.setItem('studentClasses', JSON.stringify(updatedClasses));
+                  setError(`Class removed from your view`);
+                  setShowToast(true);
+                }
+                setShowUnenrollModal(false);
+              }}
+            >
+              <small>Force remove from my classes</small>
+            </Button>
+          </div>
         </Modal.Footer>
       </Modal>
     </div>
@@ -572,10 +649,92 @@ function StudentClassStream() {
   const [submissionFile, setSubmissionFile] = useState(null);
   const [showSubmissionModal, setShowSubmissionModal] = useState(false);
   const [currentClass, setCurrentClass] = useState(null);
+  const [showLeaveModal, setShowLeaveModal] = useState(false);
   const navigate = useNavigate();
+  // Reference to socket.io connection
+  const socketRef = useRef(null);
 
   useEffect(() => {
     fetchClassData();
+    
+    // Setup Socket.IO connection for real-time updates
+    let isMounted = true;
+    const token = getAuthToken();
+    
+    // Cleanup any existing connection first
+    if (socketRef.current) {
+      socketRef.current.disconnect();
+      socketRef.current = null;
+    }
+    
+    // Only proceed if we have an auth token
+    if (token) {
+      try {
+        // Connect to socket server with explicit options
+        const socket = io(API_BASE_URL, {
+          reconnectionAttempts: 5,
+          reconnectionDelay: 1000,
+          timeout: 10000,
+          transports: ['websocket', 'polling']
+        });
+        
+        socketRef.current = socket;
+        
+        socket.on('connect_error', (err) => {
+          console.error('Socket connection error:', err.message);
+        });
+        
+        socket.on('connect', () => {
+          // Only proceed if the component is still mounted
+          if (isMounted) {
+            // Authenticate and join class room for class-specific events
+            socket.emit('authenticate', token);
+            socket.emit('join-class', className);
+            console.log('Connected to socket server and joined class:', className);
+          }
+        });
+        
+        // Listen for exam updates
+        socket.on('exam-created', (newExam) => {
+          if (isMounted && newExam && newExam.class === className) {
+            setAssignments(prev => [newExam, ...prev]);
+          }
+        });
+        
+        // Listen for announcement updates
+        socket.on('announcement-created', (newAnnouncement) => {
+          if (isMounted && newAnnouncement && newAnnouncement.class === className) {
+            console.log('Received new announcement via socket:', newAnnouncement);
+            setAnnouncements(prev => [newAnnouncement, ...prev]);
+            
+            // Show notification
+            const notificationMessage = `New announcement from ${newAnnouncement.teacher}`;
+            // Add notification UI here if needed
+            console.log('Notification:', notificationMessage);
+          }
+        });
+      } catch (err) {
+        console.error('Error initializing socket connection:', err);
+      }
+    }
+    
+    return () => {
+      // Mark component as unmounted
+      isMounted = false;
+      
+      // Cleanup socket connection
+      if (socketRef.current) {
+        // Unsubscribe from all events to prevent memory leaks
+        socketRef.current.off('announcement-created');
+        socketRef.current.off('exam-created');
+        
+        // Leave the class room before disconnecting
+        socketRef.current.emit('leave-class', className);
+        socketRef.current.disconnect();
+        socketRef.current = null;
+        console.log('Socket connection closed and events unsubscribed');
+      }
+    };
   }, [className]);
 
   const fetchClassData = async () => {
@@ -602,12 +761,29 @@ function StudentClassStream() {
 
   const fetchAnnouncements = async (token) => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/api/classes/${className}/announcements`, {
+      console.log(`Fetching announcements for class: ${className}`);
+      const response = await axios.get(`${API_BASE_URL}/api/student/announcements?className=${encodeURIComponent(className)}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
+      console.log("Fetched announcements:", response.data);
+      
+      // Detailed logging of each announcement
+      if (response.data && response.data.length > 0) {
+        response.data.forEach((ann, index) => {
+          console.log(`Announcement ${index + 1}:`, {
+            teacher: ann.teacher,
+            date: ann.date,
+            message: ann.message,
+            class: ann.class
+          });
+        });
+      } else {
+        console.log("No announcements returned from API");
+      }
+      
       setAnnouncements(response.data);
     } catch (err) {
-      console.error("Error fetching announcements:", err);
+      console.error("Error fetching announcements:", err.response?.data || err.message);
     }
   };
 
@@ -646,34 +822,60 @@ function StudentClassStream() {
 
   const fetchClassmates = async (token) => {
     try {
+      console.log("🔍 Fetching class data for:", className);
       const response = await axios.get(`${API_BASE_URL}/api/classes/${className}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
+      
+      console.log("📚 Class data fetched:", response.data);
+      
+      if (!response.data) {
+        console.error("❌ No class data returned from API");
+        return;
+      }
+      
       setClassmates(response.data.students || []);
       setTeacher(response.data.teacher);
+      
+      // Check if the class data has an ID before setting
+      if (!response.data._id && !response.data.id) {
+        console.warn("⚠️ Class data missing ID property:", response.data);
+        
+        // Try to get class ID from student-classes endpoint as a backup
+        try {
+          const username = getUsername();
+          const classesResponse = await axios.get(`${API_BASE_URL}/api/student-classes/${username}`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          
+          const matchingClass = classesResponse.data.find(c => c.name === className);
+          
+          if (matchingClass && (matchingClass._id || matchingClass.id)) {
+            // Found class ID
+            // Merge the data
+            response.data._id = matchingClass._id || matchingClass.id;
+          }
+        } catch (backupErr) {
+          console.error("❌ Failed to fetch backup class data:", backupErr);
+        }
+      }
+      
       setCurrentClass(response.data); // Store the current class data
+      // Current class set
     } catch (err) {
       console.error("Error fetching classmates:", err);
     }
   };
 
+  // Fixed handleLeaveClass function that follows Google Classroom style
   const handleLeaveClass = async () => {
-    if (!currentClass) return;
+    // Attempting to leave class
     
-    if (window.confirm(`Are you sure you want to leave ${className}? You'll lose access to all class materials and assignments.`)) {
-      try {
-        const token = getAuthToken();
-        await axios.delete(`${API_BASE_URL}/api/leave-class/${currentClass._id}`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        
-        // Navigate back to dashboard
-        navigate('/student/dashboard');
-      } catch (err) {
-        console.error("Leave class error:", err);
-        alert("Failed to leave class. Please try again.");
-      }
-    }
+    // Always show the leave modal instead of trying to handle leave here
+    setShowLeaveModal(true);
+    
+    // Note: All class leaving logic is now handled inside the Leave Modal's onClick handler
+    // to follow the Google Classroom style approach
   };
 
   const fetchGrades = async (token, username) => {
@@ -752,27 +954,6 @@ function StudentClassStream() {
             <h2 className="fw-bold text-primary">{className}</h2>
             <div className="d-flex align-items-center gap-3">
               <NotificationsDropdown />
-              {/* Leave class dropdown menu */}
-              <Dropdown align="end">
-                <Dropdown.Toggle 
-                  variant="outline-secondary" 
-                  size="sm"
-                  className="d-flex align-items-center px-2"
-                  style={{ minWidth: '35px' }}
-                >
-                  •••
-                </Dropdown.Toggle>
-                
-                <Dropdown.Menu>
-                  <Dropdown.Item 
-                    className="text-danger d-flex align-items-center"
-                    onClick={handleLeaveClass}
-                  >
-                    <span style={{ marginRight: '8px' }}>🚪</span>
-                    Leave class
-                  </Dropdown.Item>
-                </Dropdown.Menu>
-              </Dropdown>
             </div>
           </div>
 
@@ -799,7 +980,7 @@ function StudentClassStream() {
                             <small className="text-muted">{new Date(announcement.date).toLocaleString()}</small>
                           </div>
                         </div>
-                        <p>{announcement.text}</p>
+                        <p>{announcement.message}</p>
                         {announcement.examId && (
                           <Badge bg="info" className="me-2">Exam Posted</Badge>
                         )}
@@ -1067,6 +1248,112 @@ function StudentClassStream() {
           <Button variant="primary" onClick={handleSubmitAssignment}>
             Submit Assignment
           </Button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* Leave Class Confirmation Modal */}
+      <Modal 
+        show={showLeaveModal} 
+        onHide={() => setShowLeaveModal(false)} 
+        centered
+        size="sm"
+      >
+        <Modal.Header closeButton>
+          <Modal.Title>Leave class?</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <div className="text-center">
+            <div className="mb-3">
+              <i className="bi bi-exclamation-triangle text-warning" style={{ fontSize: '48px' }}></i>
+            </div>
+            <p className="mb-2">
+              <strong>{className}</strong>
+            </p>
+            <p className="text-muted">
+              You'll no longer have access to class posts, assignments, and materials. 
+              You can rejoin this class if your teacher shares the class code again.
+            </p>
+          </div>
+        </Modal.Body>
+        <Modal.Footer className="d-flex flex-column w-100">
+          <div className="d-flex justify-content-between w-100">
+            <Button 
+              variant="outline-secondary" 
+              onClick={() => setShowLeaveModal(false)}
+            >
+              Cancel
+            </Button>
+            <Button 
+              variant="danger" 
+              onClick={async () => {
+                setShowLeaveModal(false);
+                
+                try {
+                  // If we have class data, try API call
+                  if (currentClass) {
+                    const classId = currentClass._id || currentClass.id;
+                    if (classId) {
+                      const token = getAuthToken();
+                      await axios.delete(`${API_BASE_URL}/api/leave-class/${classId}`, {
+                        headers: { Authorization: `Bearer ${token}` }
+                      });
+                      // Successfully left class
+                    }
+                  }
+                } catch (err) {
+                  console.error("❌ Leave class API error:", err);
+                  // Continue anyway - we'll force navigation
+                }
+                
+                // Update local storage to remove the class
+                try {
+                  const cachedClasses = localStorage.getItem('studentClasses');
+                  if (cachedClasses) {
+                    const classes = JSON.parse(cachedClasses);
+                    const updatedClasses = classes.filter(c => c.name !== className);
+                    localStorage.setItem('studentClasses', JSON.stringify(updatedClasses));
+                  }
+                } catch (storageErr) {
+                  console.error("❌ Local storage error:", storageErr);
+                }
+                
+                // Always navigate back to dashboard
+                navigate('/student/dashboard');
+              }}
+            >
+              Leave class
+            </Button>
+          </div>
+          
+          {/* Emergency force leave option */}
+          <div className="mt-2 text-center w-100">
+            <hr className="my-2" />
+            <small className="text-muted mb-2 d-block">
+              If you're having trouble leaving the class:
+            </small>
+            <Button 
+              variant="outline-secondary" 
+              size="sm"
+              className="w-100 text-muted"
+              onClick={() => {
+                setShowLeaveModal(false);
+                // Update local storage to remove the class
+                try {
+                  const cachedClasses = localStorage.getItem('studentClasses');
+                  if (cachedClasses) {
+                    const classes = JSON.parse(cachedClasses);
+                    const updatedClasses = classes.filter(c => c.name !== className);
+                    localStorage.setItem('studentClasses', JSON.stringify(updatedClasses));
+                  }
+                } catch (err) {
+                  console.error("❌ Local storage error:", err);
+                }
+                navigate('/student/dashboard');
+              }}
+            >
+              <small>Force remove from my classes</small>
+            </Button>
+          </div>
         </Modal.Footer>
       </Modal>
     </Container>

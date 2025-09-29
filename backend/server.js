@@ -9,6 +9,8 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
+import { createServer } from "http";
+import { setupSocketIO } from "./socket.js";
 
 // Import middleware and routes
 import { authenticateToken, requireAdmin, requireTeacherOrAdmin, requireStudent } from "./middlewares/auth.js";
@@ -19,22 +21,6 @@ import uploadRoutes from "./routes/upload.js";
 import examsRoutes, { setupModels } from "./routes/exams.js";
 import Exam from "./models/Exam.js";
 
-// Debug middleware for logging API requests
-const debugMiddleware = (req, res, next) => {
-  console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl}`);
-  const token = req.headers.authorization?.split(' ')[1];
-  if (token) {
-    try {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      console.log(`  Authenticated user: ${decoded.username} (${decoded.role})`);
-    } catch (err) {
-      console.log(`  Invalid token: ${err.message}`);
-    }
-  } else {
-    console.log('  No authorization token');
-  }
-  next();
-};
 
 // Fix __dirname for ES Modules
 const __filename = fileURLToPath(import.meta.url);
@@ -44,7 +30,6 @@ const __dirname = path.dirname(__filename);
 const app = express();
 app.use(express.json());
 app.use(cors({ origin: [process.env.CORS_ORIGIN || "http://localhost:5173", "http://localhost:5174"] }));
-app.use(debugMiddleware); // Add debug middleware to all routes
 const uploadsDir = path.join(__dirname, "uploads");
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
@@ -53,7 +38,6 @@ app.use("/uploads", express.static(uploadsDir));
 
 // Use a default JWT secret if none is provided in environment
 if (!process.env.JWT_SECRET) {
-  console.log("WARNING: JWT_SECRET not set in environment. Using default value for development.");
   process.env.JWT_SECRET = "default_jwt_secret_for_development_only";
 }
 
@@ -557,6 +541,35 @@ app.get("/api/classes", authenticateToken, async (req, res) => {
   }
 });
 
+// Get a specific class by name
+app.get("/api/classes/:className", authenticateToken, async (req, res) => {
+  try {
+    const className = req.params.className;
+    console.log(`Looking up class by name: ${className}`);
+    
+    // First check access permissions based on user role
+    let query = { name: className };
+    if (req.user.role === "Student") {
+      query.students = req.user.username;
+    } else if (req.user.role === "Teacher") {
+      query.teacher = req.user.username;
+    }
+    
+    const classData = await Class.findOne(query);
+    
+    if (!classData) {
+      console.log(`Class not found or user doesn't have access: ${className}`);
+      return res.status(404).json({ error: "Class not found or you don't have access" });
+    }
+    
+    console.log(`Found class: ${classData.name}`);
+    res.json(classData);
+  } catch (err) {
+    console.error(`Error retrieving class: ${err.message}`);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Teacher: Create class (FRONTEND uses POST /api/classes — this auto-assigns teacher)
 app.post("/api/classes", authenticateToken, requireTeacherOrAdmin, async (req, res) => {
   try {
@@ -813,6 +826,13 @@ app.post("/api/announcements", authenticateToken, requireTeacherOrAdmin, async (
 
     const announcement = new Announcement({ message, date, teacher, class: className, examId: examId || null, likes: 0 });
     await announcement.save();
+    
+    // Emit announcement via socket.io to the class
+    if (req.app.io) {
+      console.log(`Emitting announcement to class:${className}`);
+      req.app.io.to(`class:${className}`).emit('announcement-created', announcement);
+    }
+    
     res.status(201).json({ message: "Announcement created successfully", announcement });
   } catch (err) {
     console.error("Create announcement error:", err);
@@ -1090,10 +1110,15 @@ app.get("/api/debug/classes", async (req, res) => {
   }
 });
 
+// Create HTTP server
+const httpServer = createServer(app);
+
+// Setup Socket.io and make it globally available
+global.io = setupSocketIO(httpServer);
+
 // Start server
 const PORT = process.env.PORT || 4000;
-app.listen(PORT, () => {
+httpServer.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
-  console.log(`JWT_SECRET: ${process.env.JWT_SECRET ? 'Set' : 'Not set'}`);
-  console.log(`MongoDB URI: ${process.env.MONGODB_URI || 'mongodb://localhost:27017/notetify'}`);
+  console.log(`WebSocket server initialized`);
 });

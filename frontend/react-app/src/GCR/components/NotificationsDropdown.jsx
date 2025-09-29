@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
 import { 
   Button, Badge, Dropdown, ListGroup, Spinner, Modal 
 } from 'react-bootstrap';
-import { API_BASE_URL } from '../../api';
+import { API_BASE_URL, getAuthToken } from '../../api';
+import { io } from 'socket.io-client';
 
 // Retry function for API calls
 const retry = async (fn, retries = 3, delay = 1000) => {
@@ -42,13 +43,58 @@ function NotificationsDropdown() {
     }
   }, []);
   
+  // Reference to socket instance to maintain connection
+  const socketRef = useRef(null);
+  
   useEffect(() => {
     fetchNotifications();
     
-    // Set up interval to refresh notifications
-    const intervalId = setInterval(fetchNotifications, 60000); // Every minute
+    // Set up Socket.IO connection for real-time notifications
+    const token = getAuthToken();
+    if (token) {
+      // Create socket connection
+      const socket = io(API_BASE_URL);
+      socketRef.current = socket;
+      
+      // Socket connection events
+      socket.on('connect', () => {
+        console.log('Connected to notification server');
+        socket.emit('authenticate', token);
+      });
+      
+      socket.on('connect_error', (error) => {
+        console.error('Socket connection error:', error);
+      });
+      
+      // Listen for new notifications
+      socket.on('new-notification', (notification) => {
+        console.log('Received new notification:', notification);
+        // Add the new notification to the top of the list
+        setNotifications(prev => [notification, ...prev.slice(0, 4)]);
+        // Increment unread count
+        setUnreadCount(prev => prev + 1);
+        
+        // Show browser notification if supported
+        if ('Notification' in window && Notification.permission === 'granted') {
+          new Notification('New Notification', {
+            body: notification.message,
+            icon: '/favicon.ico'
+          });
+        }
+      });
+      
+      // Request notification permission if not already granted
+      if ('Notification' in window && Notification.permission !== 'denied') {
+        Notification.requestPermission();
+      }
+    }
     
-    return () => clearInterval(intervalId);
+    return () => {
+      // Clean up socket connection when component unmounts
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+      }
+    };
   }, [fetchNotifications]);
   
   const handleMarkAsRead = async (notificationId) => {

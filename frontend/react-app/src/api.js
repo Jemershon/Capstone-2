@@ -1,3 +1,5 @@
+import axios from 'axios';
+
 // Determine the API base URL from environment variables or use the default
 export const API_BASE_URL = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_URL)
 	? import.meta.env.VITE_API_URL
@@ -44,5 +46,33 @@ export const clearAuthData = () => {
   localStorage.removeItem('token');
   localStorage.removeItem('username');
   localStorage.removeItem('userRole');
+};
+
+// API Functions for exams
+export const updateExam = async (examId, examData) => {
+  try {
+    const response = await axios.put(
+      `${API_BASE_URL}/api/exams/${examId}`,
+      examData,
+      { headers: { Authorization: `Bearer ${getAuthToken()}` } }
+    );
+    return response.data;
+  } catch (error) {
+    console.error('Error updating exam:', error.response?.data || error.message);
+    throw error;
+  }
+};
+
+export const deleteExam = async (examId) => {
+  try {
+    const response = await axios.delete(
+      `${API_BASE_URL}/api/exams/${examId}`,
+      { headers: { Authorization: `Bearer ${getAuthToken()}` } }
+    );
+    return response.data;
+  } catch (error) {
+    console.error('Error deleting exam:', error.response?.data || error.message);
+    throw error;
+  }
 };
 

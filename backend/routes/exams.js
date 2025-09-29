@@ -142,49 +142,113 @@ router.post('/', authenticateToken, requireTeacherOrAdmin, async (req, res) => {
 // Update an exam
 router.put('/:id', authenticateToken, requireTeacherOrAdmin, async (req, res) => {
   try {
+    console.log('PUT /api/exams/:id - Request received:', {
+      user: req.user.username,
+      role: req.user.role,
+      examId: req.params.id
+    });
+    
     const { title, description, questions } = req.body;
     const exam = await Exam.findById(req.params.id);
     
     if (!exam) {
+      console.log('Exam not found:', req.params.id);
       return res.status(404).json({ error: 'Exam not found' });
     }
     
     // Only allow updating by the creator
     if (exam.createdBy !== req.user.username && req.user.role !== 'Admin') {
+      console.log('Authorization denied for user:', req.user.username);
       return res.status(403).json({ error: 'Not authorized to update this exam' });
     }
     
-    exam.title = title || exam.title;
-    exam.description = description || exam.description;
-    exam.questions = questions || exam.questions;
+    if (!title) {
+      return res.status(400).json({ error: 'Title is required' });
+    }
     
+    if (!questions || questions.length === 0) {
+      return res.status(400).json({ error: 'At least one question is required' });
+    }
+    
+    // Update the exam fields
+    exam.title = title;
+    exam.description = description;
+    exam.questions = questions;
+    
+    // Keep the class field as is - don't change it during updates
+    // This prevents issues if the frontend sends a different value
+    
+    // Save changes
     await exam.save();
+    console.log(`Exam ${req.params.id} updated successfully`);
+    
+    // Emit socket event for real-time updates
+    // This will be picked up by connected clients
+    if (req.app.io) {
+      req.app.io.to(exam.class).emit('exam-updated', exam);
+    }
+    
     res.json({ message: 'Exam updated successfully', exam });
   } catch (err) {
     console.error('Error updating exam:', err);
-    res.status(500).json({ error: 'Failed to update exam' });
+    res.status(500).json({ 
+      error: 'Failed to update exam',
+      message: err.message,
+      stack: process.env.NODE_ENV === 'production' ? undefined : err.stack
+    });
   }
 });
 
 // Delete an exam
 router.delete('/:id', authenticateToken, requireTeacherOrAdmin, async (req, res) => {
   try {
+    console.log('DELETE /api/exams/:id - Request received:', {
+      user: req.user.username,
+      role: req.user.role,
+      examId: req.params.id
+    });
+    
     const exam = await Exam.findById(req.params.id);
     
     if (!exam) {
+      console.log('Exam not found:', req.params.id);
       return res.status(404).json({ error: 'Exam not found' });
     }
     
     // Only allow deletion by the creator or admin
     if (exam.createdBy !== req.user.username && req.user.role !== 'Admin') {
+      console.log('Authorization denied for user:', req.user.username);
       return res.status(403).json({ error: 'Not authorized to delete this exam' });
     }
     
+    // Store className before deleting for socket notifications
+    const className = exam.class;
+    
+    // Delete the exam
     await exam.deleteOne();
-    res.json({ message: 'Exam deleted successfully' });
+    console.log(`Exam ${req.params.id} deleted successfully`);
+    
+    // Emit socket event for real-time updates
+    // This will be picked up by connected clients
+    if (req.app.io) {
+      // Emit to the class room that an exam was deleted
+      req.app.io.to(className).emit('exam-deleted', { 
+        examId: req.params.id,
+        message: `Assignment "${exam.title}" was deleted by ${req.user.username}`
+      });
+    }
+    
+    res.json({ 
+      message: 'Exam deleted successfully',
+      examId: req.params.id
+    });
   } catch (err) {
     console.error('Error deleting exam:', err);
-    res.status(500).json({ error: 'Failed to delete exam' });
+    res.status(500).json({ 
+      error: 'Failed to delete exam',
+      message: err.message,
+      stack: process.env.NODE_ENV === 'production' ? undefined : err.stack
+    });
   }
 });
 

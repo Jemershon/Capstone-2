@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import axios from "axios";
-import { API_BASE_URL, getAuthToken, getUsername, checkAuth } from "../api";
+import { API_BASE_URL, getAuthToken, getUsername, checkAuth, updateExam, deleteExam } from "../api";
 import { NavLink, Link, Routes, Route, useNavigate, useParams } from "react-router-dom";
+import { io } from "socket.io-client";
 import {
   Container,
   Row,
@@ -18,6 +19,7 @@ import {
   Alert,
   Tabs,
   Tab,
+  ListGroup
 } from "react-bootstrap";
 
 // Import components
@@ -30,12 +32,10 @@ import ExamCreator from "./components/ExamCreator";
 const retry = async (fn, retries = 3, initialDelay = 1000) => {
   for (let i = 0; i < retries; i++) {
     try {
-      console.log(`Attempt ${i+1}/${retries}`);
       return await fn();
     } catch (err) {
       if (i === retries - 1) throw err;
       const delay = initialDelay * Math.pow(2, i); // Exponential backoff
-      console.log(`API call failed. Retrying in ${delay}ms...`);
       await new Promise((resolve) => setTimeout(resolve, delay));
     }
   }
@@ -320,18 +320,24 @@ function DashboardAndClasses() {
   );
 }
 
-// ================= Teacher Class Stream (per class) =================
+  // ================= Teacher Class Stream (per class) =================
 function TeacherClassStream() {
   const { name } = useParams();
   const className = decodeURIComponent(name || "");
+  console.log('TeacherClassStream initialized with className:', className);
   const [announcements, setAnnouncements] = useState([]);
   const [message, setMessage] = useState("");
-  console.log("API_BASE_URL:", API_BASE_URL);
   const [loading, setLoading] = useState(true);
   const [posting, setPosting] = useState(false);
   const [error, setError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
   const [showToast, setShowToast] = useState(false);
   const [showExamModal, setShowExamModal] = useState(false);
+  const [showViewExamModal, setShowViewExamModal] = useState(false);
+  const [showEditExamModal, setShowEditExamModal] = useState(false);
+  const [showDeleteExamModal, setShowDeleteExamModal] = useState(false);
+  const [selectedExam, setSelectedExam] = useState(null);
+  const [deletingExam, setDeletingExam] = useState(false);
   const [examData, setExamData] = useState({ 
     title: "", 
     description: "", 
@@ -343,8 +349,9 @@ function TeacherClassStream() {
   const [exams, setExams] = useState([]);
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
-
-  // Fetch class announcements
+  
+  // Reference to socket.io connection
+  const socketRef = useRef(null);  // Fetch class announcements
   const fetchAnnouncements = useCallback(async () => {
     setLoading(true);
     try {
@@ -366,56 +373,92 @@ function TeacherClassStream() {
   
   // Fetch class exams
   const fetchExams = useCallback(async () => {
+    setLoading(true);
+    setError("");
     try {
       console.log("Fetching exams for class:", className);
-      console.log("API URL:", `${API_BASE_URL}/api/exams?className=${encodeURIComponent(className)}`);
-      console.log("Token:", localStorage.getItem("token")?.substring(0, 10) + "...");
       
-      // First try with direct API call
-      const res = await retry(() =>
-        axios.get(`${API_BASE_URL}/api/exams?className=${encodeURIComponent(className)}`, {
-          headers: { Authorization: `Bearer ${getAuthToken()}` },
-        })
-      );
+      const url = `${API_BASE_URL}/api/exams?className=${encodeURIComponent(className)}`;
+      console.log("API URL:", url);
       
-      console.log("Fetched exams response:", res);
-      setExams(res.data || []);
-      console.log("Fetched exams:", res.data);
+      const res = await axios.get(url, {
+        headers: { Authorization: `Bearer ${getAuthToken()}` },
+      });
       
-      // For debugging, fetch server status
-      try {
-        const testRes = await axios.get(`${API_BASE_URL}/api/test`);
-        console.log("Server status:", testRes.data);
-      } catch (testErr) {
-        console.log("Server test endpoint error:", testErr.message);
+      if (Array.isArray(res.data)) {
+        setExams(res.data);
+        console.log(`Successfully loaded ${res.data.length} exams for class ${className}`);
+      } else {
+        console.error("Invalid response format - expected array:", res.data);
+        setExams([]);
+        setError("Received invalid data format from server.");
       }
     } catch (err) {
       console.error("Fetch exams error:", err.response?.data || err.message);
+      setExams([]);
+      
       if (err.response?.status === 401) {
-        console.error("Authentication error - token may be invalid");
-        console.log("Trying to refresh token or login again...");
-        // Consider refreshing token or redirecting to login
+        setError("Your session has expired. Please log in again.");
       } else if (err.response?.status === 404) {
-        console.error("API endpoint not found - check server routes");
-        setExams([]); // Set empty array to prevent undefined errors
+        setError("Could not find assignments for this class.");
+      } else if (err.response?.data?.error) {
+        setError(`Error: ${err.response.data.error}`);
       } else {
-        console.error("Network or other error:", err.message);
-        setExams([]); // Set empty array to prevent undefined errors
+        setError(`Failed to load assignments: ${err.message}`);
       }
+    } finally {
+      setLoading(false);
     }
   }, [className]);
 
   // Fetch class information
   const fetchClassInfo = useCallback(async () => {
     try {
+      console.log('Fetching class info for:', className);
       const res = await retry(() =>
         axios.get(`${API_BASE_URL}/api/classes?page=1&limit=100`, {
           headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
         })
       );
+      
+      console.log('Classes API response:', res.data);
+      
+      if (!Array.isArray(res.data)) {
+        console.error('Invalid API response format - expected an array:', res.data);
+        setError('Invalid data format received from server.');
+        return;
+      }
+      
+      // Debug logging for class matching
+      res.data.forEach(c => {
+        console.log(`Comparing class '${c.name}' with '${className}': ${c.name === className}`);
+      });
+      
       const classData = res.data.find(c => c.name === className);
+      
       if (classData) {
+        console.log('Found class data:', classData);
         setClassInfo(classData);
+      } else {
+        console.log('Class not found in list, trying direct endpoint...');
+        // Try to get the class directly by name
+        try {
+          const directRes = await axios.get(
+            `${API_BASE_URL}/api/classes/${encodeURIComponent(className)}`, 
+            { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
+          );
+          
+          if (directRes.data) {
+            console.log('Found class via direct API call:', directRes.data);
+            setClassInfo(directRes.data);
+          } else {
+            console.error('Class not found via direct endpoint either');
+            setError(`Class "${className}" not found.`);
+          }
+        } catch (directErr) {
+          console.error('Error fetching class directly:', directErr);
+          setError(`Could not load class "${className}".`);
+        }
         // Also fetch student information for this class
         if (classData.students && classData.students.length > 0) {
           try {
@@ -447,11 +490,102 @@ function TeacherClassStream() {
       fetchAnnouncements();
       fetchExams();
       fetchClassInfo();
+      
+      // Setup Socket.IO connection for real-time updates
+      const token = getAuthToken();
+      
+      // Cleanup any existing connection first
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+        socketRef.current = null;
+      }
+      
+      if (token) {
+        try {
+          console.log('Connecting to socket server at:', API_BASE_URL);
+          // Connect to socket server with explicit options
+          const socket = io(API_BASE_URL, {
+            reconnectionAttempts: 5,
+            reconnectionDelay: 1000,
+            timeout: 10000,
+            transports: ['websocket', 'polling']
+          });
+          
+          socketRef.current = socket;
+          
+          socket.on('connect_error', (err) => {
+            console.error('Socket connection error:', err.message);
+          });
+          
+          socket.on('connect', () => {
+            console.log('Socket connected successfully');
+            // Authenticate and join class room for class-specific events
+            socket.emit('authenticate', token);
+            socket.emit('join-class', className);
+            console.log('Joined class room:', className);
+          });
+          
+          // Listen for exam updates
+          socket.on('exam-created', (newExam) => {
+            if (!cancelled && newExam && newExam.class === className) {
+              console.log('Received new exam:', newExam);
+              setExams(prev => [newExam, ...prev]);
+            }
+          });
+          
+          // Listen for exam updates
+          socket.on('exam-updated', (updatedExam) => {
+            if (!cancelled && updatedExam && updatedExam.class === className) {
+              console.log('Received exam update:', updatedExam);
+              setExams(prev => prev.map(exam => 
+                exam._id === updatedExam._id ? updatedExam : exam
+              ));
+            }
+          });
+          
+          // Listen for exam deletions
+          socket.on('exam-deleted', (data) => {
+            if (!cancelled && data && data.examId) {
+              console.log('Received exam deletion:', data);
+              setExams(prev => prev.filter(exam => exam._id !== data.examId));
+              
+              // Show notification
+              setSuccessMessage(data.message || 'An assignment was deleted');
+              setShowToast(true);
+            }
+          });
+          
+          // Listen for announcement updates
+          socket.on('announcement-created', (newAnnouncement) => {
+            if (!cancelled && newAnnouncement && newAnnouncement.class === className) {
+              console.log('Received new announcement:', newAnnouncement);
+              setAnnouncements(prev => [newAnnouncement, ...prev]);
+            }
+          });
+        } catch (err) {
+          console.error('Error initializing socket connection:', err);
+        }
+      }
     }
+    
     return () => {
       cancelled = true;
+      // Cleanup socket connection
+      if (socketRef.current) {
+        // Unsubscribe from all events to prevent memory leaks
+        socketRef.current.off('announcement-created');
+        socketRef.current.off('exam-created');
+        socketRef.current.off('exam-updated');
+        socketRef.current.off('exam-deleted');
+        
+        // Leave the class room before disconnecting
+        socketRef.current.emit('leave-class', className);
+        socketRef.current.disconnect();
+        socketRef.current = null;
+        console.log('Socket connection closed and events unsubscribed');
+      }
     };
-  }, [fetchAnnouncements, fetchExams, fetchClassInfo]);
+  }, [fetchAnnouncements, fetchExams, fetchClassInfo, className, API_BASE_URL]);
 
   // Post an announcement
   const handlePost = async () => {
@@ -569,11 +703,34 @@ function TeacherClassStream() {
     }
   };
 
+  // Debug information to trace loading state
+  console.log('Teacher Dashboard Status:', {
+    loading,
+    className,
+    classInfoExists: !!classInfo,
+    announcementsCount: announcements.length,
+    examsCount: exams.length,
+    activeTab
+  });
+  
   if (loading && !classInfo) {
     return (
       <div className="text-center py-4">
         <Spinner animation="border" role="status" aria-label="Loading class" />
         <p>Loading class information...</p>
+      </div>
+    );
+  }
+  
+  if (!classInfo) {
+    console.error('Class information not loaded:', { className });
+    return (
+      <div className="text-center py-4">
+        <Alert variant="danger">
+          <h4>Error Loading Class</h4>
+          <p>Could not load information for class: {className}</p>
+          <Button variant="outline-primary" onClick={fetchClassInfo}>Retry</Button>
+        </Alert>
       </div>
     );
   }
@@ -595,16 +752,20 @@ function TeacherClassStream() {
         </div>
       </div>
 
-      {error && (
+      {(error || successMessage) && (
         <Toast
           show={showToast}
-          onClose={() => setShowToast(false)}
+          onClose={() => {
+            setShowToast(false);
+            setError("");
+            setSuccessMessage("");
+          }}
           delay={5000}
           autohide
-          bg={error.includes("successfully") ? "success" : "danger"}
+          bg={successMessage ? "success" : "danger"}
           style={{ position: "fixed", top: "20px", right: "20px", zIndex: 10000 }}
         >
-          <Toast.Body className="text-white">{error}</Toast.Body>
+          <Toast.Body className="text-white">{successMessage || error}</Toast.Body>
         </Toast>
       )}
 
@@ -621,7 +782,6 @@ function TeacherClassStream() {
           <Nav.Link 
             active={activeTab === "classwork"} 
             onClick={() => {
-              console.log("Switching to classwork tab");
               setActiveTab("classwork");
               fetchExams(); // Refresh exams when switching to this tab
             }}
@@ -715,92 +875,534 @@ function TeacherClassStream() {
         <div className="p-3 border rounded bg-white">
           <h3>Classwork</h3>
           
-          {/* Import at top of file: import ExamCreator from './components/ExamCreator'; */}
-          
           <div className="d-flex justify-content-between align-items-center mb-4">
             <h5 className="mb-0">Assignments & Exams</h5>
             <div className="d-flex gap-2">
-              <Button 
-                variant="outline-secondary" 
-                size="sm" 
-                onClick={() => {
-                  console.log("Manual refresh triggered");
-                  fetchExams();
-                }}
-              >
-                🔄 Refresh
-              </Button>
               <Button variant="primary" size="sm" onClick={() => setShowExamModal(true)}>
                 + Create Assignment
               </Button>
             </div>
           </div>
           
-          {/* Simplified exam creator for testing */}
-          <div className="mb-4">
-            <ExamCreator 
-              className={className} 
-              onExamCreated={(newExam) => {
-                console.log("New exam created:", newExam);
-                fetchExams(); // Refresh exams list
-              }} 
-            />
-          </div>
-          
-          <div className="mb-4 p-3 bg-light rounded">
-            <h6>Debug Information</h6>
-            <div><strong>API URL:</strong> {API_BASE_URL}/api/exams?className={encodeURIComponent(className)}</div>
-            <div><strong>Exams count:</strong> {exams ? exams.length : 'undefined'}</div>
-            <div><strong>Class name:</strong> {className}</div>
-            <div><strong>Active tab:</strong> {activeTab}</div>
-          </div>
-          
-          <Card>
-            <Card.Header>
-              <Nav variant="tabs" defaultActiveKey="active">
-                <Nav.Item>
-                  <Nav.Link eventKey="active">Active</Nav.Link>
-                </Nav.Item>
-                <Nav.Item>
-                  <Nav.Link eventKey="graded">Graded</Nav.Link>
-                </Nav.Item>
-              </Nav>
-            </Card.Header>
-            <Card.Body>
-              {!exams || exams.length === 0 ? (
-                <Alert variant="info" className="text-center">
-                  No active assignments or exams yet. Create a test exam above to get started.
-                </Alert>
-              ) : (
-                <ListGroup>
-                  {Array.isArray(exams) && exams.map(exam => (
-                    <ListGroup.Item 
-                      key={exam._id || `exam-${Math.random()}`}
-                      className="d-flex justify-content-between align-items-center"
-                    >
-                      <div>
-                        <h6 className="mb-1">{exam.title || "Untitled Exam"}</h6>
-                        <small className="text-muted">
-                          {exam.createdBy && `Posted by ${exam.createdBy}`} 
-                          {exam.description && ` • ${exam.description}`}
-                        </small>
-                      </div>
-                      <div>
-                        <Button 
-                          variant="outline-primary" 
-                          size="sm" 
-                          as={Link}
-                          to={`/teacher/exam/${exam._id}`}
+          {loading ? (
+            <div className="text-center p-5">
+              <div className="spinner-border text-primary" role="status">
+                <span className="visually-hidden">Loading...</span>
+              </div>
+              <p className="mt-2">Loading assignments...</p>
+            </div>
+          ) : error ? (
+            <Alert variant="danger">
+              <Alert.Heading>Error loading assignments</Alert.Heading>
+              <p>{error}</p>
+              <div className="d-flex justify-content-end">
+                <Button variant="outline-danger" onClick={fetchExams}>Retry</Button>
+              </div>
+            </Alert>
+          ) : (
+            <div className="mb-4">
+              {exams && exams.length > 0 ? (
+                <Card>
+                  <Card.Header>
+                    <Nav variant="tabs" defaultActiveKey="active">
+                      <Nav.Item>
+                        <Nav.Link eventKey="active">Active Assignments</Nav.Link>
+                      </Nav.Item>
+                      <Nav.Item>
+                        <Nav.Link eventKey="graded">Past Assignments</Nav.Link>
+                      </Nav.Item>
+                    </Nav>
+                  </Card.Header>
+                  <Card.Body>
+                    <ListGroup>
+                      {exams.map(exam => (
+                        <ListGroup.Item 
+                          key={exam._id || `exam-${Math.random()}`}
+                          className="d-flex justify-content-between align-items-center"
                         >
-                          View
-                        </Button>
-                      </div>
-                    </ListGroup.Item>
-                  ))}
-                </ListGroup>
+                          <div>
+                            <h6 className="mb-1">{exam.title || "Untitled Assignment"}</h6>
+                            <small className="text-muted">
+                              {exam.createdBy && `Posted by ${exam.createdBy}`} 
+                              {exam.description && ` • ${exam.description}`}
+                              {exam.createdAt && ` • Created: ${new Date(exam.createdAt).toLocaleDateString()}`}
+                            </small>
+                          </div>
+                          <div>
+                            <Button 
+                              variant="outline-primary" 
+                              size="sm" 
+                              className="me-2"
+                              onClick={() => {
+                                // View exam details
+                                console.log("View exam:", exam);
+                                setSelectedExam(exam);
+                                setShowViewExamModal(true);
+                              }}
+                              title="View assignment details"
+                            >
+                              <i className="bi bi-eye me-1"></i> View
+                            </Button>
+                            <Button 
+                              variant="outline-secondary" 
+                              size="sm"
+                              className="me-2"
+                              onClick={() => {
+                                // Edit exam 
+                                console.log("Edit exam:", exam);
+                                setSelectedExam(exam);
+                                setExamData({
+                                  title: exam.title || "",
+                                  description: exam.description || "",
+                                  questions: exam.questions || [{ text: "", type: "short", options: [], correctAnswer: "" }]
+                                });
+                                setShowEditExamModal(true);
+                              }}
+                              title="Edit this assignment"
+                            >
+                              <i className="bi bi-pencil-square me-1"></i> Edit
+                            </Button>
+                            <Button 
+                              variant="outline-danger" 
+                              size="sm"
+                              onClick={() => {
+                                // Delete exam 
+                                console.log("Delete exam:", exam);
+                                setSelectedExam(exam);
+                                setShowDeleteExamModal(true);
+                              }}
+                              title="Delete this assignment"
+                            >
+                              <i className="bi bi-trash me-1"></i> Delete
+                            </Button>
+                          </div>
+                        </ListGroup.Item>
+                      ))}
+                    </ListGroup>
+                  </Card.Body>
+                </Card>
+              ) : (
+                <Alert variant="info" className="text-center">
+                  <p className="mb-0">No assignments created yet for this class.</p>
+                  <p className="mb-0">Click "Create Assignment" to add your first assignment.</p>
+                </Alert>
               )}
-            </Card.Body>
-          </Card>
+            </div>
+          )}
+          
+          {/* Exam Creation Modal */}
+          <Modal show={showExamModal} onHide={() => setShowExamModal(false)} size="lg">
+            <Modal.Header closeButton>
+              <Modal.Title>Create New Assignment</Modal.Title>
+            </Modal.Header>
+            <Modal.Body>
+              <ExamCreator 
+                className={className} 
+                onExamCreated={(newExam) => {
+                  console.log("New exam created:", newExam);
+                  setShowExamModal(false);
+                  fetchExams(); // Refresh exams list
+                  setError(""); // Clear any errors
+                }} 
+              />
+            </Modal.Body>
+          </Modal>
+          
+          {/* View Exam Modal */}
+          <Modal show={showViewExamModal} onHide={() => setShowViewExamModal(false)} size="lg">
+            <Modal.Header closeButton>
+              <Modal.Title>{selectedExam?.title || "Assignment Details"}</Modal.Title>
+            </Modal.Header>
+            <Modal.Body>
+              {selectedExam ? (
+                <div>
+                  <h5>{selectedExam.title}</h5>
+                  {selectedExam.description && (
+                    <p className="text-muted">{selectedExam.description}</p>
+                  )}
+                  
+                  <div className="mt-3">
+                    <h6>Questions:</h6>
+                    {selectedExam.questions && selectedExam.questions.map((question, index) => (
+                      <Card key={index} className="mb-3">
+                        <Card.Body>
+                          <Card.Title>Question {index + 1}</Card.Title>
+                          <Card.Text>{question.text}</Card.Text>
+                          
+                          {question.type === "multiple" && question.options && (
+                            <div className="mt-2">
+                              <p><strong>Options:</strong></p>
+                              <ListGroup>
+                                {question.options.map((option, optIndex) => (
+                                  <ListGroup.Item key={optIndex} className={
+                                    option === question.correctAnswer ? "list-group-item-success" : ""
+                                  }>
+                                    {option} {option === question.correctAnswer && 
+                                      <Badge bg="success" className="ms-2">Correct</Badge>
+                                    }
+                                  </ListGroup.Item>
+                                ))}
+                              </ListGroup>
+                            </div>
+                          )}
+                          
+                          {question.type === "short" && (
+                            <div className="mt-2">
+                              <p><strong>Answer Type:</strong> Short Answer</p>
+                              {question.correctAnswer && (
+                                <p><strong>Correct Answer:</strong> {question.correctAnswer}</p>
+                              )}
+                            </div>
+                          )}
+                        </Card.Body>
+                      </Card>
+                    ))}
+                  </div>
+                  
+                  <div className="mt-3">
+                    <p><strong>Created By:</strong> {selectedExam.createdBy}</p>
+                    {selectedExam.createdAt && (
+                      <p><strong>Created On:</strong> {new Date(selectedExam.createdAt).toLocaleString()}</p>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <Alert variant="warning">No assignment details available</Alert>
+              )}
+            </Modal.Body>
+            <Modal.Footer>
+              <Button variant="secondary" onClick={() => setShowViewExamModal(false)}>
+                Close
+              </Button>
+              <Button 
+                variant="danger" 
+                className="me-2"
+                onClick={() => {
+                  setShowViewExamModal(false);
+                  setShowDeleteExamModal(true);
+                }}
+              >
+                <i className="bi bi-trash me-1"></i> Delete
+              </Button>
+              <Button 
+                variant="primary" 
+                onClick={() => {
+                  setShowViewExamModal(false);
+                  setSelectedExam(selectedExam);
+                  setExamData({
+                    title: selectedExam?.title || "",
+                    description: selectedExam?.description || "",
+                    questions: selectedExam?.questions || [{ text: "", type: "short", options: [], correctAnswer: "" }]
+                  });
+                  setShowEditExamModal(true);
+                }}
+              >
+                <i className="bi bi-pencil-square me-1"></i> Edit
+              </Button>
+            </Modal.Footer>
+          </Modal>
+          
+          {/* Edit Exam Modal */}
+          <Modal show={showEditExamModal} onHide={() => setShowEditExamModal(false)} size="lg">
+            <Modal.Header closeButton>
+              <Modal.Title>Edit Assignment</Modal.Title>
+            </Modal.Header>
+            <Modal.Body>
+              {selectedExam ? (
+                <Form>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Title</Form.Label>
+                    <Form.Control 
+                      type="text" 
+                      value={examData.title} 
+                      onChange={(e) => setExamData({...examData, title: e.target.value})}
+                    />
+                  </Form.Group>
+                  
+                  <Form.Group className="mb-3">
+                    <Form.Label>Description</Form.Label>
+                    <Form.Control 
+                      as="textarea" 
+                      rows={3} 
+                      value={examData.description} 
+                      onChange={(e) => setExamData({...examData, description: e.target.value})}
+                    />
+                  </Form.Group>
+                  
+                  <h5 className="mt-4">Questions</h5>
+                  {examData.questions.map((question, index) => (
+                    <Card key={index} className="mb-3">
+                      <Card.Body>
+                        <div className="d-flex justify-content-between">
+                          <h6>Question {index + 1}</h6>
+                          <Button 
+                            variant="outline-danger" 
+                            size="sm"
+                            onClick={() => {
+                              const updatedQuestions = [...examData.questions];
+                              updatedQuestions.splice(index, 1);
+                              setExamData({...examData, questions: updatedQuestions});
+                            }}
+                            disabled={examData.questions.length === 1}
+                          >
+                            Remove
+                          </Button>
+                        </div>
+                        
+                        <Form.Group className="mb-3">
+                          <Form.Label>Question Text</Form.Label>
+                          <Form.Control 
+                            as="textarea" 
+                            value={question.text} 
+                            onChange={(e) => {
+                              const updatedQuestions = [...examData.questions];
+                              updatedQuestions[index] = {...question, text: e.target.value};
+                              setExamData({...examData, questions: updatedQuestions});
+                            }}
+                          />
+                        </Form.Group>
+                        
+                        <Form.Group className="mb-3">
+                          <Form.Label>Question Type</Form.Label>
+                          <Form.Select 
+                            value={question.type} 
+                            onChange={(e) => {
+                              const updatedQuestions = [...examData.questions];
+                              updatedQuestions[index] = {...question, type: e.target.value};
+                              setExamData({...examData, questions: updatedQuestions});
+                            }}
+                          >
+                            <option value="short">Short Answer</option>
+                            <option value="multiple">Multiple Choice</option>
+                          </Form.Select>
+                        </Form.Group>
+                        
+                        {question.type === "multiple" && (
+                          <div>
+                            <Form.Group className="mb-3">
+                              <Form.Label>Options (one per line)</Form.Label>
+                              <Form.Control 
+                                as="textarea" 
+                                rows={4}
+                                value={(question.options || []).join('\n')} 
+                                onChange={(e) => {
+                                  const options = e.target.value.split('\n').filter(opt => opt.trim());
+                                  const updatedQuestions = [...examData.questions];
+                                  updatedQuestions[index] = {...question, options};
+                                  setExamData({...examData, questions: updatedQuestions});
+                                }}
+                              />
+                            </Form.Group>
+                            
+                            <Form.Group className="mb-3">
+                              <Form.Label>Correct Answer</Form.Label>
+                              <Form.Select 
+                                value={question.correctAnswer || ""}
+                                onChange={(e) => {
+                                  const updatedQuestions = [...examData.questions];
+                                  updatedQuestions[index] = {...question, correctAnswer: e.target.value};
+                                  setExamData({...examData, questions: updatedQuestions});
+                                }}
+                              >
+                                <option value="">Select correct answer</option>
+                                {(question.options || []).map((option, optIndex) => (
+                                  <option key={optIndex} value={option}>{option}</option>
+                                ))}
+                              </Form.Select>
+                            </Form.Group>
+                          </div>
+                        )}
+                        
+                        {question.type === "short" && (
+                          <Form.Group className="mb-3">
+                            <Form.Label>Correct Answer (optional)</Form.Label>
+                            <Form.Control 
+                              type="text" 
+                              value={question.correctAnswer || ""} 
+                              onChange={(e) => {
+                                const updatedQuestions = [...examData.questions];
+                                updatedQuestions[index] = {...question, correctAnswer: e.target.value};
+                                setExamData({...examData, questions: updatedQuestions});
+                              }}
+                              placeholder="Correct answer for grading reference"
+                            />
+                          </Form.Group>
+                        )}
+                      </Card.Body>
+                    </Card>
+                  ))}
+                  
+                  <div className="text-center mt-3 mb-3">
+                    <Button 
+                      variant="outline-primary"
+                      onClick={() => {
+                        setExamData({
+                          ...examData,
+                          questions: [
+                            ...examData.questions,
+                            { text: "", type: "short", options: [], correctAnswer: "" }
+                          ]
+                        });
+                      }}
+                    >
+                      Add Question
+                    </Button>
+                  </div>
+                </Form>
+              ) : (
+                <Alert variant="warning">No assignment selected for editing</Alert>
+              )}
+            </Modal.Body>
+            <Modal.Footer>
+              <Button variant="secondary" onClick={() => setShowEditExamModal(false)}>
+                Cancel
+              </Button>
+              <Button 
+                variant="primary" 
+                onClick={async () => {
+                  try {
+                    setPosting(true);
+                    
+                    // Ensure we have the required data
+                    if (!examData.title) {
+                      setError("Assignment title is required");
+                      setShowToast(true);
+                      setPosting(false);
+                      return;
+                    }
+                    
+                    // Validate questions
+                    if (!examData.questions || examData.questions.length === 0) {
+                      setError("At least one question is required");
+                      setShowToast(true);
+                      setPosting(false);
+                      return;
+                    }
+                    
+                    // Check each question for required fields
+                    const invalidQuestion = examData.questions.findIndex(q => 
+                      !q.text || 
+                      (q.type === "multiple" && (!q.options || q.options.length < 2))
+                    );
+                    
+                    if (invalidQuestion !== -1) {
+                      setError(`Question #${invalidQuestion + 1} is invalid. Ensure it has text and at least 2 options for multiple choice.`);
+                      setShowToast(true);
+                      setPosting(false);
+                      return;
+                    }
+                    
+                    // Prepare data for API call
+                    const updateData = {
+                      ...examData,
+                      class: className, // Ensure class field is set correctly
+                      className: className // Include both formats for compatibility
+                    };
+                    
+                    // Make API call to update the exam using the helper function
+                    const response = await updateExam(selectedExam._id, updateData);
+                    
+                    console.log("Updated exam:", response.data);
+                    
+                    // Close modal and refresh data
+                    setShowEditExamModal(false);
+                    setSelectedExam(null);
+                    fetchExams(); // Refresh exams list
+                    
+                    // Show success message
+                    setSuccessMessage("Assignment updated successfully");
+                    setShowToast(true);
+                  } catch (err) {
+                    console.error("Error updating exam:", err.response?.data || err.message);
+                    setError(err.response?.data?.error || "Failed to update assignment");
+                    setShowToast(true);
+                  } finally {
+                    setPosting(false);
+                  }
+                }}
+                disabled={posting}
+              >
+                {posting ? (
+                  <>
+                    <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                    Saving...
+                  </>
+                ) : "Save Changes"}
+              </Button>
+            </Modal.Footer>
+          </Modal>
+          
+          {/* Delete Exam Confirmation Modal */}
+          <Modal show={showDeleteExamModal} onHide={() => setShowDeleteExamModal(false)}>
+            <Modal.Header closeButton className="bg-danger text-white">
+              <Modal.Title>
+                <i className="bi bi-exclamation-triangle-fill me-2"></i>
+                Confirm Delete
+              </Modal.Title>
+            </Modal.Header>
+            <Modal.Body>
+              {selectedExam ? (
+                <div className="text-center">
+                  <div className="d-flex justify-content-center mb-3">
+                    <div className="text-danger" style={{ fontSize: '3rem' }}>
+                      <i className="bi bi-trash3"></i>
+                    </div>
+                  </div>
+                  <p>Are you sure you want to delete this assignment?</p>
+                  <h5 className="fw-bold mb-3">{selectedExam.title}</h5>
+                  <div className="alert alert-warning">
+                    <small>
+                      <i className="bi bi-exclamation-triangle-fill me-2"></i>
+                      This action cannot be undone. All student submissions for this assignment will also be deleted.
+                    </small>
+                  </div>
+                </div>
+              ) : (
+                <p>No assignment selected.</p>
+              )}
+            </Modal.Body>
+            <Modal.Footer>
+              <Button variant="secondary" onClick={() => setShowDeleteExamModal(false)}>
+                Cancel
+              </Button>
+              <Button 
+                variant="danger" 
+                onClick={async () => {
+                  if (!selectedExam) return;
+                  
+                  try {
+                    setDeletingExam(true);
+                    
+                    // Call API to delete the exam
+                    await deleteExam(selectedExam._id);
+                    
+                    // Close modal and refresh data
+                    setShowDeleteExamModal(false);
+                    setSelectedExam(null);
+                    fetchExams(); // Refresh exams list
+                    
+                    // Show success message with the assignment title
+                    setSuccessMessage(`Assignment "${selectedExam.title}" deleted successfully`);
+                    setShowToast(true);
+                  } catch (err) {
+                    console.error("Error deleting exam:", err.response?.data || err.message);
+                    setError(err.response?.data?.error || "Failed to delete assignment");
+                    setShowToast(true);
+                  } finally {
+                    setDeletingExam(false);
+                  }
+                }}
+                disabled={deletingExam}
+              >
+                {deletingExam ? (
+                  <>
+                    <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                    Deleting...
+                  </>
+                ) : "Delete"}
+              </Button>
+            </Modal.Footer>
+          </Modal>
         </div>
       )}
 
