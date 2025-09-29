@@ -270,7 +270,6 @@ function StudentMainDashboard() {
   const [showJoinModal, setShowJoinModal] = useState(false);
   const [showUnenrollModal, setShowUnenrollModal] = useState(false);
   const [selectedClassToUnenroll, setSelectedClassToUnenroll] = useState(null);
-  const [debugData, setDebugData] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0); // Used to force re-fetch of classes
 
   useEffect(() => {
@@ -290,7 +289,6 @@ function StudentMainDashboard() {
       const fetchedClasses = response.data || [];
       setClasses(fetchedClasses);
       localStorage.setItem('studentClasses', JSON.stringify(fetchedClasses));
-      setDebugData({ classes: fetchedClasses });
     } catch (err) {
       console.error("Error fetching classes:", err);
       
@@ -419,17 +417,11 @@ function StudentMainDashboard() {
           onClose={() => setShowToast(false)}
           delay={5000}
           autohide
-          bg={error.includes("successfully") ? "success" : "danger"}
+          bg={error.toLowerCase().includes("successfully") || error.includes("Class removed from your view") ? "success" : "danger"}
           style={{ position: "fixed", top: "20px", right: "20px", zIndex: 10000 }}
         >
           <Toast.Body className="text-white">{error}</Toast.Body>
         </Toast>
-      )}
-      
-      {debugData && (
-        <Alert variant="info" className="mb-4">
-          <strong>Debug Info:</strong> Classes: {JSON.stringify(debugData.classes?.length || 0)} items
-        </Alert>
       )}
       
       {/* Statistics Cards */}
@@ -598,32 +590,6 @@ function StudentMainDashboard() {
               disabled={!selectedClassToUnenroll}
             >
               Leave class
-            </Button>
-          </div>
-          
-          {/* Emergency force leave option - Google Classroom has something similar */}
-          <div className="mt-2 text-center w-100">
-            <hr className="my-2" />
-            <small className="text-muted mb-2 d-block">
-              If you're having trouble leaving the class:
-            </small>
-            <Button 
-              variant="outline-secondary" 
-              size="sm"
-              className="w-100 text-muted"
-              onClick={() => {
-                // Force remove class locally
-                if (selectedClassToUnenroll) {
-                  const updatedClasses = classes.filter(c => c !== selectedClassToUnenroll);
-                  setClasses(updatedClasses);
-                  localStorage.setItem('studentClasses', JSON.stringify(updatedClasses));
-                  setError(`Class removed from your view`);
-                  setShowToast(true);
-                }
-                setShowUnenrollModal(false);
-              }}
-            >
-              <small>Force remove from my classes</small>
             </Button>
           </div>
         </Modal.Footer>
@@ -1324,36 +1290,6 @@ function StudentClassStream() {
               Leave class
             </Button>
           </div>
-          
-          {/* Emergency force leave option */}
-          <div className="mt-2 text-center w-100">
-            <hr className="my-2" />
-            <small className="text-muted mb-2 d-block">
-              If you're having trouble leaving the class:
-            </small>
-            <Button 
-              variant="outline-secondary" 
-              size="sm"
-              className="w-100 text-muted"
-              onClick={() => {
-                setShowLeaveModal(false);
-                // Update local storage to remove the class
-                try {
-                  const cachedClasses = localStorage.getItem('studentClasses');
-                  if (cachedClasses) {
-                    const classes = JSON.parse(cachedClasses);
-                    const updatedClasses = classes.filter(c => c.name !== className);
-                    localStorage.setItem('studentClasses', JSON.stringify(updatedClasses));
-                  }
-                } catch (err) {
-                  console.error("❌ Local storage error:", err);
-                }
-                navigate('/student/dashboard');
-              }}
-            >
-              <small>Force remove from my classes</small>
-            </Button>
-          </div>
         </Modal.Footer>
       </Modal>
     </Container>
@@ -1366,7 +1302,6 @@ function StudentGrades() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showToast, setShowToast] = useState(false);
-  const [debugData, setDebugData] = useState(null);
 
   useEffect(() => {
     fetchGrades();
@@ -1381,7 +1316,6 @@ function StudentGrades() {
         headers: { Authorization: `Bearer ${token}` }
       });
       setGrades(response.data || []);
-      setDebugData({ grades: response.data });
     } catch (err) {
       console.error("Error fetching grades:", err);
       setError(err.response?.data?.error || "Failed to fetch grades");
@@ -1410,18 +1344,14 @@ function StudentGrades() {
           onClose={() => setShowToast(false)}
           delay={5000}
           autohide
-          bg="danger"
+          bg={error.toLowerCase().includes("successfully") || error.includes("Class removed from your view") ? "success" : "danger"}
           style={{ position: "fixed", top: "20px", right: "20px", zIndex: 10000 }}
         >
           <Toast.Body className="text-white">{error}</Toast.Body>
         </Toast>
       )}
       
-      {debugData && (
-        <Alert variant="info" className="mb-4">
-          <strong>Debug Info:</strong> Grades: {JSON.stringify(debugData.grades?.length || 0)} items
-        </Alert>
-      )}
+
 
       {grades.length === 0 ? (
         <Card className="p-4 text-center text-muted">
@@ -1474,7 +1404,6 @@ function StudentProfile() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showToast, setShowToast] = useState(false);
-  const [debugData, setDebugData] = useState(null);
 
   useEffect(() => {
     fetchProfile();
@@ -1488,7 +1417,6 @@ function StudentProfile() {
         headers: { Authorization: `Bearer ${token}` }
       });
       setProfile(response.data);
-      setDebugData({ profile: response.data });
     } catch (err) {
       console.error("Error fetching profile:", err);
       setError(err.response?.data?.error || "Failed to load profile");
@@ -1517,18 +1445,13 @@ function StudentProfile() {
           onClose={() => setShowToast(false)}
           delay={5000}
           autohide
-          bg="danger"
+          bg={error.toLowerCase().includes("successfully") || error.includes("Class removed from your view") ? "success" : "danger"}
           style={{ position: "fixed", top: "20px", right: "20px", zIndex: 10000 }}
         >
           <Toast.Body className="text-white">{error}</Toast.Body>
         </Toast>
       )}
-      
-      {debugData && (
-        <Alert variant="info" className="mb-4">
-          <strong>Debug Info:</strong> Profile loaded for: {JSON.stringify(debugData.profile?.username)}
-        </Alert>
-      )}
+
 
       <Row>
         <Col md={8}>
