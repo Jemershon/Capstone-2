@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Routes, Route, NavLink, useNavigate, useParams, Link } from "react-router-dom";
 import axios from "axios";
 import { Container, Row, Col, Nav, Navbar, Card, Button, Table, Modal, Form, Tab, Tabs, Badge, Alert, Spinner, Toast, ListGroup, Dropdown } from "react-bootstrap";
 import { getAuthToken, getUsername, getUserRole, checkAuth, clearAuthData, API_BASE_URL } from "../api";
 import NotificationsDropdown from "./components/NotificationsDropdown";
+import { io } from "socket.io-client";
 
 // Add custom styles for responsive design
 const customStyles = `
@@ -269,7 +270,6 @@ function StudentMainDashboard() {
   const [showJoinModal, setShowJoinModal] = useState(false);
   const [showUnenrollModal, setShowUnenrollModal] = useState(false);
   const [selectedClassToUnenroll, setSelectedClassToUnenroll] = useState(null);
-  const [debugData, setDebugData] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0); // Used to force re-fetch of classes
 
   useEffect(() => {
@@ -289,7 +289,6 @@ function StudentMainDashboard() {
       const fetchedClasses = response.data || [];
       setClasses(fetchedClasses);
       localStorage.setItem('studentClasses', JSON.stringify(fetchedClasses));
-      setDebugData({ classes: fetchedClasses });
     } catch (err) {
       console.error("Error fetching classes:", err);
       
@@ -352,7 +351,7 @@ function StudentMainDashboard() {
         await axios.delete(`${API_BASE_URL}/api/leave-class/${classId}`, {
           headers: { Authorization: `Bearer ${token}` }
         });
-        console.log(`✅ Successfully left class ${selectedClassToUnenroll.name} via API`);
+        // Class unenrollment successful
       } catch (apiErr) {
         console.error("API leave class error:", apiErr);
         // Continue execution even if API fails - we'll handle it with local state
@@ -418,17 +417,11 @@ function StudentMainDashboard() {
           onClose={() => setShowToast(false)}
           delay={5000}
           autohide
-          bg={error.includes("successfully") ? "success" : "danger"}
+          bg={error.toLowerCase().includes("successfully") || error.includes("Class removed from your view") ? "success" : "danger"}
           style={{ position: "fixed", top: "20px", right: "20px", zIndex: 10000 }}
         >
           <Toast.Body className="text-white">{error}</Toast.Body>
         </Toast>
-      )}
-      
-      {debugData && (
-        <Alert variant="info" className="mb-4">
-          <strong>Debug Info:</strong> Classes: {JSON.stringify(debugData.classes?.length || 0)} items
-        </Alert>
       )}
       
       {/* Statistics Cards */}
@@ -488,7 +481,7 @@ function StudentMainDashboard() {
                   <strong>Teacher:</strong> {cls.teacher}
                 </p>
                 <p className="mb-0">
-                  <strong>Class Code:</strong> {cls.code}
+                  <strong>Classmates:</strong> {(cls.students?.length || 1) - 1}
                 </p>
               </Card.Body>
               <Card.Footer className="d-flex justify-content-between align-items-center">
@@ -599,32 +592,6 @@ function StudentMainDashboard() {
               Leave class
             </Button>
           </div>
-          
-          {/* Emergency force leave option - Google Classroom has something similar */}
-          <div className="mt-2 text-center w-100">
-            <hr className="my-2" />
-            <small className="text-muted mb-2 d-block">
-              If you're having trouble leaving the class:
-            </small>
-            <Button 
-              variant="outline-secondary" 
-              size="sm"
-              className="w-100 text-muted"
-              onClick={() => {
-                // Force remove class locally
-                if (selectedClassToUnenroll) {
-                  const updatedClasses = classes.filter(c => c !== selectedClassToUnenroll);
-                  setClasses(updatedClasses);
-                  localStorage.setItem('studentClasses', JSON.stringify(updatedClasses));
-                  setError(`Class removed from your view`);
-                  setShowToast(true);
-                }
-                setShowUnenrollModal(false);
-              }}
-            >
-              <small>Force remove from my classes</small>
-            </Button>
-          </div>
         </Modal.Footer>
       </Modal>
     </div>
@@ -638,8 +605,6 @@ function StudentClassStream() {
   const [exams, setExams] = useState([]);
   const [materials, setMaterials] = useState([]);
   const [classmates, setClassmates] = useState([]);
-  const [showFilePreview, setShowFilePreview] = useState(false);
-  const [previewFile, setPreviewFile] = useState(null);
   const [teacher, setTeacher] = useState("");
   const [grades, setGrades] = useState([]);
   const [activeTab, setActiveTab] = useState("stream");
@@ -649,17 +614,95 @@ function StudentClassStream() {
   const [submissionText, setSubmissionText] = useState("");
   const [submissionFile, setSubmissionFile] = useState(null);
   const [showSubmissionModal, setShowSubmissionModal] = useState(false);
-  const [showExamModal, setShowExamModal] = useState(false);
-  const [selectedExam, setSelectedExam] = useState(null);
-  const [examAnswers, setExamAnswers] = useState({});
-  const [examSubmitted, setExamSubmitted] = useState(false);
-  const [submittedExams, setSubmittedExams] = useState([]);
   const [currentClass, setCurrentClass] = useState(null);
   const [showLeaveModal, setShowLeaveModal] = useState(false);
+  const [showFilePreview, setShowFilePreview] = useState(false);
+  const [previewFile, setPreviewFile] = useState(null);
   const navigate = useNavigate();
+  // Reference to socket.io connection
+  const socketRef = useRef(null);
 
   useEffect(() => {
     fetchClassData();
+    
+    // Setup Socket.IO connection for real-time updates
+    let isMounted = true;
+    const token = getAuthToken();
+    
+    // Cleanup any existing connection first
+    if (socketRef.current) {
+      socketRef.current.disconnect();
+      socketRef.current = null;
+    }
+    
+    // Only proceed if we have an auth token
+    if (token) {
+      try {
+        // Connect to socket server with explicit options
+        const socket = io(API_BASE_URL, {
+          reconnectionAttempts: 5,
+          reconnectionDelay: 1000,
+          timeout: 10000,
+          transports: ['websocket', 'polling']
+        });
+        
+        socketRef.current = socket;
+        
+        socket.on('connect_error', (err) => {
+          console.error('Socket connection error:', err.message);
+        });
+        
+        socket.on('connect', () => {
+          // Only proceed if the component is still mounted
+          if (isMounted) {
+            // Authenticate and join class room for class-specific events
+            socket.emit('authenticate', token);
+            socket.emit('join-class', className);
+            console.log('Connected to socket server and joined class:', className);
+          }
+        });
+        
+        // Listen for exam updates
+        socket.on('exam-created', (newExam) => {
+          if (isMounted && newExam && newExam.class === className) {
+            setAssignments(prev => [newExam, ...prev]);
+          }
+        });
+        
+        // Listen for announcement updates
+        socket.on('announcement-created', (newAnnouncement) => {
+          if (isMounted && newAnnouncement && newAnnouncement.class === className) {
+            console.log('Received new announcement via socket:', newAnnouncement);
+            setAnnouncements(prev => [newAnnouncement, ...prev]);
+            
+            // Show notification
+            const notificationMessage = `New announcement from ${newAnnouncement.teacher}`;
+            // Add notification UI here if needed
+            console.log('Notification:', notificationMessage);
+          }
+        });
+      } catch (err) {
+        console.error('Error initializing socket connection:', err);
+      }
+    }
+    
+    return () => {
+      // Mark component as unmounted
+      isMounted = false;
+      
+      // Cleanup socket connection
+      if (socketRef.current) {
+        // Unsubscribe from all events to prevent memory leaks
+        socketRef.current.off('announcement-created');
+        socketRef.current.off('exam-created');
+        
+        // Leave the class room before disconnecting
+        socketRef.current.emit('leave-class', className);
+        socketRef.current.disconnect();
+        socketRef.current = null;
+        console.log('Socket connection closed and events unsubscribed');
+      }
+    };
   }, [className]);
 
   const fetchClassData = async () => {
@@ -674,7 +717,6 @@ function StudentClassStream() {
         fetchExams(token),
         fetchMaterials(token),
         fetchClassmates(token),
-        fetchSubmittedExams(token),
         fetchGrades(token, username)
       ]);
     } catch (err) {
@@ -684,19 +726,23 @@ function StudentClassStream() {
       setLoading(false);
     }
   };
-  
-  // Handle file preview functionality
+
   const handleFilePreview = (fileUrl, fileName, fileType) => {
+    // Determine file extension and type
     const extension = fileName.split('.').pop().toLowerCase();
+    
+    // Set preview file object with appropriate type
     setPreviewFile({
       url: fileUrl,
       name: fileName,
       type: fileType || getFileType(extension),
       extension
     });
+    
+    // Show preview modal
     setShowFilePreview(true);
   };
-
+  
   // Helper function to determine file type based on extension
   const getFileType = (extension) => {
     const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg', 'webp'];
@@ -718,12 +764,29 @@ function StudentClassStream() {
 
   const fetchAnnouncements = async (token) => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/api/announcements?className=${encodeURIComponent(className)}`, {
+      console.log(`Fetching announcements for class: ${className}`);
+      const response = await axios.get(`${API_BASE_URL}/api/student/announcements?className=${encodeURIComponent(className)}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
+      console.log("Fetched announcements:", response.data);
+      
+      // Detailed logging of each announcement
+      if (response.data && response.data.length > 0) {
+        response.data.forEach((ann, index) => {
+          console.log(`Announcement ${index + 1}:`, {
+            teacher: ann.teacher,
+            date: ann.date,
+            message: ann.message,
+            class: ann.class
+          });
+        });
+      } else {
+        console.log("No announcements returned from API");
+      }
+      
       setAnnouncements(response.data);
     } catch (err) {
-      console.error("Error fetching announcements:", err);
+      console.error("Error fetching announcements:", err.response?.data || err.message);
     }
   };
 
@@ -791,7 +854,7 @@ function StudentClassStream() {
           const matchingClass = classesResponse.data.find(c => c.name === className);
           
           if (matchingClass && (matchingClass._id || matchingClass.id)) {
-            console.log("✅ Found class ID from student-classes endpoint:", matchingClass._id || matchingClass.id);
+            // Found class ID
             // Merge the data
             response.data._id = matchingClass._id || matchingClass.id;
           }
@@ -801,7 +864,7 @@ function StudentClassStream() {
       }
       
       setCurrentClass(response.data); // Store the current class data
-      console.log("✅ Current class set:", response.data);
+      // Current class set
     } catch (err) {
       console.error("Error fetching classmates:", err);
     }
@@ -809,24 +872,13 @@ function StudentClassStream() {
 
   // Fixed handleLeaveClass function that follows Google Classroom style
   const handleLeaveClass = async () => {
-    console.log("🚪 Attempting to leave class...", { currentClass });
+    // Attempting to leave class
     
     // Always show the leave modal instead of trying to handle leave here
     setShowLeaveModal(true);
     
     // Note: All class leaving logic is now handled inside the Leave Modal's onClick handler
     // to follow the Google Classroom style approach
-  };
-
-  const fetchSubmittedExams = async (token) => {
-    try {
-      const response = await axios.get(`${API_BASE_URL}/api/exam-submissions/student`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setSubmittedExams(response.data.map(submission => submission.examId));
-    } catch (err) {
-      console.error("Error fetching submitted exams:", err);
-    }
   };
 
   const fetchGrades = async (token, username) => {
@@ -875,54 +927,7 @@ function StudentClassStream() {
   };
 
   const handleTakeExam = (exam) => {
-    console.log("Take Exam clicked:", exam);
-    setSelectedExam(exam);
-    setExamAnswers({});
-    setExamSubmitted(false);
-    setShowExamModal(true);
-    console.log("Modal should show now");
-  };
-
-  const handleAnswerChange = (questionIndex, answer) => {
-    setExamAnswers(prev => ({
-      ...prev,
-      [questionIndex]: answer
-    }));
-  };
-
-  const handleSubmitExam = async () => {
-    try {
-      console.log("Submitting exam:", selectedExam._id);
-      console.log("Answers:", examAnswers);
-      
-      const submission = {
-        examId: selectedExam._id,
-        answers: Object.entries(examAnswers).map(([questionIndex, answer]) => ({
-          questionIndex: parseInt(questionIndex),
-          answer: answer
-        }))
-      };
-
-      console.log("Submission payload:", submission);
-
-      const response = await axios.post(
-        `${API_BASE_URL}/api/exam-submissions`,
-        submission,
-        {
-          headers: { Authorization: `Bearer ${getAuthToken()}` }
-        }
-      );
-
-      console.log("Submission successful:", response.data);
-      setExamSubmitted(true);
-      setSubmittedExams(prev => [...prev, selectedExam._id]);
-      alert(`Exam submitted successfully! Your score: ${response.data.score}%`);
-    } catch (err) {
-      console.error("Error submitting exam:", err);
-      console.error("Error response:", err.response?.data);
-      console.error("Error status:", err.response?.status);
-      alert(`Error submitting exam: ${err.response?.data?.error || err.message}`);
-    }
+    window.location.href = `/student/exam/${exam._id}`;
   };
 
   if (loading) {
@@ -952,27 +957,6 @@ function StudentClassStream() {
             <h2 className="fw-bold text-primary">{className}</h2>
             <div className="d-flex align-items-center gap-3">
               <NotificationsDropdown />
-              {/* Leave class dropdown menu */}
-              <Dropdown align="end">
-                <Dropdown.Toggle 
-                  variant="outline-secondary" 
-                  size="sm"
-                  className="d-flex align-items-center px-2"
-                  style={{ minWidth: '35px' }}
-                >
-                  •••
-                </Dropdown.Toggle>
-                
-                <Dropdown.Menu>
-                  <Dropdown.Item 
-                    className="text-danger d-flex align-items-center"
-                    onClick={() => setShowLeaveModal(true)}
-                  >
-                    <span style={{ marginRight: '8px' }}>🚪</span>
-                    Leave class
-                  </Dropdown.Item>
-                </Dropdown.Menu>
-              </Dropdown>
             </div>
           </div>
 
@@ -986,60 +970,52 @@ function StudentClassStream() {
                   </Card>
                 ) : (
                   announcements.map((announcement, index) => (
-                    <Card key={announcement._id || index} className="mb-3">
+                    <Card key={index} className="mb-3">
                       <Card.Body>
                         <div className="d-flex align-items-center mb-2">
                           <div className="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-3" 
                                style={{ width: 40, height: 40 }}>
-                            {announcement.teacher ? announcement.teacher[0].toUpperCase() : 'T'}
+                            {teacher ? teacher[0].toUpperCase() : 'T'}
                           </div>
                           <div>
-                            <strong>{announcement.teacher}</strong>
+                            <strong>{teacher}</strong>
                             <br />
                             <small className="text-muted">{new Date(announcement.date).toLocaleString()}</small>
                           </div>
                         </div>
                         <p>{announcement.message}</p>
-                        
-                        {/* Display file attachments */}
-                        {announcement.attachments && announcement.attachments.length > 0 && (
-                          <div className="mt-3">
-                            <div className="fw-bold mb-2">Attachments:</div>
-                            {announcement.attachments.map((attachment, attachIndex) => (
-                              <div key={attachIndex} className="d-flex align-items-center justify-content-between bg-light p-2 rounded mb-1">
-                                <div className="d-flex align-items-center">
-                                  <span className="me-2">📎</span>
-                                  <span>{attachment.originalName}</span>
-                                  <small className="text-muted ms-2">({(attachment.fileSize / 1024 / 1024).toFixed(2)} MB)</small>
-                                </div>
-                                <div className="d-flex gap-2">
-                                  <Button 
-                                    variant="outline-primary" 
-                                    size="sm"
-                                    onClick={() => window.open(`${API_BASE_URL}/${attachment.filePath}`, '_blank')}
-                                  >
-                                    View
-                                  </Button>
-                                  <Button 
-                                    variant="outline-success" 
-                                    size="sm"
-                                    onClick={() => {
-                                      const link = document.createElement('a');
-                                      link.href = `${API_BASE_URL}/${attachment.filePath}`;
-                                      link.download = attachment.originalName;
-                                      document.body.appendChild(link);
-                                      link.click();
-                                      document.body.removeChild(link);
-                                    }}
-                                  >
-                                    Download
-                                  </Button>
-                                </div>
+                        {announcement.attachment && (
+                          <div className="mt-2 p-2 border rounded">
+                            <div className="d-flex justify-content-between align-items-center">
+                              <div className="d-flex align-items-center">
+                                <span className="me-2">📎</span>
+                                <span>{announcement.attachmentDetails?.originalName || 'Attached File'}</span>
                               </div>
-                            ))}
+                              <div className="d-flex gap-2">
+                                <Button
+                                  variant="outline-primary"
+                                  size="sm"
+                                  onClick={() => handleFilePreview(
+                                    `${API_BASE_URL}/uploads/materials/${announcement.attachment}`,
+                                    announcement.attachmentDetails?.originalName || 'File',
+                                    null
+                                  )}
+                                >
+                                  View
+                                </Button>
+                                <Button
+                                  variant="outline-secondary"
+                                  size="sm"
+                                  as="a"
+                                  href={`${API_BASE_URL}/uploads/materials/${announcement.attachment}`}
+                                  download
+                                >
+                                  Download
+                                </Button>
+                              </div>
+                            </div>
                           </div>
                         )}
-                        
                         {announcement.examId && (
                           <Badge bg="info" className="me-2">Exam Posted</Badge>
                         )}
@@ -1052,67 +1028,6 @@ function StudentClassStream() {
 
             {/* Classwork Tab */}
             <Tab eventKey="classwork" title="Classwork">
-              {/* Uploaded Files Section */}
-              <div className="mb-4">
-                <h5 className="mb-3">📎 Class Files</h5>
-                {announcements.filter(a => a.attachments && a.attachments.length > 0).length === 0 ? (
-                  <Card className="text-center p-4">
-                    <p className="text-muted">No files shared yet</p>
-                  </Card>
-                ) : (
-                  <Card>
-                    <Card.Body>
-                      {announcements
-                        .filter(a => a.attachments && a.attachments.length > 0)
-                        .map((announcement, index) => (
-                          <div key={announcement._id || index} className="mb-3">
-                            <div className="d-flex align-items-center mb-2">
-                              <div className="fw-bold me-2">{announcement.teacher}</div>
-                              <small className="text-muted">
-                                {new Date(announcement.date).toLocaleDateString()} - "{announcement.message}"
-                              </small>
-                            </div>
-                            <div className="ms-3">
-                              {announcement.attachments.map((attachment, attachIndex) => (
-                                <div key={attachIndex} className="d-flex align-items-center justify-content-between bg-light p-2 rounded mb-1">
-                                  <div className="d-flex align-items-center">
-                                    <span className="me-2">📎</span>
-                                    <span>{attachment.originalName}</span>
-                                    <small className="text-muted ms-2">({(attachment.fileSize / 1024 / 1024).toFixed(2)} MB)</small>
-                                  </div>
-                                  <div className="d-flex gap-2">
-                                    <Button 
-                                      variant="outline-primary" 
-                                      size="sm"
-                                      onClick={() => window.open(`${API_BASE_URL}/${attachment.filePath}`, '_blank')}
-                                    >
-                                      View
-                                    </Button>
-                                    <Button 
-                                      variant="outline-success" 
-                                      size="sm"
-                                      onClick={() => {
-                                        const link = document.createElement('a');
-                                        link.href = `${API_BASE_URL}/${attachment.filePath}`;
-                                        link.download = attachment.originalName;
-                                        document.body.appendChild(link);
-                                        link.click();
-                                        document.body.removeChild(link);
-                                      }}
-                                    >
-                                      Download
-                                    </Button>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        ))}
-                    </Card.Body>
-                  </Card>
-                )}
-              </div>
-
               <Row>
                 <Col md={6}>
                   <h5 className="mb-3">📝 Assignments</h5>
@@ -1174,29 +1089,14 @@ function StudentClassStream() {
                                   Due: {new Date(exam.dueDate).toLocaleDateString()}
                                 </Badge>
                               )}
-                              {submittedExams.includes(exam._id) && (
-                                <Badge bg="success" className="ms-2">
-                                  Submitted
-                                </Badge>
-                              )}
                             </div>
-                            {submittedExams.includes(exam._id) ? (
-                              <Button 
-                                variant="secondary" 
-                                size="sm"
-                                disabled
-                              >
-                                Already Submitted
-                              </Button>
-                            ) : (
-                              <Button 
-                                variant="success" 
-                                size="sm"
-                                onClick={() => handleTakeExam(exam)}
-                              >
-                                Take Exam
-                              </Button>
-                            )}
+                            <Button 
+                              variant="success" 
+                              size="sm"
+                              onClick={() => handleTakeExam(exam)}
+                            >
+                              Take Exam
+                            </Button>
                           </div>
                         </Card.Body>
                       </Card>
@@ -1273,7 +1173,7 @@ function StudentClassStream() {
                             <p className="text-muted small text-center">{material.description}</p>
                           )}
                           {material.type === 'file' && (
-                            <div className="d-flex gap-2">
+                            <div className="d-flex gap-2 justify-content-between">
                               <Button
                                 variant="outline-primary"
                                 size="sm"
@@ -1442,7 +1342,7 @@ function StudentClassStream() {
                       await axios.delete(`${API_BASE_URL}/api/leave-class/${classId}`, {
                         headers: { Authorization: `Bearer ${token}` }
                       });
-                      console.log(`✅ Successfully left class ${className} via API`);
+                      // Successfully left class
                     }
                   }
                 } catch (err) {
@@ -1469,268 +1369,131 @@ function StudentClassStream() {
               Leave class
             </Button>
           </div>
-          
-          {/* Emergency force leave option */}
-          <div className="mt-2 text-center w-100">
-            <hr className="my-2" />
-            <small className="text-muted mb-2 d-block">
-              If you're having trouble leaving the class:
-            </small>
-            <Button 
-              variant="outline-secondary" 
-              size="sm"
-              className="w-100 text-muted"
-              onClick={() => {
-                setShowLeaveModal(false);
-                // Update local storage to remove the class
-                try {
-                  const cachedClasses = localStorage.getItem('studentClasses');
-                  if (cachedClasses) {
-                    const classes = JSON.parse(cachedClasses);
-                    const updatedClasses = classes.filter(c => c.name !== className);
-                    localStorage.setItem('studentClasses', JSON.stringify(updatedClasses));
-                  }
-                } catch (err) {
-                  console.error("❌ Local storage error:", err);
-                }
-                navigate('/student/dashboard');
-              }}
-            >
-              <small>Force remove from my classes</small>
-            </Button>
-          </div>
         </Modal.Footer>
       </Modal>
-
-      {/* Take Exam Modal */}
-      <Modal show={showExamModal} onHide={() => setShowExamModal(false)} size="lg">
+      
+      {/* File Preview Modal */}
+      <Modal 
+        show={showFilePreview} 
+        onHide={() => setShowFilePreview(false)} 
+        size="lg"
+        centered
+      >
         <Modal.Header closeButton>
-          <Modal.Title>
-            {examSubmitted ? 'Exam Submitted' : `Take Exam: ${selectedExam?.title}`}
-          </Modal.Title>
+          <Modal.Title>{previewFile?.name || 'File Preview'}</Modal.Title>
         </Modal.Header>
-        <Modal.Body style={{ maxHeight: '70vh', overflowY: 'auto' }}>
-          {selectedExam ? (
-            <div>
-              {!examSubmitted ? (
-                <>
-                  <div className="mb-3">
-                    <p><strong>Description:</strong> {selectedExam.description}</p>
-                    <p><strong>Total Questions:</strong> {selectedExam.questions?.length || 0}</p>
-                    <hr />
+        <Modal.Body>
+          {previewFile && (
+            <div className="text-center">
+              {previewFile.type === 'image' && (
+                <img 
+                  src={previewFile.url} 
+                  alt={previewFile.name} 
+                  className="img-fluid" 
+                  style={{ maxHeight: '70vh' }}
+                />
+              )}
+              
+              {previewFile.type === 'video' && (
+                <video 
+                  src={previewFile.url} 
+                  controls 
+                  className="w-100" 
+                  style={{ maxHeight: '70vh' }}
+                >
+                  Your browser does not support the video tag.
+                </video>
+              )}
+              
+              {previewFile.type === 'audio' && (
+                <audio 
+                  src={previewFile.url} 
+                  controls 
+                  className="w-100"
+                >
+                  Your browser does not support the audio tag.
+                </audio>
+              )}
+              
+              {previewFile.type === 'document' && previewFile.extension === 'pdf' && (
+                <iframe
+                  src={`${previewFile.url}#toolbar=0`}
+                  width="100%"
+                  height="500px"
+                  title={previewFile.name}
+                  frameBorder="0"
+                />
+              )}
+              
+              {(previewFile.type === 'document' && previewFile.extension !== 'pdf') && (
+                <div className="text-center p-5">
+                  <div className="display-1 mb-3">📄</div>
+                  <p>This document cannot be previewed directly.</p>
+                  <Button
+                    variant="primary"
+                    as="a"
+                    href={previewFile.url}
+                    target="_blank"
+                    download
+                  >
+                    Download to view
+                  </Button>
+                </div>
+              )}
+              
+              {(previewFile.type === 'spreadsheet' || previewFile.type === 'presentation') && (
+                <div className="text-center p-5">
+                  <div className="display-1 mb-3">
+                    {previewFile.type === 'spreadsheet' ? '📊' : '🖼️'}
                   </div>
-                  
-                  {selectedExam.questions && selectedExam.questions.map((question, index) => (
-                    <div key={index} className="mb-4 p-3 border rounded">
-                      <h6 className="fw-bold">Question {index + 1}</h6>
-                      <p>{question.text}</p>
-                      
-                      {question.type === 'multiple' && question.options ? (
-                        <div>
-                          {question.options.map((option, optionIndex) => (
-                            <div key={optionIndex} className="form-check">
-                              <input
-                                className="form-check-input"
-                                type="radio"
-                                name={`question_${index}`}
-                                id={`q${index}_opt${optionIndex}`}
-                                value={option}
-                                onChange={(e) => handleAnswerChange(index, e.target.value)}
-                                checked={examAnswers[index] === option}
-                              />
-                              <label className="form-check-label" htmlFor={`q${index}_opt${optionIndex}`}>
-                                {option}
-                              </label>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <div>
-                          <textarea
-                            className="form-control"
-                            rows="3"
-                            placeholder="Enter your answer here..."
-                            value={examAnswers[index] || ''}
-                            onChange={(e) => handleAnswerChange(index, e.target.value)}
-                          />
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </>
-              ) : (
-                <div className="text-center">
-                  <div className="display-4 text-success mb-3">✓</div>
-                  <h5>Exam Submitted Successfully!</h5>
-                  <p>Your answers have been recorded. You can close this window.</p>
+                  <p>This {previewFile.type} cannot be previewed directly.</p>
+                  <Button
+                    variant="primary"
+                    as="a"
+                    href={previewFile.url}
+                    target="_blank"
+                    download
+                  >
+                    Download to view
+                  </Button>
+                </div>
+              )}
+              
+              {previewFile.type === 'other' && (
+                <div className="text-center p-5">
+                  <div className="display-1 mb-3">📄</div>
+                  <p>This file type cannot be previewed.</p>
+                  <Button
+                    variant="primary"
+                    as="a"
+                    href={previewFile.url}
+                    target="_blank"
+                    download
+                  >
+                    Download to view
+                  </Button>
                 </div>
               )}
             </div>
-          ) : (
-            <p>Loading exam...</p>
           )}
         </Modal.Body>
         <Modal.Footer>
-          {!examSubmitted ? (
-            <>
-              <Button variant="secondary" onClick={() => setShowExamModal(false)}>
-                Cancel
-              </Button>
-              <Button 
-                variant="primary" 
-                onClick={handleSubmitExam}
-                disabled={!selectedExam?.questions || Object.keys(examAnswers).length === 0}
-              >
-                Submit Exam
-              </Button>
-            </>
-          ) : (
-            <Button variant="primary" onClick={() => setShowExamModal(false)}>
-              Close
-            </Button>
-          )}
+          <Button variant="secondary" onClick={() => setShowFilePreview(false)}>
+            Close
+          </Button>
+          <Button
+            variant="primary"
+            as="a"
+            href={previewFile?.url}
+            download
+            target="_blank"
+          >
+            Download
+          </Button>
         </Modal.Footer>
       </Modal>
     </Container>
   );
-
-  {/* File Preview Modal */}
-  <Modal 
-    show={showFilePreview} 
-    onHide={() => setShowFilePreview(false)} 
-    size="lg"
-    centered
-  >
-    <Modal.Header closeButton>
-      <Modal.Title>{previewFile?.name || 'File Preview'}</Modal.Title>
-    </Modal.Header>
-    <Modal.Body>
-      {previewFile && (
-        <div className="text-center">
-          {previewFile.type === 'image' && (
-            <img 
-              src={previewFile.url} 
-              alt={previewFile.name} 
-              className="img-fluid" 
-              style={{ maxHeight: '70vh' }}
-            />
-          )}
-          
-          {previewFile.type === 'video' && (
-            <video 
-              src={previewFile.url} 
-              controls 
-              className="w-100" 
-              style={{ maxHeight: '70vh' }}
-            >
-              Your browser does not support the video tag.
-            </video>
-          )}
-          
-          {previewFile.type === 'audio' && (
-            <audio 
-              src={previewFile.url} 
-              controls 
-              className="w-100"
-            >
-              Your browser does not support the audio tag.
-            </audio>
-          )}
-          
-          {previewFile.type === 'document' && previewFile.extension === 'pdf' && (
-            <iframe
-              src={`${previewFile.url}#toolbar=0`}
-              width="100%"
-              height="500px"
-              title={previewFile.name}
-              frameBorder="0"
-            />
-          )}
-          
-          {(previewFile.type === 'document' && previewFile.extension !== 'pdf') && (
-            <div className="text-center p-5">
-              <div className="display-1 mb-3">📄</div>
-              <p>This document cannot be previewed directly.</p>
-              <Button
-                variant="primary"
-                as="a"
-                href={previewFile.url}
-                target="_blank"
-                download
-              >
-                Download to view
-              </Button>
-            </div>
-          )}
-          
-          {previewFile.type === 'spreadsheet' && (
-            <div className="text-center p-5">
-              <div className="display-1 mb-3">📊</div>
-              <p>This spreadsheet cannot be previewed directly.</p>
-              <Button
-                variant="primary"
-                as="a"
-                href={previewFile.url}
-                target="_blank"
-                download
-              >
-                Download to view
-              </Button>
-            </div>
-          )}
-          
-          {previewFile.type === 'presentation' && (
-            <div className="text-center p-5">
-              <div className="display-1 mb-3">🖼️</div>
-              <p>This presentation cannot be previewed directly.</p>
-              <div className="mb-3">
-                <small className="text-muted">File: {previewFile.name}</small>
-              </div>
-              <Button
-                variant="primary"
-                as="a"
-                href={previewFile.url}
-                target="_blank"
-                download
-              >
-                Download to view
-              </Button>
-            </div>
-          )}
-          
-          {previewFile.type === 'other' && (
-            <div className="text-center p-5">
-              <div className="display-1 mb-3">📄</div>
-              <p>This file type cannot be previewed.</p>
-              <Button
-                variant="primary"
-                as="a"
-                href={previewFile.url}
-                target="_blank"
-                download
-              >
-                Download to view
-              </Button>
-            </div>
-          )}
-        </div>
-      )}
-    </Modal.Body>
-    <Modal.Footer>
-      <Button variant="secondary" onClick={() => setShowFilePreview(false)}>
-        Close
-      </Button>
-      <Button
-        variant="primary"
-        as="a"
-        href={previewFile?.url}
-        download
-        target="_blank"
-      >
-        Download
-      </Button>
-    </Modal.Footer>
-  </Modal>
 }
 
 // ================= Student Grades =================
@@ -1739,7 +1502,6 @@ function StudentGrades() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showToast, setShowToast] = useState(false);
-  const [debugData, setDebugData] = useState(null);
 
   useEffect(() => {
     fetchGrades();
@@ -1754,7 +1516,6 @@ function StudentGrades() {
         headers: { Authorization: `Bearer ${token}` }
       });
       setGrades(response.data || []);
-      setDebugData({ grades: response.data });
     } catch (err) {
       console.error("Error fetching grades:", err);
       setError(err.response?.data?.error || "Failed to fetch grades");
@@ -1783,18 +1544,14 @@ function StudentGrades() {
           onClose={() => setShowToast(false)}
           delay={5000}
           autohide
-          bg="danger"
+          bg={error.toLowerCase().includes("successfully") || error.includes("Class removed from your view") ? "success" : "danger"}
           style={{ position: "fixed", top: "20px", right: "20px", zIndex: 10000 }}
         >
           <Toast.Body className="text-white">{error}</Toast.Body>
         </Toast>
       )}
       
-      {debugData && (
-        <Alert variant="info" className="mb-4">
-          <strong>Debug Info:</strong> Grades: {JSON.stringify(debugData.grades?.length || 0)} items
-        </Alert>
-      )}
+
 
       {grades.length === 0 ? (
         <Card className="p-4 text-center text-muted">
@@ -1847,7 +1604,6 @@ function StudentProfile() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showToast, setShowToast] = useState(false);
-  const [debugData, setDebugData] = useState(null);
 
   useEffect(() => {
     fetchProfile();
@@ -1861,7 +1617,6 @@ function StudentProfile() {
         headers: { Authorization: `Bearer ${token}` }
       });
       setProfile(response.data);
-      setDebugData({ profile: response.data });
     } catch (err) {
       console.error("Error fetching profile:", err);
       setError(err.response?.data?.error || "Failed to load profile");
@@ -1890,18 +1645,13 @@ function StudentProfile() {
           onClose={() => setShowToast(false)}
           delay={5000}
           autohide
-          bg="danger"
+          bg={error.toLowerCase().includes("successfully") || error.includes("Class removed from your view") ? "success" : "danger"}
           style={{ position: "fixed", top: "20px", right: "20px", zIndex: 10000 }}
         >
           <Toast.Body className="text-white">{error}</Toast.Body>
         </Toast>
       )}
-      
-      {debugData && (
-        <Alert variant="info" className="mb-4">
-          <strong>Debug Info:</strong> Profile loaded for: {JSON.stringify(debugData.profile?.username)}
-        </Alert>
-      )}
+
 
       <Row>
         <Col md={8}>

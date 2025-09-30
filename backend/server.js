@@ -147,6 +147,13 @@ const AnnouncementSchema = new mongoose.Schema(
     message: String,
     examId: { type: mongoose.Schema.Types.ObjectId, ref: "Exam" },
     likes: { type: Number, default: 0 },
+    attachments: [{
+      filename: String,
+      originalName: String,
+      filePath: String,
+      fileSize: Number,
+      mimeType: String
+    }]
   },
   { timestamps: true }
 );
@@ -779,15 +786,36 @@ app.post("/api/assignments", authenticateToken, requireTeacherOrAdmin, async (re
   }
 });
 
-// Teacher: Get class-scoped announcements
+// Get class-scoped announcements
 app.get("/api/announcements", authenticateToken, async (req, res) => {
   try {
     const { page = 1, limit = 100, className } = req.query;
-    // If the requester is a teacher, only return that teacher's announcements (unless Admin)
     const filter = {};
-    if (req.user.role === "Teacher") filter.teacher = req.user.username;
+    
+    if (req.user.role === "Teacher") {
+      // Teachers only see their own announcements
+      filter.teacher = req.user.username;
+    } else if (req.user.role === "Student") {
+      // Students can see announcements for classes they're enrolled in
+      if (className) {
+        // Check if student is enrolled in the class
+        const cls = await Class.findOne({ name: className });
+        if (!cls || !cls.students.includes(req.user.username)) {
+          return res.status(403).json({ error: "You are not enrolled in this class" });
+        }
+        filter.class = className;
+      } else {
+        // Get all classes the student is enrolled in
+        const studentClasses = await Class.find({ students: req.user.username });
+        const classNames = studentClasses.map(cls => cls.name);
+        filter.class = { $in: classNames };
+      }
+    }
+    
     if (className) filter.class = className;
+    
     const announcements = await Announcement.find(filter)
+      .sort({ date: -1 }) // Sort by date, newest first
       .skip((page - 1) * limit)
       .limit(parseInt(limit));
     res.json(announcements);
@@ -797,11 +825,11 @@ app.get("/api/announcements", authenticateToken, async (req, res) => {
   }
 });
 
-// Teacher: Create class-scoped announcement (optionally attach examId)
+// Teacher: Create class-scoped announcement (optionally attach examId and files)
 // Changes: server will set teacher = req.user.username and date = now if not provided
 app.post("/api/announcements", authenticateToken, requireTeacherOrAdmin, async (req, res) => {
   try {
-    let { message, date, teacher, class: className, examId } = req.body;
+    let { message, date, teacher, class: className, examId, attachments } = req.body;
 
     // Normalize className
     if (!message || !className) {
@@ -824,7 +852,15 @@ app.post("/api/announcements", authenticateToken, requireTeacherOrAdmin, async (
       return res.status(403).json({ error: "You are not authorized to post to this class" });
     }
 
-    const announcement = new Announcement({ message, date, teacher, class: className, examId: examId || null, likes: 0 });
+    const announcement = new Announcement({ 
+      message, 
+      date, 
+      teacher, 
+      class: className, 
+      examId: examId || null, 
+      likes: 0,
+      attachments: attachments || []
+    });
     await announcement.save();
     
     // Emit announcement via socket.io to the class
@@ -1084,6 +1120,164 @@ app.use("/api", commentsRoutes);
 app.use("/api", notificationsRoutes);
 app.use("/api", uploadRoutes);
 app.use("/api/exams", examsRoutes);
+
+// Student: Submit exam answers
+app.post("/api/exam-submissions", authenticateToken, async (req, res) => {
+  try {
+    console.log("Exam submission request received");
+    console.log("User:", req.user);
+    console.log("Body:", req.body);
+    
+    const { examId, answers } = req.body;
+    const student = req.user.username;
+
+    if (!examId || !answers) {
+      console.log("Missing examId or answers");
+      return res.status(400).json({ error: "Exam ID and answers are required" });
+    }
+
+    console.log("Looking for exam with ID:", examId);
+    // Check if exam exists
+    const exam = await Exam.findById(examId);
+    if (!exam) {
+      console.log("Exam not found");
+      return res.status(404).json({ error: "Exam not found" });
+    }
+
+    console.log("Found exam:", exam.title);
+    console.log("Exam className:", exam.className);
+    console.log("Exam full object:", JSON.stringify(exam, null, 2));
+
+    // Try multiple ways to find the class
+    let cls = await Class.findOne({ name: exam.className });
+    
+    if (!cls && exam.className) {
+      // Try finding by decoded class name in case of URL encoding issues
+      const decodedClassName = decodeURIComponent(exam.className);
+      cls = await Class.findOne({ name: decodedClassName });
+      console.log("Tried decoded class name:", decodedClassName);
+    }
+    
+    if (!cls) {
+      // Try case-insensitive search
+      cls = await Class.findOne({ name: { $regex: new RegExp(`^${exam.className}$`, 'i') } });
+      console.log("Tried case-insensitive search");
+    }
+    
+    if (!cls) {
+      // List all available classes for debugging
+      const allClasses = await Class.find({}, 'name');
+      console.log("All available classes:", allClasses.map(c => c.name));
+      
+      // If we still can't find the class, let's try to match by the current URL className
+      // Get the className from the student's current session or context
+      console.log("Could not find class, checking student's enrolled classes...");
+      const studentClasses = await Class.find({ students: student });
+      console.log("Student is enrolled in:", studentClasses.map(c => c.name));
+      
+      // If student is only enrolled in one class, assume that's the right one
+      if (studentClasses.length === 1) {
+        cls = studentClasses[0];
+        console.log("Using student's only enrolled class:", cls.name);
+      }
+    }
+    
+    console.log("Final class found:", cls ? cls.name : "not found");
+    
+    if (!cls) {
+      console.log("Class not found for exam");
+      return res.status(404).json({ error: "Class not found for this exam" });
+    }
+    
+    console.log("Class students:", cls.students);
+    console.log("Current student:", student);
+    
+    // Check if student is enrolled (case-insensitive)
+    const isEnrolled = cls.students.some(s => s.toLowerCase() === student.toLowerCase());
+    
+    if (!isEnrolled) {
+      console.log("Student not enrolled in class");
+      return res.status(403).json({ error: "You are not enrolled in this class" });
+    }
+
+    // Check if student has already submitted this exam
+    const existingSubmission = await ExamSubmission.findOne({ examId, student });
+    if (existingSubmission) {
+      console.log("Exam already submitted");
+      return res.status(400).json({ error: "You have already submitted this exam" });
+    }
+
+    // Calculate score
+    let correctAnswers = 0;
+    const totalQuestions = exam.questions.length;
+
+    answers.forEach(answer => {
+      const question = exam.questions[answer.questionIndex];
+      if (question && question.correctAnswer === answer.answer) {
+        correctAnswers++;
+      }
+    });
+
+    const rawScore = correctAnswers;
+    const finalScore = totalQuestions > 0 ? Math.round((correctAnswers / totalQuestions) * 100) : 0;
+
+    console.log("Score calculated:", finalScore);
+
+    // Create submission
+    const submission = new ExamSubmission({
+      examId,
+      student,
+      answers,
+      rawScore,
+      finalScore,
+      submittedAt: new Date()
+    });
+
+    await submission.save();
+    console.log("Submission saved successfully");
+
+    res.status(201).json({
+      message: "Exam submitted successfully",
+      score: finalScore,
+      correctAnswers,
+      totalQuestions
+    });
+  } catch (err) {
+    console.error("Submit exam error:", err);
+    res.status(500).json({ error: "Failed to submit exam" });
+  }
+});
+
+// Get student's submitted exams
+app.get("/api/exam-submissions/student", authenticateToken, async (req, res) => {
+  try {
+    const student = req.user.username;
+    
+    const submissions = await ExamSubmission.find({ student }).select('examId submittedAt finalScore');
+    
+    res.json(submissions);
+  } catch (err) {
+    console.error("Get student submissions error:", err);
+    res.status(500).json({ error: "Failed to fetch submitted exams" });
+  }
+});
+
+// Get all submissions for a specific exam (for teachers)
+app.get("/api/exam-submissions/exam/:examId", authenticateToken, async (req, res) => {
+  try {
+    const { examId } = req.params;
+    
+    // Get all submissions for this exam
+    const submissions = await ExamSubmission.find({ examId })
+      .select('student submittedAt finalScore answers')
+      .sort({ submittedAt: -1 });
+    
+    res.json(submissions);
+  } catch (err) {
+    console.error("Get exam submissions error:", err);
+    res.status(500).json({ error: "Failed to fetch exam submissions" });
+  }
+});
 
 // Test endpoint
 app.get("/api/test", (req, res) => {

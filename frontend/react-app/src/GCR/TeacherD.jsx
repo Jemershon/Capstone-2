@@ -19,7 +19,8 @@ import {
   Alert,
   Tabs,
   Tab,
-  ListGroup
+  ListGroup,
+  Badge
 } from "react-bootstrap";
 
 // Import components
@@ -336,6 +337,8 @@ function TeacherClassStream() {
   const [showViewExamModal, setShowViewExamModal] = useState(false);
   const [showEditExamModal, setShowEditExamModal] = useState(false);
   const [showDeleteExamModal, setShowDeleteExamModal] = useState(false);
+  const [showSubmissionsModal, setShowSubmissionsModal] = useState(false);
+  const [examSubmissions, setExamSubmissions] = useState([]);
   const [selectedExam, setSelectedExam] = useState(null);
   const [deletingExam, setDeletingExam] = useState(false);
   const [examData, setExamData] = useState({ 
@@ -349,6 +352,11 @@ function TeacherClassStream() {
   const [exams, setExams] = useState([]);
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
+  
+  // File upload state
+  const [selectedFiles, setSelectedFiles] = useState([]);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef(null);
   
   // Reference to socket.io connection
   const socketRef = useRef(null);  // Fetch class announcements
@@ -410,6 +418,20 @@ function TeacherClassStream() {
       setLoading(false);
     }
   }, [className]);
+
+  // Fetch exam submissions for a specific exam
+  const fetchExamSubmissions = async (examId) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${API_BASE_URL}/api/exam-submissions/exam/${examId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setExamSubmissions(response.data);
+    } catch (error) {
+      console.error("Failed to fetch exam submissions:", error);
+      setError("Failed to load exam submissions");
+    }
+  };
 
   // Fetch class information
   const fetchClassInfo = useCallback(async () => {
@@ -587,24 +609,88 @@ function TeacherClassStream() {
     };
   }, [fetchAnnouncements, fetchExams, fetchClassInfo, className, API_BASE_URL]);
 
+  
+  // File handling functions
+  const handleFileSelect = (event) => {
+    const files = Array.from(event.target.files);
+    setSelectedFiles(files);
+  };
+
+  const removeFile = (index) => {
+    setSelectedFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const uploadFiles = async (files) => {
+    if (!files.length) return [];
+    
+    setUploading(true);
+    try {
+      const uploadedFiles = [];
+      
+      for (const file of files) {
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        const response = await axios.post(
+          `${API_BASE_URL}/api/upload?type=material`,
+          formData,
+          {
+            headers: {
+              'Content-Type': 'multipart/form-data',
+              Authorization: `Bearer ${localStorage.getItem("token")}`
+            }
+          }
+        );
+        
+        uploadedFiles.push({
+          filename: response.data.file.filename,
+          originalName: response.data.file.originalname,
+          filePath: response.data.filePath,
+          fileSize: response.data.file.size,
+          mimeType: response.data.file.mimetype
+        });
+      }
+      
+      return uploadedFiles;
+    } catch (err) {
+      console.error("File upload error:", err);
+      throw new Error("Failed to upload files");
+    } finally {
+      setUploading(false);
+    }
+  };
+
   // Post an announcement
   const handlePost = async () => {
-    if (!message.trim()) return;
+    if (!message.trim() && selectedFiles.length === 0) return;
     setPosting(true);
     try {
+      let attachments = [];
+      
+      // Upload files if any are selected
+      if (selectedFiles.length > 0) {
+        attachments = await uploadFiles(selectedFiles);
+      }
+      
       await retry(() =>
         axios.post(
           `${API_BASE_URL}/api/announcements`,
           { 
-            message, 
+            message: message.trim() || "Shared files", 
             date: new Date().toISOString(), 
             teacher: localStorage.getItem("username"), 
-            class: className 
+            class: className,
+            attachments: attachments
           },
           { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
         )
       );
+      
       setMessage("");
+      setSelectedFiles([]);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
       await fetchAnnouncements();
     } catch (err) {
       console.error("Post announcement error:", err.response?.data || err.message);
@@ -815,9 +901,39 @@ function TeacherClassStream() {
                 <Form.Label className="fw-bold">Share something with your class</Form.Label>
                 <Form.Control as="textarea" rows={3} value={message} onChange={(e) => setMessage(e.target.value)} placeholder="Announce something to your class" />
               </Form.Group>
+              
+              {/* File upload section */}
+              <Form.Group className="mb-2">
+                <Form.Label className="fw-bold">Attach files (optional)</Form.Label>
+                <Form.Control 
+                  type="file" 
+                  multiple 
+                  ref={fileInputRef}
+                  onChange={handleFileSelect}
+                  accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.zip,.rar,.jpg,.jpeg,.png,.mp4,.mov,.mp3,.wav"
+                />
+                {selectedFiles.length > 0 && (
+                  <div className="mt-2">
+                    <small className="text-muted">Selected files:</small>
+                    {selectedFiles.map((file, index) => (
+                      <div key={index} className="d-flex align-items-center justify-content-between bg-light p-2 rounded mt-1">
+                        <span className="small">{file.name} ({(file.size / 1024 / 1024).toFixed(2)} MB)</span>
+                        <Button 
+                          variant="outline-danger" 
+                          size="sm" 
+                          onClick={() => removeFile(index)}
+                        >
+                          ×
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </Form.Group>
+              
               <div className="d-flex gap-2 align-items-center">
-                <Button onClick={handlePost} disabled={!message.trim() || posting}>
-                  {posting ? "Posting..." : "Post"}
+                <Button onClick={handlePost} disabled={(!message.trim() && selectedFiles.length === 0) || posting || uploading}>
+                  {posting ? "Posting..." : uploading ? "Uploading..." : "Post"}
                 </Button>
                 <Button variant="outline-primary" onClick={() => setShowExamModal(true)} aria-label="Create exam for this class">
                   + Create Exam
@@ -858,6 +974,45 @@ function TeacherClassStream() {
                   </div>
                   <div className="mt-2" style={{ whiteSpace: "pre-wrap" }}>{a.message}</div>
                   
+                  {/* Display file attachments */}
+                  {a.attachments && a.attachments.length > 0 && (
+                    <div className="mt-3">
+                      <div className="fw-bold mb-2">Attachments:</div>
+                      {a.attachments.map((attachment, index) => (
+                        <div key={index} className="d-flex align-items-center justify-content-between bg-light p-2 rounded mb-1">
+                          <div className="d-flex align-items-center">
+                            <span className="me-2">📎</span>
+                            <span>{attachment.originalName}</span>
+                            <small className="text-muted ms-2">({(attachment.fileSize / 1024 / 1024).toFixed(2)} MB)</small>
+                          </div>
+                          <div className="d-flex gap-2">
+                            <Button 
+                              variant="outline-primary" 
+                              size="sm"
+                              onClick={() => window.open(`${API_BASE_URL}/${attachment.filePath}`, '_blank')}
+                            >
+                              View
+                            </Button>
+                            <Button 
+                              variant="outline-success" 
+                              size="sm"
+                              onClick={() => {
+                                const link = document.createElement('a');
+                                link.href = `${API_BASE_URL}/${attachment.filePath}`;
+                                link.download = attachment.originalName;
+                                document.body.appendChild(link);
+                                link.click();
+                                document.body.removeChild(link);
+                              }}
+                            >
+                              Download
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  
                   {/* Add comments section to announcements */}
                   <Comments 
                     referenceType="announcement"
@@ -875,13 +1030,69 @@ function TeacherClassStream() {
         <div className="p-3 border rounded bg-white">
           <h3>Classwork</h3>
           
+          {/* Uploaded Files Section */}
+          <div className="mb-4">
+            <h5 className="mb-3">📎 Uploaded Files</h5>
+            {announcements.filter(a => a.attachments && a.attachments.length > 0).length === 0 ? (
+              <Card className="text-center p-4">
+                <p className="text-muted">No files uploaded yet. Upload files in the Stream tab to see them here.</p>
+              </Card>
+            ) : (
+              <Card>
+                <Card.Body>
+                  {announcements
+                    .filter(a => a.attachments && a.attachments.length > 0)
+                    .map((announcement, index) => (
+                      <div key={announcement._id || index} className="mb-3">
+                        <div className="d-flex align-items-center mb-2">
+                          <div className="fw-bold me-2">{announcement.teacher}</div>
+                          <small className="text-muted">
+                            {new Date(announcement.date).toLocaleDateString()} - "{announcement.message}"
+                          </small>
+                        </div>
+                        <div className="ms-3">
+                          {announcement.attachments.map((attachment, attachIndex) => (
+                            <div key={attachIndex} className="d-flex align-items-center justify-content-between bg-light p-2 rounded mb-1">
+                              <div className="d-flex align-items-center">
+                                <span className="me-2">📎</span>
+                                <span>{attachment.originalName}</span>
+                                <small className="text-muted ms-2">({(attachment.fileSize / 1024 / 1024).toFixed(2)} MB)</small>
+                              </div>
+                              <div className="d-flex gap-2">
+                                <Button 
+                                  variant="outline-primary" 
+                                  size="sm"
+                                  onClick={() => window.open(`${API_BASE_URL}/${attachment.filePath}`, '_blank')}
+                                >
+                                  View
+                                </Button>
+                                <Button 
+                                  variant="outline-success" 
+                                  size="sm"
+                                  onClick={() => {
+                                    const link = document.createElement('a');
+                                    link.href = `${API_BASE_URL}/${attachment.filePath}`;
+                                    link.download = attachment.originalName;
+                                    document.body.appendChild(link);
+                                    link.click();
+                                    document.body.removeChild(link);
+                                  }}
+                                >
+                                  Download
+                                </Button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                </Card.Body>
+              </Card>
+            )}
+          </div>
+          
           <div className="d-flex justify-content-between align-items-center mb-4">
             <h5 className="mb-0">Assignments & Exams</h5>
-            <div className="d-flex gap-2">
-              <Button variant="primary" size="sm" onClick={() => setShowExamModal(true)}>
-                + Create Assignment
-              </Button>
-            </div>
           </div>
           
           {loading ? (
@@ -929,6 +1140,19 @@ function TeacherClassStream() {
                             </small>
                           </div>
                           <div>
+                            <Button 
+                              variant="outline-info" 
+                              size="sm" 
+                              className="me-2"
+                              onClick={async () => {
+                                setSelectedExam(exam);
+                                await fetchExamSubmissions(exam._id);
+                                setShowSubmissionsModal(true);
+                              }}
+                              title="View student submissions"
+                            >
+                              <i className="bi bi-file-text me-1"></i> Submissions
+                            </Button>
                             <Button 
                               variant="outline-primary" 
                               size="sm" 
@@ -1400,6 +1624,58 @@ function TeacherClassStream() {
                     Deleting...
                   </>
                 ) : "Delete"}
+              </Button>
+            </Modal.Footer>
+          </Modal>
+
+          {/* Submissions Modal */}
+          <Modal show={showSubmissionsModal} onHide={() => setShowSubmissionsModal(false)} size="lg">
+            <Modal.Header closeButton>
+              <Modal.Title>Student Submissions</Modal.Title>
+            </Modal.Header>
+            <Modal.Body>
+              {selectedExam && (
+                <div>
+                  <h5 className="mb-3">{selectedExam.title}</h5>
+                  {examSubmissions.length > 0 ? (
+                    <div className="table-responsive">
+                      <table className="table table-striped">
+                        <thead>
+                          <tr>
+                            <th>Student</th>
+                            <th>Score</th>
+                            <th>Submitted At</th>
+                            <th>Total Questions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {examSubmissions.map((submission, index) => (
+                            <tr key={index}>
+                              <td>{submission.student}</td>
+                              <td>
+                                <span className={`badge ${submission.finalScore >= 70 ? 'bg-success' : submission.finalScore >= 50 ? 'bg-warning' : 'bg-danger'}`}>
+                                  {submission.finalScore.toFixed(1)}%
+                                </span>
+                              </td>
+                              <td>{new Date(submission.submittedAt).toLocaleString()}</td>
+                              <td>{submission.answers ? submission.answers.length : 0}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className="text-center py-4">
+                      <i className="bi bi-inbox display-4 text-muted"></i>
+                      <p className="text-muted mt-2">No submissions yet</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </Modal.Body>
+            <Modal.Footer>
+              <Button variant="secondary" onClick={() => setShowSubmissionsModal(false)}>
+                Close
               </Button>
             </Modal.Footer>
           </Modal>
