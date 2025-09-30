@@ -19,7 +19,6 @@ import notificationsRoutes from "./routes/notifications.js";
 import uploadRoutes from "./routes/upload.js";
 import examsRoutes, { setupModels } from "./routes/exams.js";
 import Exam from "./models/Exam.js";
-import User from "./models/User.js";
 
 // Fix __dirname for ES Modules
 const __filename = fileURLToPath(import.meta.url);
