@@ -1,0 +1,24 @@
+# Copy these environment variables to Railway Dashboard
+
+# 1. Database (you'll need MongoDB Atlas)
+MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/notetify
+
+# 2. Server Configuration
+NODE_ENV=production
+PORT=4000
+
+# 3. JWT Security (generate a strong secret)
+JWT_SECRET=your-super-secure-jwt-secret-key-minimum-32-characters-long
+JWT_EXPIRES_IN=7d
+
+# 4. CORS (replace with your Vercel frontend URL)
+CORS_ORIGIN=https://your-frontend-app.vercel.app
+
+# 5. File Storage (Cloudinary - optional for now)
+CLOUDINARY_CLOUD_NAME=your-cloudinary-cloud-name
+CLOUDINARY_API_KEY=your-cloudinary-api-key
+CLOUDINARY_API_SECRET=your-cloudinary-api-secret
+
+# 6. File Upload Settings
+MAX_FILE_SIZE=25
+ALLOWED_FILE_TYPES=pdf,doc,docx,ppt,pptx,xls,xlsx,txt,zip,rar,jpg,jpeg,png,mp4,mov,mp3,wav

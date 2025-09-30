@@ -5,7 +5,6 @@ import mongoose from "mongoose";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import cors from "cors";
-import multer from "multer";
 import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
@@ -21,36 +20,99 @@ import uploadRoutes from "./routes/upload.js";
 import examsRoutes, { setupModels } from "./routes/exams.js";
 import Exam from "./models/Exam.js";
 
-
 // Fix __dirname for ES Modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Initialize Express
 const app = express();
-app.use(express.json());
-app.use(cors({ origin: [process.env.CORS_ORIGIN || "http://localhost:5173", "http://localhost:5174"] }));
-const uploadsDir = path.join(__dirname, "uploads");
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
-}
-app.use("/uploads", express.static(uploadsDir));
 
-// Use a default JWT secret if none is provided in environment
-if (!process.env.JWT_SECRET) {
-  process.env.JWT_SECRET = "default_jwt_secret_for_development_only";
+// Environment configuration with defaults
+const PORT = process.env.PORT || 4000;
+const MONGODB_URI = process.env.MONGODB_URI || "mongodb://localhost:27017/notetify";
+const JWT_SECRET = process.env.JWT_SECRET || "fallback-secret-change-in-production";
+const NODE_ENV = process.env.NODE_ENV || "development";
+const CORS_ORIGIN = process.env.CORS_ORIGIN || "http://localhost:5173";
+
+// Middleware
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
+
+// CORS configuration
+const corsOptions = {
+  origin: function (origin, callback) {
+    // Allow requests with no origin (mobile apps, Postman, etc.)
+    if (!origin) return callback(null, true);
+    
+    const allowedOrigins = [
+      CORS_ORIGIN,
+      "http://localhost:5173",
+      "http://localhost:5174",
+      "http://localhost:3000"
+    ];
+    
+    // In production, add your deployed frontend URL
+    if (NODE_ENV === 'production') {
+      // Add common Vercel patterns
+      allowedOrigins.push(
+        "https://*.vercel.app",
+        "https://your-frontend-app.vercel.app" // Replace with your actual Vercel URL
+      );
+    }
+    
+    // Check if origin is allowed or matches Vercel pattern
+    const isAllowed = allowedOrigins.some(allowedOrigin => {
+      if (allowedOrigin === origin) return true;
+      if (allowedOrigin.includes('*') && origin) {
+        const pattern = allowedOrigin.replace('*', '.*');
+        return new RegExp(pattern).test(origin);
+      }
+      return false;
+    });
+    
+    if (isAllowed || allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      console.warn(`CORS blocked origin: ${origin}`);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+};
+
+app.use(cors(corsOptions));
+
+// Static file serving (only for development)
+if (NODE_ENV === 'development') {
+  const uploadsDir = path.join(__dirname, "uploads");
+  if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+  }
+  app.use("/uploads", express.static(uploadsDir));
+  console.log("ℹ️ Serving static files locally (development mode)");
 }
+
+// Security headers
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  if (NODE_ENV === 'production') {
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  }
+  next();
+});
 
 // Test route for API connectivity (public)
 app.get('/api/test', (req, res) => {
   res.json({ 
     status: 'API is working', 
     timestamp: new Date().toISOString(),
-    env: {
-      jwtSecret: process.env.JWT_SECRET ? 'Set (first few chars: ' + process.env.JWT_SECRET.substring(0,3) + '...)' : 'Not set',
-      nodeEnv: process.env.NODE_ENV,
-      port: process.env.PORT || 3000
-    }
+    environment: NODE_ENV,
+    fileStorage: NODE_ENV === 'production' ? 'Cloudinary' : 'Local',
+    version: '1.0.0'
   });
 });
 
@@ -66,29 +128,27 @@ app.get('/api/auth-test', authenticateToken, (req, res) => {
   });
 });
 
-// MongoDB Connection     
-mongoose.connect(process.env.MONGODB_URI || "mongodb://localhost:27017/notetify", {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-}).then(() => console.log("Connected to MongoDB"))
-  .catch((err) => console.error("MongoDB connection error:", err));
+// MongoDB Connection with improved error handling
+const connectToMongoDB = async () => {
+  try {
+    await mongoose.connect(MONGODB_URI, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+    });
+    console.log(`✅ Connected to MongoDB: ${MONGODB_URI.replace(/\/\/.*@/, '//<credentials>@')}`);
+  } catch (error) {
+    console.error("❌ MongoDB connection error:", error.message);
+    if (NODE_ENV === 'production') {
+      console.error("🚨 Production MongoDB connection failed. Check your MONGODB_URI environment variable.");
+      process.exit(1); // Exit in production if DB connection fails
+    } else {
+      console.warn("⚠️ Continuing without MongoDB in development mode");
+    }
+  }
+};
 
-// Multer for file uploads
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, uploadsDir),
-  filename: (req, file, cb) => cb(null, `${Date.now()}-${file.originalname}`),
-});
-const upload = multer({
-  storage,
-  fileFilter: (req, file, cb) => {
-    const filetypes = /jpeg|jpg|png|pdf/;
-    const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
-    const mimetype = filetypes.test(file.mimetype);
-    if (extname && mimetype) return cb(null, true);
-    cb(new Error("Only JPEG, PNG, or PDF files are allowed"));
-  },
-  limits: { fileSize: 5 * 1024 * 1024 },
-});
+// Connect to MongoDB
+connectToMongoDB();
 
 // Schemas
 const UserSchema = new mongoose.Schema({
@@ -1021,19 +1081,6 @@ app.get("/api/student/assignments", authenticateToken, requireStudent, async (re
   }
 });
 
-// Student: Upload assignment
-app.post("/api/assignments/upload", authenticateToken, requireStudent, upload.single("file"), async (req, res) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({ error: "No file uploaded" });
-    }
-    res.json({ filename: req.file.filename });
-  } catch (err) {
-    console.error("Upload assignment error:", err);
-    res.status(500).json({ error: "Failed to upload assignment" });
-  }
-});
-
 // Student: Submit assignment
 app.put("/api/assignments/:id", authenticateToken, requireStudent, async (req, res) => {
   try {
@@ -1310,9 +1357,38 @@ const httpServer = createServer(app);
 // Setup Socket.io and make it globally available
 global.io = setupSocketIO(httpServer);
 
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error('Error:', err.message);
+  if (err.message.includes('CORS')) {
+    res.status(403).json({ error: 'CORS policy violation' });
+  } else if (err.message.includes('File type')) {
+    res.status(400).json({ error: err.message });
+  } else {
+    res.status(500).json({ 
+      error: NODE_ENV === 'development' ? err.message : 'Internal server error' 
+    });
+  }
+});
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  console.log('SIGTERM signal received: closing HTTP server');
+  httpServer.close(() => {
+    console.log('HTTP server closed');
+    mongoose.connection.close(false, () => {
+      console.log('MongoDB connection closed');
+      process.exit(0);
+    });
+  });
+});
+
 // Start server
-const PORT = process.env.PORT || 4000;
-httpServer.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-  console.log(`WebSocket server initialized`);
+httpServer.listen(PORT, '0.0.0.0', () => {
+  console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`📡 Environment: ${NODE_ENV}`);
+  console.log(`💾 Database: ${MONGODB_URI.replace(/\/\/.*@/, '//<credentials>@')}`);
+  console.log(`🔧 File Storage: ${NODE_ENV === 'production' ? 'Cloudinary (Cloud)' : 'Local Filesystem'}`);
+  console.log(`🌐 CORS Origin: ${CORS_ORIGIN}`);
+  console.log(`📡 WebSocket server initialized`);
 });
