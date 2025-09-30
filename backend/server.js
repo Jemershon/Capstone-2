@@ -53,10 +53,10 @@ const corsOptions = {
     
     // In production, add your deployed frontend URL
     if (NODE_ENV === 'production') {
-      // Add common Vercel patterns
+      // Add your specific Vercel URL
       allowedOrigins.push(
-        "https://*.vercel.app",
-        "https://your-frontend-app.vercel.app" // Replace with your actual Vercel URL
+        "https://capstone-2-ten-pied.vercel.app",
+        "https://*.vercel.app" // Allow all Vercel apps as fallback
       );
     }
     
