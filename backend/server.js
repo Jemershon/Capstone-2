@@ -1425,4 +1425,5 @@ httpServer.listen(PORT, '0.0.0.0', () => {
   console.log(`🔧 File Storage: ${NODE_ENV === 'production' ? 'Cloudinary (Cloud)' : 'Local Filesystem'}`);
   console.log(`🌐 CORS Origin: ${CORS_ORIGIN}`);
   console.log(`📡 WebSocket server initialized`);
+  console.log(`🔄 Restarting after MongoDB IP whitelist update`);
 });
