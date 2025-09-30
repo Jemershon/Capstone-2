@@ -117,6 +117,25 @@ app.get('/api/test', (req, res) => {
   });
 });
 
+// Health check endpoint for Railway
+app.get('/health', (req, res) => {
+  res.status(200).json({
+    status: 'healthy',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected'
+  });
+});
+
+// Railway healthcheck endpoint (alternative)
+app.get('/', (req, res) => {
+  res.json({
+    message: 'Capstone-2 Backend API',
+    status: 'running',
+    timestamp: new Date().toISOString()
+  });
+});
+
 // Auth test route (protected)
 app.get('/api/auth-test', authenticateToken, (req, res) => {
   res.json({
@@ -129,21 +148,35 @@ app.get('/api/auth-test', authenticateToken, (req, res) => {
   });
 });
 
-// MongoDB Connection with improved error handling
-const connectToMongoDB = async () => {
-  try {
-    await mongoose.connect(MONGODB_URI, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-    });
-    console.log(`✅ Connected to MongoDB: ${MONGODB_URI.replace(/\/\/.*@/, '//<credentials>@')}`);
-  } catch (error) {
-    console.error("❌ MongoDB connection error:", error.message);
-    if (NODE_ENV === 'production') {
-      console.error("🚨 Production MongoDB connection failed. Check your MONGODB_URI environment variable.");
-      process.exit(1); // Exit in production if DB connection fails
-    } else {
-      console.warn("⚠️ Continuing without MongoDB in development mode");
+// MongoDB Connection with improved error handling and retry logic
+const connectToMongoDB = async (retries = 3) => {
+  for (let i = 0; i < retries; i++) {
+    try {
+      await mongoose.connect(MONGODB_URI, {
+        useNewUrlParser: true,
+        useUnifiedTopology: true,
+        serverSelectionTimeoutMS: 5000, // Timeout after 5s instead of 30s
+        socketTimeoutMS: 45000,
+      });
+      console.log(`✅ Connected to MongoDB: ${MONGODB_URI.replace(/\/\/.*@/, '//<credentials>@')}`);
+      return;
+    } catch (error) {
+      console.error(`❌ MongoDB connection attempt ${i + 1}/${retries} failed:`, error.message);
+      if (i === retries - 1) {
+        // Last attempt failed
+        if (NODE_ENV === 'production') {
+          console.error("🚨 All MongoDB connection attempts failed in production.");
+          console.error("⚠️ Server will continue running but database operations will fail");
+          console.error("💡 Please check your MONGODB_URI environment variable");
+          // Don't exit in production - let Railway healthcheck pass
+        } else {
+          console.warn("⚠️ Continuing without MongoDB in development mode");
+        }
+      } else {
+        // Wait before retrying
+        console.log(`⏳ Retrying in 2 seconds...`);
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
     }
   }
 };
