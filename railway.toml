@@ -1,0 +1,9 @@
+[build]
+builder = "NIXPACKS"
+
+[build.nixpacksConfig]
+providers = ["node"]
+
+[deploy]
+startCommand = "cd backend && node server.js"
+healthcheckPath = "/api/test"
