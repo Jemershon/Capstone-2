@@ -1,5 +1,6 @@
 import dotenv from "dotenv";
 dotenv.config();
+// Force redeploy to pick up new environment variables
 import express from "express";
 import mongoose from "mongoose";
 import jwt from "jsonwebtoken";
