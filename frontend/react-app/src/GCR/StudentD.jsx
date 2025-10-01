@@ -11,12 +11,14 @@ const customStyles = `
   .main-content-responsive {
     margin-left: 0;
     padding: 20px;
+    padding-top: 80px; /* Add space for mobile navbar */
   }
   
   @media (min-width: 768px) {
     .main-content-responsive {
       margin-left: 16.666667%;
       padding: 20px;
+      padding-top: 20px; /* Reset padding-top for desktop */
     }
   }
   
@@ -218,7 +220,7 @@ function StudentDashboard() {
         </div>
         
         {/* Main Content */}
-        <Col md={10} className="main-content-responsive" style={{paddingTop: "20px"}}>
+        <Col md={10} className="main-content-responsive">
           <Routes>
             <Route path="/" element={<StudentMainDashboard />} />
             <Route path="/dashboard" element={<StudentMainDashboard />} />
@@ -660,6 +662,8 @@ function StudentClassStream() {
   const [selectedExam, setSelectedExam] = useState(null);
   const [examAnswers, setExamAnswers] = useState({});
   const [examSubmitted, setExamSubmitted] = useState(false);
+  const [useCreditPoints, setUseCreditPoints] = useState(false);
+  const [userCreditPoints, setUserCreditPoints] = useState(0);
   const [submittedExams, setSubmittedExams] = useState([]);
   const [currentClass, setCurrentClass] = useState(null);
   const [showLeaveModal, setShowLeaveModal] = useState(false);
@@ -945,7 +949,8 @@ function StudentClassStream() {
         answers: Object.entries(examAnswers).map(([questionIndex, answer]) => ({
           questionIndex: parseInt(questionIndex),
           answer: answer
-        }))
+        })),
+        useCreditPoints: useCreditPoints
       };
 
       console.log("Submission payload:", submission);
@@ -961,7 +966,18 @@ function StudentClassStream() {
       console.log("Submission successful:", response.data);
       setExamSubmitted(true);
       setSubmittedExams(prev => [...prev, selectedExam._id]);
-      alert(`Exam submitted successfully! Your score: ${response.data.score}%`);
+      
+      const { score, creditsUsed, creditPointsRemaining } = response.data;
+      let message = `Exam submitted successfully! Your score: ${score}%`;
+      
+      if (useCreditPoints && creditsUsed > 0) {
+        message += `\n🌟 Used ${creditsUsed} credit points to improve your score!`;
+        message += `\n⭐ Remaining credit points: ${creditPointsRemaining}`;
+      } else if (useCreditPoints && creditsUsed === 0) {
+        message += `\n✨ No credit points were needed - great job!`;
+      }
+      
+      alert(message);
     } catch (err) {
       console.error("Error submitting exam:", err);
       console.error("Error response:", err.response?.data);
@@ -1611,6 +1627,17 @@ function StudentClassStream() {
         <Modal.Footer>
           {!examSubmitted ? (
             <>
+              <div className="d-flex align-items-center me-auto">
+                <Form.Check
+                  type="checkbox"
+                  id="useCreditPoints"
+                  label={`Use credit points to improve score (Available: ${userCreditPoints} ⭐)`}
+                  checked={useCreditPoints}
+                  onChange={(e) => setUseCreditPoints(e.target.checked)}
+                  disabled={userCreditPoints === 0}
+                  className="text-warning"
+                />
+              </div>
               <Button variant="secondary" onClick={() => setShowExamModal(false)}>
                 Cancel
               </Button>
@@ -2052,6 +2079,15 @@ function StudentProfile() {
                       <strong className="text-muted">Role</strong>
                     </div>
                     <span className="badge bg-success fs-6">{profile.role || "Student"}</span>
+                  </div>
+                </Col>
+                <Col md={6} className="mb-3">
+                  <div className="p-3 bg-warning bg-opacity-10 rounded">
+                    <div className="d-flex align-items-center mb-2">
+                      <i className="bi bi-star-fill text-warning me-2"></i>
+                      <strong className="text-muted">Credit Points</strong>
+                    </div>
+                    <h6 className="mb-0 text-warning fw-bold">{profile.creditPoints || 0} ⭐</h6>
                   </div>
                 </Col>
               </Row>

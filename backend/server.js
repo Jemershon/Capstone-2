@@ -1383,7 +1383,7 @@ app.post("/api/exam-submissions", authenticateToken, async (req, res) => {
     console.log("User:", req.user);
     console.log("Body:", req.body);
     
-    const { examId, answers } = req.body;
+    const { examId, answers, useCreditPoints = false } = req.body;
     const student = req.user.username;
 
     if (!examId || !answers) {
@@ -1462,7 +1462,7 @@ app.post("/api/exam-submissions", authenticateToken, async (req, res) => {
       return res.status(400).json({ error: "You have already submitted this exam" });
     }
 
-    // Calculate score
+    // Calculate raw score
     let correctAnswers = 0;
     const totalQuestions = exam.questions.length;
 
@@ -1474,9 +1474,48 @@ app.post("/api/exam-submissions", authenticateToken, async (req, res) => {
     });
 
     const rawScore = correctAnswers;
-    const finalScore = totalQuestions > 0 ? Math.round((correctAnswers / totalQuestions) * 100) : 0;
+    
+    // Get user for credit points management
+    const user = await User.findOne({ username: student });
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
 
-    console.log("Score calculated:", finalScore);
+    // Determine early/late submission and adjust credit points
+    const now = new Date();
+    let creditDelta = 0;
+    if (exam.due) {
+      if (now < new Date(exam.due)) {
+        creditDelta = 1; // +1 for early submission
+        console.log("Early submission: +1 credit point");
+      } else {
+        creditDelta = -2; // -2 for late submission
+        console.log("Late submission: -2 credit points");
+      }
+    }
+    
+    // Update credit points based on submission timing
+    const originalCreditPoints = user.creditPoints || 0;
+    user.creditPoints = Math.max(0, originalCreditPoints + creditDelta);
+    
+    // Apply credit points if student chose to use them
+    let creditsUsed = 0;
+    let finalScore = rawScore;
+    
+    if (useCreditPoints && user.creditPoints > 0) {
+      const missing = Math.max(0, totalQuestions - rawScore);
+      creditsUsed = Math.min(user.creditPoints, missing);
+      finalScore = rawScore + creditsUsed;
+      user.creditPoints = Math.max(0, user.creditPoints - creditsUsed);
+      console.log(`Used ${creditsUsed} credit points. Final score: ${finalScore}/${totalQuestions}`);
+    }
+    
+    await user.save();
+
+    // Convert to percentage
+    const finalScorePercentage = totalQuestions > 0 ? Math.round((finalScore / totalQuestions) * 100) : 0;
+
+    console.log("Score calculated:", finalScorePercentage);
 
     // Create submission
     const submission = new ExamSubmission({
@@ -1484,18 +1523,39 @@ app.post("/api/exam-submissions", authenticateToken, async (req, res) => {
       student,
       answers,
       rawScore,
-      finalScore,
+      finalScore: finalScorePercentage,
+      creditsUsed,
       submittedAt: new Date()
     });
 
     await submission.save();
     console.log("Submission saved successfully");
 
+    // Create grade entry with detailed feedback
+    const feedbackText = creditsUsed > 0 
+      ? `Exam: ${exam.title} (raw ${rawScore}/${totalQuestions}, +${creditsUsed} credits used, final ${finalScore}/${totalQuestions})`
+      : `Exam: ${exam.title} (raw ${rawScore}/${totalQuestions}, no credits used)`;
+
+    try {
+      const gradeEntry = new Grade({
+        class: exam.className,
+        student: student,
+        grade: `${finalScore}/${totalQuestions}`,
+        feedback: feedbackText,
+        submittedAt: new Date()
+      });
+      await gradeEntry.save();
+    } catch (gradeError) {
+      console.log("Grade entry creation failed, but continuing:", gradeError.message);
+    }
+
     res.status(201).json({
       message: "Exam submitted successfully",
-      score: finalScore,
-      correctAnswers,
-      totalQuestions
+      score: finalScorePercentage,
+      correctAnswers: finalScore,
+      totalQuestions,
+      creditsUsed,
+      creditPointsRemaining: user.creditPoints
     });
   } catch (err) {
     console.error("Submit exam error:", err);
