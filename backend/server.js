@@ -799,10 +799,9 @@ app.get("/api/classes/:className/people", authenticateToken, requireStudent, asy
       role: "Teacher"
     }).select("name username email role");
     
-    // Get classmate details (excluding the requesting student)
-    const classmateUsernames = classData.students.filter(username => username !== req.user.username);
+    // Get all student details (including the requesting student)
     const classmates = await User.find({
-      username: { $in: classmateUsernames },
+      username: { $in: classData.students },
       role: "Student"
     }).select("name username email role");
     

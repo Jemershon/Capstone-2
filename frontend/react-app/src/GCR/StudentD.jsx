@@ -1280,7 +1280,7 @@ function StudentClassStream() {
                   </Card>
                 </Col>
                 <Col md={6}>
-                  <h5 className="mb-3">👥 Classmates ({classmates.length})</h5>
+                  <h5 className="mb-3">👥 Students ({classmates.length})</h5>
                   <Card style={{ maxHeight: '400px', overflowY: 'auto' }}>
                     <Card.Body>
                       {classmates.map((student, index) => (
