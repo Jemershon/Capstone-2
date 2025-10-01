@@ -942,6 +942,47 @@ app.delete("/api/leave-class/:classId", authenticateToken, requireStudent, async
   }
 });
 
+// Teacher: Remove a student from a class
+app.delete("/api/remove-student/:classId/:studentUsername", authenticateToken, requireTeacherOrAdmin, async (req, res) => {
+  try {
+    const { classId, studentUsername } = req.params;
+    const teacherUsername = req.user.username;
+    
+    console.log(`Teacher ${teacherUsername} attempting to remove student ${studentUsername} from class ${classId}`);
+    
+    // Find the class
+    const classData = await Class.findById(classId);
+    
+    if (!classData) {
+      console.log(`Class not found with ID: ${classId}`);
+      return res.status(404).json({ error: "Class not found" });
+    }
+    
+    // Check if the teacher is the owner of this class (for non-admin users)
+    if (req.user.role !== "Admin" && classData.teacher !== teacherUsername) {
+      return res.status(403).json({ error: "You can only remove students from your own classes" });
+    }
+    
+    // Check if student is enrolled in this class
+    if (!classData.students.includes(studentUsername)) {
+      return res.status(400).json({ error: "Student is not enrolled in this class" });
+    }
+    
+    // Remove student from the class
+    classData.students = classData.students.filter(student => student !== studentUsername);
+    await classData.save();
+    
+    console.log(`Teacher ${teacherUsername} successfully removed student ${studentUsername} from class ${classData.name}`);
+    res.json({ 
+      message: `Successfully removed ${studentUsername} from ${classData.name}`, 
+      class: classData 
+    });
+  } catch (err) {
+    console.error("Remove student error:", err);
+    res.status(500).json({ error: "Failed to remove student" });
+  }
+});
+
 // Student: Get grades for a specific student
 app.get("/api/student-grades/:username", authenticateToken, requireStudent, async (req, res) => {
   try {

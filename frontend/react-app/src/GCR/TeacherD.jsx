@@ -498,6 +498,50 @@ function TeacherClassStream() {
     }
   }, [className]);
 
+  // Remove student from class
+  const handleRemoveStudent = async (studentUsername) => {
+    try {
+      if (!classInfo?._id) {
+        setError("Class information not available");
+        setShowToast(true);
+        return;
+      }
+
+      // Show confirmation dialog
+      const confirmed = window.confirm(`Are you sure you want to remove ${studentUsername} from this class?`);
+      if (!confirmed) {
+        return;
+      }
+
+      const response = await axios.delete(
+        `${API_BASE_URL}/api/remove-student/${classInfo._id}/${studentUsername}`,
+        {
+          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
+        }
+      );
+
+      if (response.data) {
+        // Update local students state
+        setStudents(prevStudents => 
+          prevStudents.filter(student => student.username !== studentUsername)
+        );
+        
+        // Update class info if needed
+        setClassInfo(prevClassInfo => ({
+          ...prevClassInfo,
+          students: prevClassInfo.students.filter(username => username !== studentUsername)
+        }));
+
+        setError(`Successfully removed ${studentUsername} from the class`);
+        setShowToast(true);
+      }
+    } catch (err) {
+      console.error("Remove student error:", err);
+      setError(err.response?.data?.error || "Failed to remove student");
+      setShowToast(true);
+    }
+  };
+
   useEffect(() => {
     let cancelled = false;
     if (!cancelled) {
@@ -1716,11 +1760,7 @@ function TeacherClassStream() {
                       <Button 
                         variant="outline-danger" 
                         size="sm"
-                        onClick={() => {
-                          // Add remove student functionality here
-                          setError("Student removal coming soon!");
-                          setShowToast(true);
-                        }}
+                        onClick={() => handleRemoveStudent(student.username)}
                       >
                         Remove
                       </Button>

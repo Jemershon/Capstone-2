@@ -997,27 +997,6 @@ function StudentClassStream() {
             <h2 className="fw-bold text-primary">{className}</h2>
             <div className="d-flex align-items-center gap-3">
               <NotificationsDropdown />
-              {/* Leave class dropdown menu */}
-              <Dropdown align="end">
-                <Dropdown.Toggle 
-                  variant="outline-secondary" 
-                  size="sm"
-                  className="d-flex align-items-center px-2"
-                  style={{ minWidth: '35px' }}
-                >
-                  •••
-                </Dropdown.Toggle>
-                
-                <Dropdown.Menu>
-                  <Dropdown.Item 
-                    className="text-danger d-flex align-items-center"
-                    onClick={() => setShowLeaveModal(true)}
-                  >
-                    <span style={{ marginRight: '8px' }}>🚪</span>
-                    Leave class
-                  </Dropdown.Item>
-                </Dropdown.Menu>
-              </Dropdown>
             </div>
           </div>
 
