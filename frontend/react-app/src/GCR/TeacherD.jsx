@@ -2060,6 +2060,7 @@ function Assignments() {
   const [assignmentData, setAssignmentData] = useState({ class: "", title: "", description: "", due: "", status: "Pending" });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
   const [showToast, setShowToast] = useState(false);
   
 
@@ -2276,6 +2277,7 @@ function Announcements() {
   const [announcementData, setAnnouncementData] = useState({ message: "", date: new Date().toISOString().split("T")[0] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
   const [showToast, setShowToast] = useState(false);
   
 
@@ -2464,6 +2466,7 @@ function Exams() {
   const [classes, setClasses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
   const [showToast, setShowToast] = useState(false);
   
 
@@ -2759,6 +2762,7 @@ function Grades() {
   const [gradeData, setGradeData] = useState({ class: "", student: "", grade: "", feedback: "" });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
   const [showToast, setShowToast] = useState(false);
   
 
