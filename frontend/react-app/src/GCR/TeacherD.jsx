@@ -347,6 +347,8 @@ function TeacherClassStream() {
   const [exams, setExams] = useState([]);
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
+  const [showRemoveModal, setShowRemoveModal] = useState(false);
+  const [studentToRemove, setStudentToRemove] = useState(null);
   
   // File upload state
   const [selectedFiles, setSelectedFiles] = useState([]);
@@ -498,20 +500,22 @@ function TeacherClassStream() {
     }
   }, [className]);
 
+  // Show remove confirmation modal
+  const showRemoveConfirmation = (student) => {
+    setStudentToRemove(student);
+    setShowRemoveModal(true);
+  };
+
   // Remove student from class
-  const handleRemoveStudent = async (studentUsername) => {
+  const handleRemoveStudent = async () => {
     try {
-      if (!classInfo?._id) {
+      if (!classInfo?._id || !studentToRemove) {
         setError("Class information not available");
         setShowToast(true);
         return;
       }
 
-      // Show confirmation dialog
-      const confirmed = window.confirm(`Are you sure you want to remove ${studentUsername} from this class?`);
-      if (!confirmed) {
-        return;
-      }
+      const studentUsername = studentToRemove.username;
 
       const response = await axios.delete(
         `${API_BASE_URL}/api/remove-student/${classInfo._id}/${studentUsername}`,
@@ -534,11 +538,15 @@ function TeacherClassStream() {
 
         setError(`Successfully removed ${studentUsername} from the class`);
         setShowToast(true);
+        setShowRemoveModal(false);
+        setStudentToRemove(null);
       }
     } catch (err) {
       console.error("Remove student error:", err);
       setError(err.response?.data?.error || "Failed to remove student");
       setShowToast(true);
+      setShowRemoveModal(false);
+      setStudentToRemove(null);
     }
   };
 
@@ -1760,7 +1768,7 @@ function TeacherClassStream() {
                       <Button 
                         variant="outline-danger" 
                         size="sm"
-                        onClick={() => handleRemoveStudent(student.username)}
+                        onClick={() => showRemoveConfirmation(student)}
                       >
                         Remove
                       </Button>
@@ -1997,6 +2005,41 @@ function TeacherClassStream() {
             }}
           >
             Send Invitation
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* Remove Student Confirmation Modal */}
+      <Modal 
+        show={showRemoveModal}
+        onHide={() => {
+          setShowRemoveModal(false);
+          setStudentToRemove(null);
+        }}
+        centered
+      >
+        <Modal.Header closeButton>
+          <Modal.Title>Remove Student</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <p>Are you sure you want to remove <strong>{studentToRemove?.name || studentToRemove?.username}</strong> from this class?</p>
+          <p className="text-muted">This action cannot be undone. The student will lose access to all class materials and assignments.</p>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button 
+            variant="secondary" 
+            onClick={() => {
+              setShowRemoveModal(false);
+              setStudentToRemove(null);
+            }}
+          >
+            Cancel
+          </Button>
+          <Button 
+            variant="danger" 
+            onClick={handleRemoveStudent}
+          >
+            Remove Student
           </Button>
         </Modal.Footer>
       </Modal>
