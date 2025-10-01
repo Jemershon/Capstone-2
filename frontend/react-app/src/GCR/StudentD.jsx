@@ -763,24 +763,44 @@ function StudentClassStream() {
 
   const fetchClassmates = async (token) => {
     try {
-      console.log("🔍 Fetching class data for:", className);
-      const response = await axios.get(`${API_BASE_URL}/api/classes/${className}`, {
+      console.log("🔍 Fetching people data for class:", className);
+      
+      // Use the new people endpoint that returns teacher and classmates details
+      const peopleResponse = await axios.get(`${API_BASE_URL}/api/classes/${className}/people`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
-      console.log("📚 Class data fetched:", response.data);
+      console.log("� People data fetched:", peopleResponse.data);
       
-      if (!response.data) {
+      if (peopleResponse.data) {
+        // Set teacher name (full name if available, otherwise username)
+        setTeacher(peopleResponse.data.teacher?.name || peopleResponse.data.teacher?.username || "");
+        
+        // Set classmates (array of names)
+        const classmateNames = peopleResponse.data.classmates?.map(student => 
+          student.name || student.username
+        ) || [];
+        setClassmates(classmateNames);
+        
+        console.log("✅ Teacher set to:", peopleResponse.data.teacher?.name || peopleResponse.data.teacher?.username);
+        console.log("✅ Classmates set to:", classmateNames);
+      }
+      
+      // Also fetch the basic class info for other purposes
+      const classResponse = await axios.get(`${API_BASE_URL}/api/classes/${className}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      console.log("📚 Class data fetched:", classResponse.data);
+      
+      if (!classResponse.data) {
         console.error("❌ No class data returned from API");
         return;
       }
       
-      setClassmates(response.data.students || []);
-      setTeacher(response.data.teacher);
-      
       // Check if the class data has an ID before setting
-      if (!response.data._id && !response.data.id) {
-        console.warn("⚠️ Class data missing ID property:", response.data);
+      if (!classResponse.data._id && !classResponse.data.id) {
+        console.warn("⚠️ Class data missing ID property:", classResponse.data);
         
         // Try to get class ID from student-classes endpoint as a backup
         try {
@@ -794,17 +814,35 @@ function StudentClassStream() {
           if (matchingClass && (matchingClass._id || matchingClass.id)) {
             console.log("✅ Found class ID from student-classes endpoint:", matchingClass._id || matchingClass.id);
             // Merge the data
-            response.data._id = matchingClass._id || matchingClass.id;
+            classResponse.data._id = matchingClass._id || matchingClass.id;
           }
         } catch (backupErr) {
           console.error("❌ Failed to fetch backup class data:", backupErr);
         }
       }
       
-      setCurrentClass(response.data); // Store the current class data
-      console.log("✅ Current class set:", response.data);
+      setCurrentClass(classResponse.data); // Store the current class data
+      console.log("✅ Current class set:", classResponse.data);
     } catch (err) {
-      console.error("Error fetching classmates:", err);
+      console.error("Error fetching people data:", err);
+      
+      // Fallback to the old method if the new endpoint fails
+      if (err.response?.status === 404 || err.response?.status === 403) {
+        console.log("⚠️ New people endpoint failed, falling back to old method");
+        try {
+          const response = await axios.get(`${API_BASE_URL}/api/classes/${className}`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          
+          if (response.data) {
+            setClassmates(response.data.students || []);
+            setTeacher(response.data.teacher);
+            setCurrentClass(response.data);
+          }
+        } catch (fallbackErr) {
+          console.error("Error in fallback method:", fallbackErr);
+        }
+      }
     }
   };
 
