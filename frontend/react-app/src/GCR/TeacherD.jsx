@@ -138,11 +138,6 @@ function DashboardAndClasses() {
           <Toast.Body className="text-white">{error}</Toast.Body>
         </Toast>
       )}
-      {debugData && (
-        <Alert variant="info" className="mb-4">
-          <strong>Debug Info:</strong> Classes: {JSON.stringify(debugData.classes.length)} items, User: {JSON.stringify(debugData.user.username)}
-        </Alert>
-      )}
       <Row className="mb-4">
         <Col md={4}>
           <Card className="p-3 bg-primary text-white">
@@ -3083,12 +3078,10 @@ export default function TeacherDashboard() {
   }, []); // Empty dependency array - only run once on mount
 
   if (authLoading) {
-    console.log("⏳ Auth loading state active");
     return (
       <div className="text-center py-4">
         <Spinner animation="border" role="status" aria-label="Verifying authentication" />
         <p>Verifying authentication...</p>
-        <small className="text-muted">Debug: Token present: {getAuthToken() ? "Yes" : "No"}</small>
       </div>
     );
   }

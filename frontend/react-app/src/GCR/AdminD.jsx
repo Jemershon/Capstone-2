@@ -47,8 +47,10 @@ function AdminLogin({ onLogin }) {
           password,
         })
       );
-      localStorage.setItem("token", res.data.token);
-      localStorage.setItem("username", username);
+      
+      // Use proper auth data setting
+      const { setAuthData } = await import('../api');
+      setAuthData(res.data.token, res.data.user.username, res.data.user.role);
       onLogin();
       setError("Login successful!");
       setShowToast(true);
@@ -139,7 +141,6 @@ function DashboardHome() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showToast, setShowToast] = useState(false);
-  const [debugData, setDebugData] = useState(null);
   const [showCreateUserModal, setShowCreateUserModal] = useState(false);
   const [showCreateClassModal, setShowCreateClassModal] = useState(false);
   const [userData, setUserData] = useState({ name: "", username: "", email: "", password: "", role: "student" });
@@ -155,7 +156,6 @@ function DashboardHome() {
       ]);
       setClasses(classesRes.data || []);
       setUsers(usersRes.data || []);
-      setDebugData({ classes: classesRes.data, users: usersRes.data });
     } catch (err) {
       console.error("Fetch error:", err.response?.data || err.message);
       setError(err.response?.data?.error || "Failed to load data. Check network or login status.");
@@ -282,11 +282,6 @@ function DashboardHome() {
         >
           <Toast.Body className="text-white">{error}</Toast.Body>
         </Toast>
-      )}
-      {debugData && (
-        <Alert variant="info" className="mb-4">
-          <strong>Debug Info:</strong> Classes: {JSON.stringify(debugData.classes.length)} items, Users: {JSON.stringify(debugData.users.length)}
-        </Alert>
       )}
       <Row>
         <Col md={6}>

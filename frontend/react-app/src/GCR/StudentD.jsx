@@ -113,7 +113,7 @@ function StudentDashboard() {
       <div className="d-flex justify-content-center align-items-center vh-100">
         <div className="text-center">
           <div className="spinner-border text-primary mb-3"></div>
-          <p>🔐 Verifying authentication... (Token: {getAuthToken() ? "✅ Present" : "❌ Missing"})</p>
+          <p>Verifying authentication...</p>
         </div>
       </div>
     );
