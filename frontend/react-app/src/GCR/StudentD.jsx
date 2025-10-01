@@ -4,6 +4,7 @@ import axios from "axios";
 import { Container, Row, Col, Nav, Navbar, Card, Button, Table, Modal, Form, Tab, Tabs, Badge, Alert, Spinner, Toast, ListGroup, Dropdown } from "react-bootstrap";
 import { getAuthToken, getUsername, getUserRole, checkAuth, clearAuthData, API_BASE_URL } from "../api";
 import NotificationsDropdown from "./components/NotificationsDropdown";
+import Comments from "./components/Comments";
 
 // Add custom styles for responsive design
 const customStyles = `
@@ -1043,6 +1044,13 @@ function StudentClassStream() {
                         {announcement.examId && (
                           <Badge bg="info" className="me-2">Exam Posted</Badge>
                         )}
+                        
+                        {/* Comments and Reactions Section */}
+                        <Comments 
+                          referenceType="announcement"
+                          referenceId={announcement._id || announcement.id}
+                          className={className}
+                        />
                       </Card.Body>
                     </Card>
                   ))
@@ -1198,6 +1206,13 @@ function StudentClassStream() {
                               </Button>
                             )}
                           </div>
+                          
+                          {/* Comments and Reactions Section for Exams */}
+                          <Comments 
+                            referenceType="exam"
+                            referenceId={exam._id}
+                            className={className}
+                          />
                         </Card.Body>
                       </Card>
                     ))
