@@ -431,6 +431,35 @@ app.post("/api/register", async (req, res) => {
   }
 });
 
+// Special admin registration endpoint (for initial setup)
+app.post("/api/register-admin", async (req, res) => {
+  try {
+    const { name, username, email, password, adminKey } = req.body;
+    
+    // Simple admin key check for security
+    if (adminKey !== "admin-setup-2025") {
+      return res.status(403).json({ error: "Invalid admin key" });
+    }
+    
+    if (!name || !username || !email || !password) {
+      return res.status(400).json({ error: "Invalid input data" });
+    }
+    
+    const existingUser = await User.findOne({ $or: [{ username }, { email }] });
+    if (existingUser) {
+      return res.status(400).json({ error: "Username or email already exists" });
+    }
+    
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const user = new User({ name, username, email, password: hashedPassword, role: "Admin" });
+    await user.save();
+    res.status(201).json({ message: "Admin user registered successfully" });
+  } catch (err) {
+    console.error("Admin register error:", err);
+    res.status(500).json({ error: "Admin registration failed" });
+  }
+});
+
 // Login endpoint
 app.post("/api/login", async (req, res) => {
   try {
