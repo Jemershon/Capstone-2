@@ -481,24 +481,22 @@ function TeacherClassStream() {
           console.error('Error fetching class directly:', directErr);
           setError(`Could not load class "${className}".`);
         }
-        // Also fetch student information for this class
-        if (classData.students && classData.students.length > 0) {
-          try {
-            const studentsRes = await retry(() =>
-              axios.get(`${API_BASE_URL}/api/classes/${encodeURIComponent(className)}/students`, {
-                headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-              })
-            );
-            
-            console.log("Fetched students:", studentsRes.data);
-            setStudents(studentsRes.data);
-          } catch (err) {
-            console.error("Fetch students error:", err.response?.data || err.message);
-          }
-        } else {
-          // No students enrolled yet
-          setStudents([]);
-        }
+      }
+      
+      // Always fetch student information for this class (moved outside the if-else block)
+      try {
+        const studentsRes = await retry(() =>
+          axios.get(`${API_BASE_URL}/api/classes/${encodeURIComponent(className)}/students`, {
+            headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+          })
+        );
+        
+        console.log("Fetched students:", studentsRes.data);
+        setStudents(studentsRes.data);
+      } catch (err) {
+        console.error("Fetch students error:", err.response?.data || err.message);
+        // If students fetch fails, set empty array
+        setStudents([]);
       }
     } catch (err) {
       console.error("Fetch class info error:", err.response?.data || err.message);
