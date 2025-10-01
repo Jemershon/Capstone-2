@@ -77,7 +77,7 @@ const createCloudinaryStorage = () => {
       const uploadType = req.query.type || 'materials';
       
       return {
-        folder: `notetify/${uploadType}`, // Organize files in folders
+        folder: `remora/${uploadType}`, // Organize files in folders
         allowed_formats: ['jpg', 'jpeg', 'png', 'gif', 'pdf', 'doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx', 'txt', 'zip', 'rar', 'mp4', 'mov', 'mp3', 'wav'],
         resource_type: 'auto', // Automatically detect file type
         public_id: `${Date.now()}-${Math.round(Math.random() * 1e9)}`, // Unique filename

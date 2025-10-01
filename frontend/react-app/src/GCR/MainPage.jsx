@@ -140,13 +140,11 @@ export default function LandingPage() {
     <div className="d-flex flex-column min-vh-100 bg-light">
       <Navbar expand="lg" bg="white" variant="light" className="shadow-sm px-4">
         <Container fluid>
-          <Navbar.Brand className="fw-bold text-primary fs-3">NoteTify</Navbar.Brand>
+          <Navbar.Brand className="fw-bold text-primary fs-3">Remora</Navbar.Brand>
           <Navbar.Toggle aria-controls="main-nav" />
           <Navbar.Collapse id="main-nav">
             <Nav className="ms-auto align-items-lg-center">
               <Nav.Link href="#features" className="mx-2 text-dark">Features</Nav.Link>
-              <Nav.Link href="#about" className="mx-2 text-dark">About</Nav.Link>
-              <Nav.Link href="#contact" className="mx-2 text-dark">Contact</Nav.Link>
               <Button
                 className="ms-lg-3"
                 onClick={handleShowModal}
@@ -234,7 +232,7 @@ export default function LandingPage() {
 
       <footer className="bg-light text-center py-3 mt-auto border-top">
         <small className="text-muted">
-          © {new Date().getFullYear()} NoteTify. All rights reserved.
+          © {new Date().getFullYear()} Remora. All rights reserved.
         </small>
       </footer>
 
@@ -317,38 +315,36 @@ export default function LandingPage() {
                 <label htmlFor="floatingLoginUsername">Username</label>
               </Form.Floating>
             )}
-            <Form.Floating className="mb-3">
-              <InputGroup>
-                <Form.Control
-                  id="floatingPassword"
-                  name="password"
-                  type={showPassword ? "text" : "password"}
-                  placeholder="Password"
-                  value={formData.password}
-                  onChange={handleChange}
-                  required
-                  aria-required="true"
-                  style={{ paddingRight: '50px' }}
-                />
-                <Button
-                  variant="outline-secondary"
-                  onClick={() => setShowPassword(!showPassword)}
-                  style={{
-                    position: 'absolute',
-                    right: '10px',
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    zIndex: 3,
-                    background: 'transparent',
-                    border: 'none',
-                    color: '#6c757d'
-                  }}
-                  aria-label={showPassword ? "Hide password" : "Show password"}
-                >
-                  <i className={`bi ${showPassword ? 'bi-eye-slash' : 'bi-eye'}`}></i>
-                </Button>
-                <label htmlFor="floatingPassword" style={{ paddingRight: '50px' }}>Password</label>
-              </InputGroup>
+            <Form.Floating className="mb-3" style={{ position: 'relative' }}>
+              <Form.Control
+                id="floatingPassword"
+                name="password"
+                type={showPassword ? "text" : "password"}
+                placeholder="Password"
+                value={formData.password}
+                onChange={handleChange}
+                required
+                aria-required="true"
+                style={{ paddingRight: '50px' }}
+              />
+              <label htmlFor="floatingPassword">Password</label>
+              <Button
+                variant="outline-secondary"
+                onClick={() => setShowPassword(!showPassword)}
+                style={{
+                  position: 'absolute',
+                  right: '10px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  zIndex: 3,
+                  background: 'transparent',
+                  border: 'none',
+                  color: '#6c757d'
+                }}
+                aria-label={showPassword ? "Hide password" : "Show password"}
+              >
+                <i className={`bi ${showPassword ? 'bi-eye-slash' : 'bi-eye'}`}></i>
+              </Button>
             </Form.Floating>
             {!isLogin && (
               <Form.Select

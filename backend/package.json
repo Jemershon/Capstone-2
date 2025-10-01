@@ -1,7 +1,7 @@
 {
-    "name": "notetify-backend",
+    "name": "remora-backend",
     "version": "1.0.0",
-    "description": "Backend API for Notetify classroom management system",
+    "description": "Backend API for Remora classroom management system",
     "type": "module",
     "main": "server.js",
     "scripts": {

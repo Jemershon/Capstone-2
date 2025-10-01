@@ -1,4 +1,4 @@
-# Notetify Backend
+# Remora Backend
 
 MERN backend for Google Classroom-like system.
 

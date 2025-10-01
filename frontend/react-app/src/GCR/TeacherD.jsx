@@ -3011,8 +3011,7 @@ function Profile() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [editForm, setEditForm] = useState({
     name: '',
-    email: '',
-    phone: ''
+    email: ''
   });
   const [stats, setStats] = useState({
     totalClasses: 0,
@@ -3081,8 +3080,7 @@ function Profile() {
   const handleEditProfile = () => {
     setEditForm({
       name: profile.name || '',
-      email: profile.email || '',
-      phone: profile.phone || ''
+      email: profile.email || ''
     });
     setShowEditModal(true);
   };
@@ -3300,15 +3298,6 @@ function Profile() {
                 value={editForm.email}
                 onChange={(e) => setEditForm({...editForm, email: e.target.value})}
                 placeholder="Enter your email"
-              />
-            </Form.Group>
-            <Form.Group className="mb-3">
-              <Form.Label>Phone</Form.Label>
-              <Form.Control
-                type="tel"
-                value={editForm.phone}
-                onChange={(e) => setEditForm({...editForm, phone: e.target.value})}
-                placeholder="Enter your phone number"
               />
             </Form.Group>
           </Form>
