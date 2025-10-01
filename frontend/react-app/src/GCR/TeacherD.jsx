@@ -3007,17 +3007,43 @@ function Profile() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showToast, setShowToast] = useState(false);
-  
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editData, setEditData] = useState({ name: "", email: "" });
+  const [stats, setStats] = useState({
+    totalClasses: 0,
+    totalStudents: 0,
+    totalExams: 0,
+    totalAssignments: 0
+  });
 
   const fetchProfile = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await retry(() =>
-        axios.get(`${API_BASE_URL}/api/profile`, {
-          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-        })
-      );
-      setProfile(res.data);
+      const [profileRes, classesRes] = await Promise.all([
+        retry(() =>
+          axios.get(`${API_BASE_URL}/api/profile`, {
+            headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+          })
+        ),
+        retry(() =>
+          axios.get(`${API_BASE_URL}/api/classes?page=1&limit=100`, {
+            headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+          })
+        )
+      ]);
+      
+      setProfile(profileRes.data);
+      setEditData({ name: profileRes.data.name || "", email: profileRes.data.email || "" });
+      
+      // Calculate statistics
+      const classes = classesRes.data || [];
+      const totalStudents = classes.reduce((sum, cls) => sum + (cls.students?.length || 0), 0);
+      setStats({
+        totalClasses: classes.length,
+        totalStudents: totalStudents,
+        totalExams: 0, // You can add exam counting logic here
+        totalAssignments: 0 // You can add assignment counting logic here
+      });
       
     } catch (err) {
       console.error("Fetch profile error:", err.response?.data || err.message);
@@ -3027,6 +3053,22 @@ function Profile() {
       setLoading(false);
     }
   }, []);
+
+  const handleEditProfile = async () => {
+    try {
+      const res = await axios.put(`${API_BASE_URL}/api/profile`, editData, {
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+      });
+      
+      setProfile(res.data);
+      setShowEditModal(false);
+      setError("Profile updated successfully!");
+      setShowToast(true);
+    } catch (err) {
+      setError(err.response?.data?.error || "Failed to update profile");
+      setShowToast(true);
+    }
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -3047,30 +3089,229 @@ function Profile() {
 
   return (
     <div>
-      <h2 className="fw-bold">Profile</h2>
       {error && (
         <Toast
           show={showToast}
           onClose={() => setShowToast(false)}
           delay={5000}
           autohide
-          bg="danger"
+          bg={error.includes("successfully") ? "success" : "danger"}
           style={{ position: "fixed", top: "20px", right: "20px", zIndex: 10000 }}
         >
           <Toast.Body className="text-white">{error}</Toast.Body>
         </Toast>
       )}
-      <Card className="p-3 mt-3">
-        <p>
-          <strong>Name:</strong> {profile.name || "N/A"}
-        </p>
-        <p>
-          <strong>Username:</strong> {profile.username || "N/A"}
-        </p>
-        <p>
-          <strong>Role:</strong> {profile.role || "N/A"}
-        </p>
+
+      {/* Header Section */}
+      <div className="d-flex justify-content-between align-items-center mb-4">
+        <h2 className="fw-bold mb-0">👨‍🏫 Teacher Profile</h2>
+        <Button variant="outline-primary" onClick={() => setShowEditModal(true)}>
+          <i className="bi bi-pencil-square me-2"></i>Edit Profile
+        </Button>
+      </div>
+
+      <Row>
+        {/* Profile Information Card */}
+        <Col lg={8} className="mb-4">
+          <Card className="h-100 shadow-sm">
+            <Card.Header className="bg-primary text-white">
+              <h5 className="mb-0">
+                <i className="bi bi-person-circle me-2"></i>Personal Information
+              </h5>
+            </Card.Header>
+            <Card.Body>
+              <Row>
+                <Col md={6} className="mb-3">
+                  <div className="p-3 bg-light rounded">
+                    <div className="d-flex align-items-center mb-2">
+                      <i className="bi bi-person-badge text-primary me-2"></i>
+                      <strong className="text-muted">Full Name</strong>
+                    </div>
+                    <h6 className="mb-0">{profile.name || "Not provided"}</h6>
+                  </div>
+                </Col>
+                <Col md={6} className="mb-3">
+                  <div className="p-3 bg-light rounded">
+                    <div className="d-flex align-items-center mb-2">
+                      <i className="bi bi-at text-primary me-2"></i>
+                      <strong className="text-muted">Username</strong>
+                    </div>
+                    <h6 className="mb-0">{profile.username || "N/A"}</h6>
+                  </div>
+                </Col>
+                <Col md={6} className="mb-3">
+                  <div className="p-3 bg-light rounded">
+                    <div className="d-flex align-items-center mb-2">
+                      <i className="bi bi-envelope text-primary me-2"></i>
+                      <strong className="text-muted">Email</strong>
+                    </div>
+                    <h6 className="mb-0">{profile.email || "Not provided"}</h6>
+                  </div>
+                </Col>
+                <Col md={6} className="mb-3">
+                  <div className="p-3 bg-light rounded">
+                    <div className="d-flex align-items-center mb-2">
+                      <i className="bi bi-shield-check text-primary me-2"></i>
+                      <strong className="text-muted">Role</strong>
+                    </div>
+                    <span className="badge bg-success fs-6">{profile.role || "N/A"}</span>
+                  </div>
+                </Col>
+                <Col md={6} className="mb-3">
+                  <div className="p-3 bg-light rounded">
+                    <div className="d-flex align-items-center mb-2">
+                      <i className="bi bi-calendar-plus text-primary me-2"></i>
+                      <strong className="text-muted">Member Since</strong>
+                    </div>
+                    <h6 className="mb-0">
+                      {profile.createdAt ? new Date(profile.createdAt).toLocaleDateString() : "N/A"}
+                    </h6>
+                  </div>
+                </Col>
+                <Col md={6} className="mb-3">
+                  <div className="p-3 bg-light rounded">
+                    <div className="d-flex align-items-center mb-2">
+                      <i className="bi bi-clock text-primary me-2"></i>
+                      <strong className="text-muted">Last Login</strong>
+                    </div>
+                    <h6 className="mb-0">
+                      {profile.lastLogin ? new Date(profile.lastLogin).toLocaleDateString() : "Today"}
+                    </h6>
+                  </div>
+                </Col>
+              </Row>
+            </Card.Body>
+          </Card>
+        </Col>
+
+        {/* Statistics Card */}
+        <Col lg={4} className="mb-4">
+          <Card className="h-100 shadow-sm">
+            <Card.Header className="bg-success text-white">
+              <h5 className="mb-0">
+                <i className="bi bi-graph-up me-2"></i>Teaching Statistics
+              </h5>
+            </Card.Header>
+            <Card.Body>
+              <div className="row g-3">
+                <div className="col-6">
+                  <div className="text-center p-3 bg-primary bg-opacity-10 rounded">
+                    <i className="bi bi-journal-bookmark-fill text-primary fs-3"></i>
+                    <h3 className="fw-bold text-primary mb-0">{stats.totalClasses}</h3>
+                    <small className="text-muted">Classes</small>
+                  </div>
+                </div>
+                <div className="col-6">
+                  <div className="text-center p-3 bg-success bg-opacity-10 rounded">
+                    <i className="bi bi-people-fill text-success fs-3"></i>
+                    <h3 className="fw-bold text-success mb-0">{stats.totalStudents}</h3>
+                    <small className="text-muted">Students</small>
+                  </div>
+                </div>
+                <div className="col-6">
+                  <div className="text-center p-3 bg-warning bg-opacity-10 rounded">
+                    <i className="bi bi-clipboard-check-fill text-warning fs-3"></i>
+                    <h3 className="fw-bold text-warning mb-0">{stats.totalExams}</h3>
+                    <small className="text-muted">Exams</small>
+                  </div>
+                </div>
+                <div className="col-6">
+                  <div className="text-center p-3 bg-info bg-opacity-10 rounded">
+                    <i className="bi bi-file-earmark-text-fill text-info fs-3"></i>
+                    <h3 className="fw-bold text-info mb-0">{stats.totalAssignments}</h3>
+                    <small className="text-muted">Assignments</small>
+                  </div>
+                </div>
+              </div>
+            </Card.Body>
+          </Card>
+        </Col>
+      </Row>
+
+      {/* Quick Actions */}
+      <Card className="shadow-sm">
+        <Card.Header className="bg-secondary text-white">
+          <h5 className="mb-0">
+            <i className="bi bi-lightning-charge me-2"></i>Quick Actions
+          </h5>
+        </Card.Header>
+        <Card.Body>
+          <Row>
+            <Col md={3} className="mb-3">
+              <Button variant="outline-primary" className="w-100 py-3" onClick={() => window.location.href = '/teacher/dashboard'}>
+                <i className="bi bi-house-fill d-block fs-3 mb-2"></i>
+                Dashboard
+              </Button>
+            </Col>
+            <Col md={3} className="mb-3">
+              <Button variant="outline-success" className="w-100 py-3" onClick={() => setShowEditModal(true)}>
+                <i className="bi bi-gear-fill d-block fs-3 mb-2"></i>
+                Settings
+              </Button>
+            </Col>
+            <Col md={3} className="mb-3">
+              <Button variant="outline-info" className="w-100 py-3" onClick={() => fetchProfile()}>
+                <i className="bi bi-arrow-clockwise d-block fs-3 mb-2"></i>
+                Refresh
+              </Button>
+            </Col>
+            <Col md={3} className="mb-3">
+              <Button variant="outline-danger" className="w-100 py-3" onClick={() => {
+                if (window.confirm("Are you sure you want to logout?")) {
+                  localStorage.clear();
+                  window.location.href = '/';
+                }
+              }}>
+                <i className="bi bi-box-arrow-right d-block fs-3 mb-2"></i>
+                Logout
+              </Button>
+            </Col>
+          </Row>
+        </Card.Body>
       </Card>
+
+      {/* Edit Profile Modal */}
+      <Modal show={showEditModal} onHide={() => setShowEditModal(false)} centered>
+        <Modal.Header closeButton>
+          <Modal.Title>
+            <i className="bi bi-pencil-square me-2"></i>Edit Profile
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Form>
+            <Form.Group className="mb-3">
+              <Form.Label>
+                <i className="bi bi-person me-2"></i>Full Name
+              </Form.Label>
+              <Form.Control
+                type="text"
+                placeholder="Enter your full name"
+                value={editData.name}
+                onChange={(e) => setEditData({...editData, name: e.target.value})}
+              />
+            </Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Label>
+                <i className="bi bi-envelope me-2"></i>Email Address
+              </Form.Label>
+              <Form.Control
+                type="email"
+                placeholder="Enter your email"
+                value={editData.email}
+                onChange={(e) => setEditData({...editData, email: e.target.value})}
+              />
+            </Form.Group>
+          </Form>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowEditModal(false)}>
+            Cancel
+          </Button>
+          <Button variant="primary" onClick={handleEditProfile}>
+            <i className="bi bi-check-lg me-2"></i>Save Changes
+          </Button>
+        </Modal.Footer>
+      </Modal>
     </div>
   );
 }
