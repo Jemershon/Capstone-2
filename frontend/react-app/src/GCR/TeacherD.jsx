@@ -29,6 +29,107 @@ import Materials from "./components/Materials";
 import Comments from "./components/Comments";
 import ExamCreator from "./components/ExamCreator";
 
+// Add custom styles for responsive design
+const customStyles = `
+  .main-content-responsive {
+    margin-left: 0;
+    padding: 15px;
+    padding-top: 70px; /* Space for mobile navbar */
+    min-height: 100vh;
+  }
+  
+  @media (min-width: 768px) {
+    .main-content-responsive {
+      margin-left: 16.666667%;
+      padding: 20px;
+      padding-top: 20px; /* Reset padding-top for desktop */
+    }
+  }
+  
+  .mobile-navbar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1030;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  }
+  
+  .mobile-nav-brand {
+    font-weight: 600;
+    font-size: 1.1rem;
+  }
+  
+  .mobile-nav-links {
+    background-color: #343a40;
+    border-top: 1px solid #495057;
+  }
+  
+  .mobile-nav-link {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid #495057;
+    color: #fff !important;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  
+  .mobile-nav-link:hover {
+    background-color: #495057;
+    color: #fff !important;
+  }
+  
+  .mobile-nav-link.logout {
+    color: #dc3545 !important;
+  }
+  
+  .nav-link-custom {
+    border-radius: 4px;
+    margin-bottom: 5px;
+    transition: background-color 0.2s;
+    color: #fff !important;
+    text-decoration: none;
+  }
+  
+  .nav-link-custom:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: #fff !important;
+  }
+  
+  .nav-link-custom.active {
+    background-color: rgba(255, 255, 255, 0.2);
+  }
+  
+  /* Fix container gaps */
+  .container-fluid {
+    padding: 0;
+  }
+  
+  /* Ensure full height layout */
+  .teacher-dashboard-container {
+    min-height: 100vh;
+  }
+  
+  .dashboard-content {
+    padding: 0;
+    margin: 0;
+  }
+  
+  @media (max-width: 767px) {
+    .dashboard-content {
+      padding-top: 10px;
+    }
+  }
+`;
+
+// Inject styles
+if (typeof document !== 'undefined') {
+  const styleElement = document.createElement('style');
+  styleElement.textContent = customStyles;
+  document.head.appendChild(styleElement);
+}
+
 // Enhanced retry function for API calls with exponential backoff
 const retry = async (fn, retries = 3, initialDelay = 1000) => {
   for (let i = 0; i < retries; i++) {
@@ -125,7 +226,7 @@ function DashboardAndClasses() {
   }
 
   return (
-    <div>
+    <div className="dashboard-content">
       <h2 className="fw-bold mb-4">Dashboard & Classes</h2>
       {(error || successMessage) && (
         <Toast
@@ -2835,7 +2936,7 @@ function Grades() {
   }
 
   return (
-    <div>
+    <div className="dashboard-content">
       <h2 className="fw-bold mb-3">Grades</h2>
       {error && (
         <Toast
@@ -3120,7 +3221,7 @@ function Profile() {
   }
 
   return (
-    <div>
+    <div className="dashboard-content">
       {error && (
         <Toast
           show={showToast}
@@ -3447,11 +3548,11 @@ export default function TeacherDashboard() {
   }
 
   return (
-    <Container fluid>
-      <Row>
+    <Container fluid className="teacher-dashboard-container">
+      <Row className="g-0">
         {/* Sidebar for desktop */}
         <Col md={2} className="d-none d-md-block bg-dark text-white vh-100 p-3 position-fixed" style={{top: 0, left: 0, zIndex: 1000}}>
-          <h4 className="text-center mb-4">Teacher Panel</h4>
+          <h4 className="text-center mb-4">🏫 Teacher Panel</h4>
           <Nav className="flex-column">
             <Nav.Link
               as={NavLink}
@@ -3489,47 +3590,47 @@ export default function TeacherDashboard() {
           </Nav>
         </Col>
         {/* Mobile navbar */}
-        <div className="d-md-none position-fixed w-100" style={{top: 0, zIndex: 1000}}>
-          <Navbar bg="dark" variant="dark" expand="md">
-          <Navbar.Brand className="ms-2">Teacher Panel</Navbar.Brand>
-          <Navbar.Toggle aria-controls="mobile-nav" />
-          <Navbar.Collapse id="mobile-nav">
-            <Nav className="flex-column p-2">
-              <Nav.Link
-                as={Link}
-                to="/teacher/dashboard"
-                className="text-white"
-                aria-label="Dashboard and Classes"
-              >
-                🏠 Dashboard & Classes
-              </Nav.Link>
-              {/* Removed Assignments and Announcements from mobile nav to follow per-class stream */}
-              {/* Remove Exams from mobile nav */}
-              <Nav.Link
-                as={Link}
-                to="/teacher/grades"
-                className="text-white"
-                aria-label="Grades"
-              >
-                📊 Grades
-              </Nav.Link>
-              <Nav.Link
-                as={Link}
-                to="/teacher/profile"
-                className="text-white"
-                aria-label="Profile"
-              >
-                👤 Profile
-              </Nav.Link>
-              <Nav.Link
-                onClick={() => setShowLogoutModal(true)}
-                className="text-danger"
-                aria-label="Logout"
-              >
-                🚪 Logout
-              </Nav.Link>
-            </Nav>
-          </Navbar.Collapse>
+        <div className="d-md-none">
+          <Navbar bg="dark" variant="dark" expand="lg" className="mobile-navbar">
+            <Container fluid>
+              <Navbar.Brand className="mobile-nav-brand">🏫 Teacher Panel</Navbar.Brand>
+              <Navbar.Toggle aria-controls="mobile-nav" className="border-0" />
+              <Navbar.Collapse id="mobile-nav">
+                <div className="mobile-nav-links w-100">
+                  <Nav.Link
+                    as={Link}
+                    to="/teacher/dashboard"
+                    className="mobile-nav-link"
+                    aria-label="Dashboard and Classes"
+                  >
+                    🏠 Dashboard & Classes
+                  </Nav.Link>
+                  <Nav.Link
+                    as={Link}
+                    to="/teacher/grades"
+                    className="mobile-nav-link"
+                    aria-label="Grades"
+                  >
+                    📊 Grades
+                  </Nav.Link>
+                  <Nav.Link
+                    as={Link}
+                    to="/teacher/profile"
+                    className="mobile-nav-link"
+                    aria-label="Profile"
+                  >
+                    👤 Profile
+                  </Nav.Link>
+                  <Nav.Link
+                    onClick={() => setShowLogoutModal(true)}
+                    className="mobile-nav-link logout"
+                    aria-label="Logout"
+                  >
+                    🚪 Logout
+                  </Nav.Link>
+                </div>
+              </Navbar.Collapse>
+            </Container>
           </Navbar>
         </div>
         {/* Main Content */}
