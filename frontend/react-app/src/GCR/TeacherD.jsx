@@ -3094,6 +3094,13 @@ export default function TeacherDashboard() {
     }
 
     setAuthLoading(true);
+    
+    // Add timeout to prevent infinite loading
+    const timeoutId = setTimeout(() => {
+      console.log("⏰ Auth verification timeout - proceeding anyway");
+      setAuthLoading(false);
+    }, 10000); // 10 second timeout
+
     try {
       // Get the token using our helper function
       const token = getAuthToken();
@@ -3101,8 +3108,12 @@ export default function TeacherDashboard() {
       const res = await retry(() =>
         axios.get(`${API_BASE_URL}/api/profile`, {
           headers: { Authorization: `Bearer ${token}` },
+          timeout: 8000 // 8 second request timeout
         })
       );
+      
+      // Clear timeout since request succeeded
+      clearTimeout(timeoutId);
       
       // Check if the user has the correct role
       if (res.data.role !== "Teacher") {
@@ -3117,6 +3128,7 @@ export default function TeacherDashboard() {
       setLastAuthCheck(now); // Update last check timestamp
       console.log("✅ Authentication verified successfully");
     } catch (err) {
+      clearTimeout(timeoutId);
       console.error("Auth error:", err.response?.data || err.message);
       setAuthError(err.response?.data?.error || "Authentication failed. Please log in again.");
       setIsAuthenticated(false);
