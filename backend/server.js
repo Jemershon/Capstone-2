@@ -464,12 +464,22 @@ app.post("/api/register-admin", async (req, res) => {
 // Login endpoint
 app.post("/api/login", async (req, res) => {
   try {
-    const { username, password } = req.body;
-    console.log("Login attempt for username:", username);
-    if (!username || !password) {
-      return res.status(400).json({ error: "Username and password are required" });
+    const { username, email, password } = req.body;
+    const loginIdentifier = username || email; // Support both username and email
+    console.log("Login attempt for identifier:", loginIdentifier);
+    
+    if (!loginIdentifier || !password) {
+      return res.status(400).json({ error: "Email/Username and password are required" });
     }
-    const user = await User.findOne({ username });
+    
+    // Find user by either username or email
+    const user = await User.findOne({
+      $or: [
+        { username: loginIdentifier },
+        { email: loginIdentifier }
+      ]
+    });
+    
     console.log("User found:", user ? "Yes" : "No");
     if (user) {
       console.log("User role:", user.role);
