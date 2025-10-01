@@ -126,16 +126,20 @@ function DashboardAndClasses() {
   return (
     <div>
       <h2 className="fw-bold mb-4">Dashboard & Classes</h2>
-      {error && (
+      {(error || successMessage) && (
         <Toast
           show={showToast}
-          onClose={() => setShowToast(false)}
+          onClose={() => {
+            setShowToast(false);
+            setError("");
+            setSuccessMessage("");
+          }}
           delay={5000}
           autohide
-          bg={error.toLowerCase().includes("success") || error.toLowerCase().includes("created") || error.toLowerCase().includes("deleted") || error.toLowerCase().includes("removed") || error.toLowerCase().includes("posted") || error.toLowerCase().includes("assigned") || error.toLowerCase().includes("sent") ? "success" : "danger"}
+          bg={successMessage ? "success" : "danger"}
           style={{ position: "fixed", top: "20px", right: "20px", zIndex: 10000 }}
         >
-          <Toast.Body className="text-white">{error}</Toast.Body>
+          <Toast.Body className="text-white">{successMessage || error}</Toast.Body>
         </Toast>
       )}
       <Row className="mb-4">
@@ -536,7 +540,8 @@ function TeacherClassStream() {
           students: prevClassInfo.students.filter(username => username !== studentUsername)
         }));
 
-        setError(`Successfully removed ${studentUsername} from the class`);
+        setSuccessMessage(`Successfully removed ${studentUsername} from the class`);
+        setError("");
         setShowToast(true);
         setShowRemoveModal(false);
         setStudentToRemove(null);
