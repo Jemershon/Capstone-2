@@ -3093,10 +3093,12 @@ function Profile() {
       });
       setProfile(response.data);
       setShowEditModal(false);
+      setError("Profile updated successfully!");
       setShowToast(true);
     } catch (err) {
       console.error("Error updating profile:", err);
       setError(err.response?.data?.error || "Failed to update profile");
+      setShowToast(true);
     }
   };
 

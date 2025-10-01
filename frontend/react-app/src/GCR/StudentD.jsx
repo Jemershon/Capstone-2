@@ -218,7 +218,7 @@ function StudentDashboard() {
         </div>
         
         {/* Main Content */}
-        <Col md={10} className="main-content-responsive">
+        <Col md={10} className="main-content-responsive" style={{paddingTop: "20px"}}>
           <Routes>
             <Route path="/" element={<StudentMainDashboard />} />
             <Route path="/dashboard" element={<StudentMainDashboard />} />
@@ -1881,6 +1881,11 @@ function StudentProfile() {
   const [successMessage, setSuccessMessage] = useState("");
   const [showToast, setShowToast] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editForm, setEditForm] = useState({
+    name: '',
+    email: ''
+  });
   const [stats, setStats] = useState({
     totalClasses: 0,
     totalAssignments: 0,
@@ -1940,6 +1945,31 @@ function StudentProfile() {
   const handleLogout = () => {
     localStorage.removeItem('authToken');
     navigate('/login');
+  };
+
+  const handleEditProfile = () => {
+    setEditForm({
+      name: profile.name || '',
+      email: profile.email || ''
+    });
+    setShowEditModal(true);
+  };
+
+  const handleSaveProfile = async () => {
+    try {
+      const token = getAuthToken();
+      const response = await axios.put(`${API_BASE_URL}/api/profile`, editForm, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setProfile(response.data);
+      setShowEditModal(false);
+      setSuccessMessage("Profile updated successfully!");
+      setShowToast(true);
+    } catch (err) {
+      console.error("Error updating profile:", err);
+      setError(err.response?.data?.error || "Failed to update profile");
+      setShowToast(true);
+    }
   };
 
   if (loading) {
@@ -2128,9 +2158,9 @@ function StudentProfile() {
                   </Button>
                 </Col>
                 <Col md={4} className="mb-3">
-                  <Button variant="outline-success" className="w-100 py-3" onClick={() => navigate('/student/dashboard')}>
-                    <i className="bi bi-clipboard-check-fill d-block fs-3 mb-2"></i>
-                    Assignments
+                  <Button variant="outline-success" className="w-100 py-3" onClick={handleEditProfile}>
+                    <i className="bi bi-gear-fill d-block fs-3 mb-2"></i>
+                    Settings
                   </Button>
                 </Col>
                 <Col md={4} className="mb-3">
@@ -2144,6 +2174,44 @@ function StudentProfile() {
           </Card>
         </Col>
       </Row>
+
+      {/* Edit Profile Modal */}
+      <Modal show={showEditModal} onHide={() => setShowEditModal(false)} centered>
+        <Modal.Header closeButton className="border-0">
+          <Modal.Title>⚙️ Edit Profile</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Form>
+            <Form.Group className="mb-3">
+              <Form.Label>Name</Form.Label>
+              <Form.Control
+                type="text"
+                value={editForm.name}
+                onChange={(e) => setEditForm({...editForm, name: e.target.value})}
+                placeholder="Enter your name"
+              />
+            </Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Label>Email</Form.Label>
+              <Form.Control
+                type="email"
+                value={editForm.email}
+                onChange={(e) => setEditForm({...editForm, email: e.target.value})}
+                placeholder="Enter your email"
+              />
+            </Form.Group>
+          </Form>
+        </Modal.Body>
+        <Modal.Footer className="border-0">
+          <Button variant="outline-secondary" onClick={() => setShowEditModal(false)}>
+            Cancel
+          </Button>
+          <Button variant="primary" onClick={handleSaveProfile}>
+            <i className="bi bi-check-circle me-2"></i>
+            Save Changes
+          </Button>
+        </Modal.Footer>
+      </Modal>
 
       {/* Logout Confirmation Modal */}
       <Modal show={showLogoutModal} onHide={() => setShowLogoutModal(false)} centered>
