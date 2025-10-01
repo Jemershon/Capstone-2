@@ -132,7 +132,7 @@ function DashboardAndClasses() {
           onClose={() => setShowToast(false)}
           delay={5000}
           autohide
-          bg={error.includes("successfully") ? "success" : "danger"}
+          bg={error.toLowerCase().includes("success") || error.toLowerCase().includes("created") || error.toLowerCase().includes("deleted") || error.toLowerCase().includes("removed") || error.toLowerCase().includes("posted") || error.toLowerCase().includes("assigned") || error.toLowerCase().includes("sent") ? "success" : "danger"}
           style={{ position: "fixed", top: "20px", right: "20px", zIndex: 10000 }}
         >
           <Toast.Body className="text-white">{error}</Toast.Body>
@@ -2130,7 +2130,7 @@ function Assignments() {
           onClose={() => setShowToast(false)}
           delay={5000}
           autohide
-          bg={error.includes("successfully") ? "success" : "danger"}
+          bg={error.toLowerCase().includes("success") || error.toLowerCase().includes("created") || error.toLowerCase().includes("deleted") || error.toLowerCase().includes("removed") || error.toLowerCase().includes("posted") || error.toLowerCase().includes("assigned") || error.toLowerCase().includes("sent") ? "success" : "danger"}
           style={{ position: "fixed", top: "20px", right: "20px", zIndex: 10000 }}
         >
           <Toast.Body className="text-white">{error}</Toast.Body>
@@ -2345,7 +2345,7 @@ function Announcements() {
           onClose={() => setShowToast(false)}
           delay={5000}
           autohide
-          bg={error.includes("successfully") ? "success" : "danger"}
+          bg={error.toLowerCase().includes("success") || error.toLowerCase().includes("created") || error.toLowerCase().includes("deleted") || error.toLowerCase().includes("removed") || error.toLowerCase().includes("posted") || error.toLowerCase().includes("assigned") || error.toLowerCase().includes("sent") ? "success" : "danger"}
           style={{ position: "fixed", top: "20px", right: "20px", zIndex: 10000 }}
         >
           <Toast.Body className="text-white">{error}</Toast.Body>
@@ -2554,7 +2554,7 @@ function Exams() {
           onClose={() => setShowToast(false)}
           delay={5000}
           autohide
-          bg={error.includes("successfully") ? "success" : "danger"}
+          bg={error.toLowerCase().includes("success") || error.toLowerCase().includes("created") || error.toLowerCase().includes("deleted") || error.toLowerCase().includes("removed") || error.toLowerCase().includes("posted") || error.toLowerCase().includes("assigned") || error.toLowerCase().includes("sent") ? "success" : "danger"}
           style={{ position: "fixed", top: "20px", right: "20px", zIndex: 10000 }}
         >
           <Toast.Body className="text-white">{error}</Toast.Body>
@@ -2833,7 +2833,7 @@ function Grades() {
           onClose={() => setShowToast(false)}
           delay={5000}
           autohide
-          bg={error.includes("successfully") ? "success" : "danger"}
+          bg={error.toLowerCase().includes("success") || error.toLowerCase().includes("created") || error.toLowerCase().includes("deleted") || error.toLowerCase().includes("removed") || error.toLowerCase().includes("posted") || error.toLowerCase().includes("assigned") || error.toLowerCase().includes("sent") ? "success" : "danger"}
           style={{ position: "fixed", top: "20px", right: "20px", zIndex: 10000 }}
         >
           <Toast.Body className="text-white">{error}</Toast.Body>

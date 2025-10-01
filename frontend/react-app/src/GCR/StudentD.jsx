@@ -430,7 +430,7 @@ function StudentMainDashboard() {
           onClose={() => setShowToast(false)}
           delay={5000}
           autohide
-          bg={error.includes("successfully") ? "success" : "danger"}
+          bg={error.toLowerCase().includes("success") || error.toLowerCase().includes("joined") || error.toLowerCase().includes("left") ? "success" : "danger"}
           style={{ position: "fixed", top: "20px", right: "20px", zIndex: 10000 }}
         >
           <Toast.Body className="text-white">{error}</Toast.Body>

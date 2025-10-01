@@ -83,7 +83,7 @@ function AdminLogin({ onLogin }) {
             onClose={() => setShowToast(false)}
             delay={5000}
             autohide
-            bg={error.includes("successful") ? "success" : "danger"}
+            bg={error.toLowerCase().includes("success") ? "success" : "danger"}
             style={{ position: "absolute", top: "10px", right: "10px", zIndex: 10000 }}
           >
             <Toast.Body className="text-white">{error}</Toast.Body>
@@ -277,7 +277,7 @@ function DashboardHome() {
           onClose={() => setShowToast(false)}
           delay={5000}
           autohide
-          bg={error.includes("successfully") ? "success" : "danger"}
+          bg={error.toLowerCase().includes("success") || error.toLowerCase().includes("created") || error.toLowerCase().includes("deleted") ? "success" : "danger"}
           style={{ position: "fixed", top: "20px", right: "20px", zIndex: 10000 }}
         >
           <Toast.Body className="text-white">{error}</Toast.Body>
