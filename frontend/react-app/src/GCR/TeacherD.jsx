@@ -3020,31 +3020,42 @@ function Profile() {
   const fetchProfile = useCallback(async () => {
     setLoading(true);
     try {
-      const [profileRes, classesRes] = await Promise.all([
-        retry(() =>
-          axios.get(`${API_BASE_URL}/api/profile`, {
-            headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-          })
-        ),
-        retry(() =>
+      // First, always fetch the profile - this is the critical part
+      const profileRes = await retry(() =>
+        axios.get(`${API_BASE_URL}/api/profile`, {
+          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+        })
+      );
+      
+      setProfile(profileRes.data);
+      
+      // Then try to fetch classes for stats - don't fail the whole operation if this fails
+      try {
+        const classesRes = await retry(() =>
           axios.get(`${API_BASE_URL}/api/classes?page=1&limit=100`, {
             headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
           })
-        )
-      ]);
-      
-      setProfile(profileRes.data);
-      setEditData({ name: profileRes.data.name || "", email: profileRes.data.email || "" });
-      
-      // Calculate statistics
-      const classes = classesRes.data || [];
-      const totalStudents = classes.reduce((sum, cls) => sum + (cls.students?.length || 0), 0);
-      setStats({
-        totalClasses: classes.length,
-        totalStudents: totalStudents,
-        totalExams: 0, // You can add exam counting logic here
-        totalAssignments: 0 // You can add assignment counting logic here
-      });
+        );
+        
+        // Calculate statistics
+        const classes = classesRes.data || [];
+        const totalStudents = classes.reduce((sum, cls) => sum + (cls.students?.length || 0), 0);
+        setStats({
+          totalClasses: classes.length,
+          totalStudents: totalStudents,
+          totalExams: 0, // You can add exam counting logic here
+          totalAssignments: 0 // You can add assignment counting logic here
+        });
+      } catch (statsErr) {
+        console.warn("Failed to load teacher stats, but profile loaded successfully:", statsErr);
+        // Set default stats if classes fetch fails
+        setStats({
+          totalClasses: 0,
+          totalStudents: 0,
+          totalExams: 0,
+          totalAssignments: 0
+        });
+      }
       
     } catch (err) {
       console.error("Fetch profile error:", err.response?.data || err.message);

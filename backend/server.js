@@ -554,6 +554,13 @@ app.get("/api/profile", authenticateToken, async (req, res) => {
     if (!user) {
       return res.status(404).json({ error: "User not found" });
     }
+    
+    // If user doesn't have createdAt (legacy user), add it
+    if (!user.createdAt) {
+      user.createdAt = user._id.getTimestamp(); // Use ObjectId timestamp as fallback
+      await user.save();
+    }
+    
     res.json(user);
   } catch (err) {
     console.error("Profile error:", err);

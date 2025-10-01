@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Button, Modal, Form, Toast, Spinner, Navbar, Nav, Container } from "react-bootstrap";
+import { Button, Modal, Form, Toast, Spinner, Navbar, Nav, Container, InputGroup } from "react-bootstrap";
 import axios from "axios";
 import { API_BASE_URL } from "../api";
 
@@ -30,12 +30,14 @@ export default function LandingPage() {
   const [error, setError] = useState("");
   const [showToast, setShowToast] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleShowModal = () => {
     setShowModal(true);
     setError("");
     setFormData({ name: "", username: "", email: "", password: "", role: "Student" });
     setIsLogin(true);
+    setShowPassword(false);
   };
 
   const handleCloseModal = () => {
@@ -43,6 +45,7 @@ export default function LandingPage() {
     setError("");
     setFormData({ name: "", username: "", email: "", password: "", role: "Student" });
     setIsLogin(true);
+    setShowPassword(false);
   };
 
   const handleChange = (e) => {
@@ -130,6 +133,7 @@ export default function LandingPage() {
     setIsLogin(false);
     setShowModal(true);
     setError("");
+    setShowPassword(false);
   };
 
   return (
@@ -314,17 +318,37 @@ export default function LandingPage() {
               </Form.Floating>
             )}
             <Form.Floating className="mb-3">
-              <Form.Control
-                id="floatingPassword"
-                name="password"
-                type="password"
-                placeholder="Password"
-                value={formData.password}
-                onChange={handleChange}
-                required
-                aria-required="true"
-              />
-              <label htmlFor="floatingPassword">Password</label>
+              <InputGroup>
+                <Form.Control
+                  id="floatingPassword"
+                  name="password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Password"
+                  value={formData.password}
+                  onChange={handleChange}
+                  required
+                  aria-required="true"
+                  style={{ paddingRight: '50px' }}
+                />
+                <Button
+                  variant="outline-secondary"
+                  onClick={() => setShowPassword(!showPassword)}
+                  style={{
+                    position: 'absolute',
+                    right: '10px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    zIndex: 3,
+                    background: 'transparent',
+                    border: 'none',
+                    color: '#6c757d'
+                  }}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                >
+                  <i className={`bi ${showPassword ? 'bi-eye-slash' : 'bi-eye'}`}></i>
+                </Button>
+                <label htmlFor="floatingPassword" style={{ paddingRight: '50px' }}>Password</label>
+              </InputGroup>
             </Form.Floating>
             {!isLogin && (
               <Form.Select
@@ -360,7 +384,10 @@ export default function LandingPage() {
                   <span
                     className="text-primary"
                     style={{ cursor: "pointer" }}
-                    onClick={() => setIsLogin(false)}
+                    onClick={() => {
+                      setIsLogin(false);
+                      setShowPassword(false);
+                    }}
                     role="button"
                     aria-label="Switch to create account"
                   >
@@ -373,7 +400,10 @@ export default function LandingPage() {
                   <span
                     className="text-primary"
                     style={{ cursor: "pointer" }}
-                    onClick={() => setIsLogin(true)}
+                    onClick={() => {
+                      setIsLogin(true);
+                      setShowPassword(false);
+                    }}
                     role="button"
                     aria-label="Switch to login"
                   >

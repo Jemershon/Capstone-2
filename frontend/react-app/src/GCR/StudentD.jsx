@@ -1915,12 +1915,25 @@ function StudentProfile() {
   const fetchStats = async () => {
     try {
       const token = getAuthToken();
-      const response = await axios.get(`${API_BASE_URL}/api/student/stats`, {
-        headers: { Authorization: `Bearer ${token}` }
+      // For now, set default stats since the endpoint doesn't exist yet
+      // TODO: Implement /api/student/stats endpoint in backend
+      setStats({
+        totalClasses: 0,
+        totalAssignments: 0,
+        averageGrade: 0,
+        totalExams: 0
       });
-      setStats(response.data);
+      
+      console.warn("Student stats endpoint not implemented yet - using default values");
     } catch (err) {
       console.error("Error fetching stats:", err);
+      // Set default stats on error
+      setStats({
+        totalClasses: 0,
+        totalAssignments: 0,
+        averageGrade: 0,
+        totalExams: 0
+      });
     }
   };
 
