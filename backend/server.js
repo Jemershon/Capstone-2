@@ -743,6 +743,40 @@ app.delete("/api/classes/:id", authenticateToken, requireTeacherOrAdmin, async (
   }
 });
 
+// Teacher: Get student details for a specific class
+app.get("/api/classes/:className/students", authenticateToken, requireTeacherOrAdmin, async (req, res) => {
+  try {
+    const className = req.params.className;
+    console.log(`Getting students for class: ${className}`);
+    
+    // First get the class to verify teacher access and get student usernames
+    const classData = await Class.findOne({ 
+      name: className,
+      teacher: req.user.username  // Ensure teacher can only access their own classes
+    });
+    
+    if (!classData) {
+      return res.status(404).json({ error: "Class not found or you don't have access" });
+    }
+    
+    if (!classData.students || classData.students.length === 0) {
+      return res.json([]);
+    }
+    
+    // Get full user details for all students in the class
+    const students = await User.find({
+      username: { $in: classData.students },
+      role: "Student"
+    }).select("name username email role createdAt");
+    
+    console.log(`Found ${students.length} students for class ${className}`);
+    res.json(students);
+  } catch (err) {
+    console.error("Get class students error:", err);
+    res.status(500).json({ error: "Failed to get class students" });
+  }
+});
+
 // Student: Get classes for a specific student
 app.get("/api/student-classes/:username", authenticateToken, requireStudent, async (req, res) => {
   try {

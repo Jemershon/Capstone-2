@@ -485,20 +485,19 @@ function TeacherClassStream() {
         if (classData.students && classData.students.length > 0) {
           try {
             const studentsRes = await retry(() =>
-              axios.get(`${API_BASE_URL}/api/admin/users`, {
+              axios.get(`${API_BASE_URL}/api/classes/${encodeURIComponent(className)}/students`, {
                 headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
               })
             );
             
-            // Filter users to only get the students enrolled in this class
-            const enrolledStudents = studentsRes.data.filter(user => 
-              user.role === "Student" && classData.students.includes(user.username)
-            );
-            
-            setStudents(enrolledStudents);
+            console.log("Fetched students:", studentsRes.data);
+            setStudents(studentsRes.data);
           } catch (err) {
             console.error("Fetch students error:", err.response?.data || err.message);
           }
+        } else {
+          // No students enrolled yet
+          setStudents([]);
         }
       }
     } catch (err) {
