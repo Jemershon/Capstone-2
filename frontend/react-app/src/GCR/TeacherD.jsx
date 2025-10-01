@@ -3020,8 +3020,17 @@ export default function TeacherDashboard() {
   const [isAuthenticated, setIsAuthenticated] = useState(checkAuth());
   const [authLoading, setAuthLoading] = useState(true);
   const [authError, setAuthError] = useState("");
+  const [lastAuthCheck, setLastAuthCheck] = useState(0); // Add timestamp for auth caching
 
   const verifyToken = useCallback(async () => {
+    // Skip if we've verified recently (within last 5 minutes)
+    const now = Date.now();
+    if (now - lastAuthCheck < 5 * 60 * 1000) {
+      console.log("⚡ Skipping auth check - recently verified");
+      setAuthLoading(false);
+      return;
+    }
+
     setAuthLoading(true);
     try {
       // Get the token using our helper function
@@ -3043,6 +3052,7 @@ export default function TeacherDashboard() {
       
       // Update auth data with the fresh information
       setAuthData(token, res.data.username, res.data.role);
+      setLastAuthCheck(now); // Update last check timestamp
       console.log("✅ Authentication verified successfully");
     } catch (err) {
       console.error("Auth error:", err.response?.data || err.message);
@@ -3060,19 +3070,17 @@ export default function TeacherDashboard() {
     } finally {
       setAuthLoading(false);
     }
-  }, [navigate]);
+  }, [navigate, lastAuthCheck]);
 
   useEffect(() => {
-    let cancelled = false;
-    if (isAuthenticated && !cancelled) {
+    // Only verify token once on component mount, not on every render
+    if (isAuthenticated) {
       verifyToken();
     } else {
       setAuthLoading(false);
     }
-    return () => {
-      cancelled = true;
-    };
-  }, [isAuthenticated, verifyToken]);
+    // Remove isAuthenticated from dependencies to prevent re-verification on state changes
+  }, []); // Empty dependency array - only run once on mount
 
   if (authLoading) {
     console.log("⏳ Auth loading state active");

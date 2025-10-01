@@ -47,10 +47,19 @@ function StudentDashboard() {
   const [isAuthenticated, setIsAuthenticated] = useState(checkAuth());
   const [loading, setLoading] = useState(true);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [lastAuthCheck, setLastAuthCheck] = useState(0); // Add auth caching
   const navigate = useNavigate();
 
   useEffect(() => {
     const verifyToken = async () => {
+      // Skip if we've verified recently (within last 5 minutes)
+      const now = Date.now();
+      if (now - lastAuthCheck < 5 * 60 * 1000) {
+        console.log("⚡ Skipping auth check - recently verified");
+        setLoading(false);
+        return;
+      }
+
       try {
         const token = getAuthToken();
         const username = getUsername();
@@ -71,6 +80,7 @@ function StudentDashboard() {
             role: "Student"
           });
           setIsAuthenticated(true);
+          setLastAuthCheck(now); // Update last check timestamp
         } else {
           throw new Error("Invalid token or role");
         }
@@ -84,12 +94,13 @@ function StudentDashboard() {
       }
     };
 
+    // Only verify once on mount, not on every render
     if (isAuthenticated) {
       verifyToken();
     } else {
       setLoading(false);
     }
-  }, [navigate, isAuthenticated]);
+  }, []); // Empty dependency array - only run once on mount
 
   const handleLogout = () => {
     clearAuthData();
