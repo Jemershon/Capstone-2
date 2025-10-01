@@ -2032,77 +2032,62 @@ function StudentProfile() {
       {/* Main Profile Content */}
       <Row>
         <Col md={8}>
-          <Card className="border-0 shadow-sm mb-4">
-            <Card.Header className="bg-white border-0 py-3">
-              <h5 className="mb-0 fw-bold">📋 Personal Information</h5>
+          <Card className="h-100 shadow-sm">
+            <Card.Header className="bg-primary text-white">
+              <h5 className="mb-0">
+                <i className="bi bi-person-circle me-2"></i>Personal Information
+              </h5>
             </Card.Header>
-            <Card.Body className="p-4">
+            <Card.Body>
               <Row>
-                <Col md={4} className="text-center">
-                  <div className="position-relative d-inline-block">
-                    <div 
-                      className="bg-gradient rounded-circle d-flex align-items-center justify-content-center mx-auto mb-3 shadow-sm"
-                      style={{ 
-                        width: 120, 
-                        height: 120, 
-                        fontSize: 48,
-                        background: 'linear-gradient(45deg, #0d6efd, #6f42c1)'
-                      }}
-                    >
-                      <span className="text-white fw-bold">
-                        {profile.name ? profile.name[0].toUpperCase() : profile.username ? profile.username[0].toUpperCase() : 'S'}
-                      </span>
+                <Col md={6} className="mb-3">
+                  <div className="p-3 bg-light rounded">
+                    <div className="d-flex align-items-center mb-2">
+                      <i className="bi bi-person-badge text-primary me-2"></i>
+                      <strong className="text-muted">Full Name</strong>
                     </div>
-                    <Badge bg="success" className="position-absolute bottom-0 end-0" style={{ transform: 'translate(-20%, -20%)' }}>
-                      Online
-                    </Badge>
+                    <h6 className="mb-0">{profile.name || "Not provided"}</h6>
                   </div>
-                  <h6 className="text-muted">Student ID: {profile.username}</h6>
                 </Col>
-                <Col md={8}>
-                  <h3 className="fw-bold mb-4 text-primary">{profile.name || profile.username}</h3>
-                  <Row className="g-3">
-                    <Col md={6}>
-                      <div className="d-flex align-items-center p-3 bg-light rounded">
-                        <i className="bi bi-person text-primary me-3" style={{ fontSize: '1.2rem' }}></i>
-                        <div>
-                          <small className="text-muted d-block">Username</small>
-                          <strong>{profile.username || "N/A"}</strong>
-                        </div>
-                      </div>
-                    </Col>
-                    <Col md={6}>
-                      <div className="d-flex align-items-center p-3 bg-light rounded">
-                        <i className="bi bi-envelope text-success me-3" style={{ fontSize: '1.2rem' }}></i>
-                        <div>
-                          <small className="text-muted d-block">Email</small>
-                          <strong>{profile.email || "N/A"}</strong>
-                        </div>
-                      </div>
-                    </Col>
-                    <Col md={6}>
-                      <div className="d-flex align-items-center p-3 bg-light rounded">
-                        <i className="bi bi-shield-check text-warning me-3" style={{ fontSize: '1.2rem' }}></i>
-                        <div>
-                          <small className="text-muted d-block">Role</small>
-                          <Badge bg="success" className="px-3 py-2">
-                            {profile.role || "Student"}
-                          </Badge>
-                        </div>
-                      </div>
-                    </Col>
-                    <Col md={6}>
-                      <div className="d-flex align-items-center p-3 bg-light rounded">
-                        <i className="bi bi-coin text-info me-3" style={{ fontSize: '1.2rem' }}></i>
-                        <div>
-                          <small className="text-muted d-block">Credit Points</small>
-                          <Badge bg="info" className="px-3 py-2">
-                            {profile.creditPoints || 0} points
-                          </Badge>
-                        </div>
-                      </div>
-                    </Col>
-                  </Row>
+                <Col md={6} className="mb-3">
+                  <div className="p-3 bg-light rounded">
+                    <div className="d-flex align-items-center mb-2">
+                      <i className="bi bi-at text-primary me-2"></i>
+                      <strong className="text-muted">Username</strong>
+                    </div>
+                    <h6 className="mb-0">{profile.username || "N/A"}</h6>
+                  </div>
+                </Col>
+                <Col md={6} className="mb-3">
+                  <div className="p-3 bg-light rounded">
+                    <div className="d-flex align-items-center mb-2">
+                      <i className="bi bi-envelope text-primary me-2"></i>
+                      <strong className="text-muted">Email</strong>
+                    </div>
+                    <h6 className="mb-0">{profile.email || "Not provided"}</h6>
+                  </div>
+                </Col>
+                <Col md={6} className="mb-3">
+                  <div className="p-3 bg-light rounded">
+                    <div className="d-flex align-items-center mb-2">
+                      <i className="bi bi-shield-check text-primary me-2"></i>
+                      <strong className="text-muted">Role</strong>
+                    </div>
+                    <h6 className="mb-0">
+                      <Badge bg="success">{profile.role || "Student"}</Badge>
+                    </h6>
+                  </div>
+                </Col>
+                <Col md={6} className="mb-3">
+                  <div className="p-3 bg-light rounded">
+                    <div className="d-flex align-items-center mb-2">
+                      <i className="bi bi-coin text-primary me-2"></i>
+                      <strong className="text-muted">Credit Points</strong>
+                    </div>
+                    <h6 className="mb-0">
+                      <Badge bg="info">{profile.creditPoints || 0} points</Badge>
+                    </h6>
+                  </div>
                 </Col>
               </Row>
             </Card.Body>
@@ -2128,33 +2113,39 @@ function StudentProfile() {
           </Card>
 
           {/* Quick Actions */}
-          <Card className="border-0 shadow-sm">
-            <Card.Header className="bg-white border-0 py-3">
-              <h6 className="mb-0 fw-bold">⚡ Quick Actions</h6>
+          <Card className="shadow-sm">
+            <Card.Header className="bg-secondary text-white">
+              <h5 className="mb-0">
+                <i className="bi bi-lightning-charge me-2"></i>Quick Actions
+              </h5>
             </Card.Header>
             <Card.Body>
-              <div className="d-grid gap-2">
-                <Button variant="outline-primary" className="text-start" onClick={() => setCurrentView('dashboard')}>
-                  <i className="bi bi-book me-2"></i>
-                  View My Classes
-                </Button>
-                <Button variant="outline-success" className="text-start" onClick={() => setCurrentView('assignments')}>
-                  <i className="bi bi-clipboard-check me-2"></i>
-                  Check Assignments
-                </Button>
-                <Button variant="outline-info" className="text-start" onClick={() => setCurrentView('grades')}>
-                  <i className="bi bi-graph-up me-2"></i>
-                  View Grades
-                </Button>
-                <Button variant="outline-warning" className="text-start" onClick={() => setCurrentView('exams')}>
-                  <i className="bi bi-calendar-event me-2"></i>
-                  Upcoming Exams
-                </Button>
-                <Button variant="outline-danger" className="text-start" onClick={() => setShowLogoutModal(true)}>
-                  <i className="bi bi-box-arrow-right me-2"></i>
-                  Logout
-                </Button>
-              </div>
+              <Row>
+                <Col md={6} className="mb-3">
+                  <Button variant="outline-primary" className="w-100 py-3" onClick={() => setCurrentView('dashboard')}>
+                    <i className="bi bi-house-fill d-block fs-3 mb-2"></i>
+                    Dashboard
+                  </Button>
+                </Col>
+                <Col md={6} className="mb-3">
+                  <Button variant="outline-success" className="w-100 py-3" onClick={() => setCurrentView('assignments')}>
+                    <i className="bi bi-clipboard-check-fill d-block fs-3 mb-2"></i>
+                    Assignments
+                  </Button>
+                </Col>
+                <Col md={6} className="mb-3">
+                  <Button variant="outline-info" className="w-100 py-3" onClick={() => setCurrentView('grades')}>
+                    <i className="bi bi-graph-up d-block fs-3 mb-2"></i>
+                    Grades
+                  </Button>
+                </Col>
+                <Col md={6} className="mb-3">
+                  <Button variant="outline-danger" className="w-100 py-3" onClick={() => setShowLogoutModal(true)}>
+                    <i className="bi bi-box-arrow-right d-block fs-3 mb-2"></i>
+                    Logout
+                  </Button>
+                </Col>
+              </Row>
             </Card.Body>
           </Card>
         </Col>
