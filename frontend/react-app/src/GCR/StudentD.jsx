@@ -2117,10 +2117,6 @@ function StudentProfile() {
             </Card.Header>
             <Card.Body>
               <div className="d-flex justify-content-between align-items-center mb-3">
-                <span className="text-muted">Member since</span>
-                <strong>{profile.createdAt ? new Date(profile.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : 'Unknown'}</strong>
-              </div>
-              <div className="d-flex justify-content-between align-items-center mb-3">
                 <span className="text-muted">Last login</span>
                 <strong>Today</strong>
               </div>
@@ -2138,19 +2134,19 @@ function StudentProfile() {
             </Card.Header>
             <Card.Body>
               <div className="d-grid gap-2">
-                <Button variant="outline-primary" className="text-start">
+                <Button variant="outline-primary" className="text-start" onClick={() => setCurrentView('dashboard')}>
                   <i className="bi bi-book me-2"></i>
                   View My Classes
                 </Button>
-                <Button variant="outline-success" className="text-start">
+                <Button variant="outline-success" className="text-start" onClick={() => setCurrentView('assignments')}>
                   <i className="bi bi-clipboard-check me-2"></i>
                   Check Assignments
                 </Button>
-                <Button variant="outline-info" className="text-start">
+                <Button variant="outline-info" className="text-start" onClick={() => setCurrentView('grades')}>
                   <i className="bi bi-graph-up me-2"></i>
                   View Grades
                 </Button>
-                <Button variant="outline-warning" className="text-start">
+                <Button variant="outline-warning" className="text-start" onClick={() => setCurrentView('exams')}>
                   <i className="bi bi-calendar-event me-2"></i>
                   Upcoming Exams
                 </Button>

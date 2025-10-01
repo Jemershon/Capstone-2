@@ -3159,17 +3159,6 @@ function Profile() {
                 <Col md={6} className="mb-3">
                   <div className="p-3 bg-light rounded">
                     <div className="d-flex align-items-center mb-2">
-                      <i className="bi bi-calendar-plus text-primary me-2"></i>
-                      <strong className="text-muted">Member Since</strong>
-                    </div>
-                    <h6 className="mb-0">
-                      {profile.createdAt ? new Date(profile.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : "N/A"}
-                    </h6>
-                  </div>
-                </Col>
-                <Col md={6} className="mb-3">
-                  <div className="p-3 bg-light rounded">
-                    <div className="d-flex align-items-center mb-2">
                       <i className="bi bi-clock text-primary me-2"></i>
                       <strong className="text-muted">Last Login</strong>
                     </div>
