@@ -3007,14 +3007,15 @@ function Profile() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showToast, setShowToast] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [editData, setEditData] = useState({ name: "", email: "" });
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [stats, setStats] = useState({
     totalClasses: 0,
     totalStudents: 0,
     totalExams: 0,
     totalAssignments: 0
   });
+
+  const navigate = useNavigate();
 
   const fetchProfile = useCallback(async () => {
     setLoading(true);
@@ -3054,20 +3055,10 @@ function Profile() {
     }
   }, []);
 
-  const handleEditProfile = async () => {
-    try {
-      const res = await axios.put(`${API_BASE_URL}/api/profile`, editData, {
-        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-      });
-      
-      setProfile(res.data);
-      setShowEditModal(false);
-      setError("Profile updated successfully!");
-      setShowToast(true);
-    } catch (err) {
-      setError(err.response?.data?.error || "Failed to update profile");
-      setShowToast(true);
-    }
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('authToken');
+    navigate('/login');
   };
 
   useEffect(() => {
@@ -3105,9 +3096,11 @@ function Profile() {
       {/* Header Section */}
       <div className="d-flex justify-content-between align-items-center mb-4">
         <h2 className="fw-bold mb-0">👨‍🏫 Teacher Profile</h2>
-        <Button variant="outline-primary" onClick={() => setShowEditModal(true)}>
-          <i className="bi bi-pencil-square me-2"></i>Edit Profile
-        </Button>
+        <div>
+          <Button variant="outline-danger" onClick={() => setShowLogoutModal(true)}>
+            <i className="bi bi-box-arrow-right me-2"></i>Logout
+          </Button>
+        </div>
       </div>
 
       <Row>
@@ -3164,7 +3157,7 @@ function Profile() {
                       <strong className="text-muted">Member Since</strong>
                     </div>
                     <h6 className="mb-0">
-                      {profile.createdAt ? new Date(profile.createdAt).toLocaleDateString() : "N/A"}
+                      {profile.createdAt ? new Date(profile.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : "N/A"}
                     </h6>
                   </div>
                 </Col>
@@ -3270,45 +3263,25 @@ function Profile() {
         </Card.Body>
       </Card>
 
-      {/* Edit Profile Modal */}
-      <Modal show={showEditModal} onHide={() => setShowEditModal(false)} centered>
-        <Modal.Header closeButton>
-          <Modal.Title>
-            <i className="bi bi-pencil-square me-2"></i>Edit Profile
-          </Modal.Title>
+      {/* Logout Confirmation Modal */}
+      <Modal show={showLogoutModal} onHide={() => setShowLogoutModal(false)} centered>
+        <Modal.Header closeButton className="border-0">
+          <Modal.Title>🚪 Confirm Logout</Modal.Title>
         </Modal.Header>
         <Modal.Body>
-          <Form>
-            <Form.Group className="mb-3">
-              <Form.Label>
-                <i className="bi bi-person me-2"></i>Full Name
-              </Form.Label>
-              <Form.Control
-                type="text"
-                placeholder="Enter your full name"
-                value={editData.name}
-                onChange={(e) => setEditData({...editData, name: e.target.value})}
-              />
-            </Form.Group>
-            <Form.Group className="mb-3">
-              <Form.Label>
-                <i className="bi bi-envelope me-2"></i>Email Address
-              </Form.Label>
-              <Form.Control
-                type="email"
-                placeholder="Enter your email"
-                value={editData.email}
-                onChange={(e) => setEditData({...editData, email: e.target.value})}
-              />
-            </Form.Group>
-          </Form>
+          <div className="text-center py-3">
+            <i className="bi bi-question-circle text-warning" style={{ fontSize: '3rem' }}></i>
+            <h5 className="mt-3 mb-2">Are you sure you want to logout?</h5>
+            <p className="text-muted">You will need to login again to access your account.</p>
+          </div>
         </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowEditModal(false)}>
+        <Modal.Footer className="border-0">
+          <Button variant="outline-secondary" onClick={() => setShowLogoutModal(false)}>
             Cancel
           </Button>
-          <Button variant="primary" onClick={handleEditProfile}>
-            <i className="bi bi-check-lg me-2"></i>Save Changes
+          <Button variant="danger" onClick={handleLogout}>
+            <i className="bi bi-box-arrow-right me-2"></i>
+            Logout
           </Button>
         </Modal.Footer>
       </Modal>

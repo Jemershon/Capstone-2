@@ -1878,11 +1878,21 @@ function StudentProfile() {
   const [profile, setProfile] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
   const [showToast, setShowToast] = useState(false);
-  
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [stats, setStats] = useState({
+    totalClasses: 0,
+    totalAssignments: 0,
+    averageGrade: 0,
+    totalExams: 0
+  });
+
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetchProfile();
+    fetchStats();
   }, []);
 
   const fetchProfile = async () => {
@@ -1893,7 +1903,6 @@ function StudentProfile() {
         headers: { Authorization: `Bearer ${token}` }
       });
       setProfile(response.data);
-      
     } catch (err) {
       console.error("Error fetching profile:", err);
       setError(err.response?.data?.error || "Failed to load profile");
@@ -1903,93 +1912,268 @@ function StudentProfile() {
     }
   };
 
+  const fetchStats = async () => {
+    try {
+      const token = getAuthToken();
+      const response = await axios.get(`${API_BASE_URL}/api/student/stats`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setStats(response.data);
+    } catch (err) {
+      console.error("Error fetching stats:", err);
+    }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('authToken');
+    navigate('/login');
+  };
+
   if (loading) {
     return (
-      <div className="text-center py-4">
-        <Spinner animation="border" role="status" aria-label="Loading profile" />
-        <p>Loading your profile...</p>
+      <div className="text-center py-5">
+        <Spinner animation="border" role="status" aria-label="Loading profile" className="mb-3" />
+        <h5>Loading your profile...</h5>
       </div>
     );
   }
 
   return (
     <div style={{ marginTop: '60px', padding: '20px' }}>
-      <h2 className="fw-bold mb-4">Profile</h2>
-      
-      {error && (
+      {/* Header Section */}
+      <div className="d-flex justify-content-between align-items-center mb-4">
+        <div>
+          <h2 className="fw-bold mb-1">🎓 My Profile</h2>
+          <p className="text-muted mb-0">Manage your account and view your academic progress</p>
+        </div>
+        <div>
+          <Button variant="outline-danger" onClick={() => setShowLogoutModal(true)}>
+            <i className="bi bi-box-arrow-right"></i> Logout
+          </Button>
+        </div>
+      </div>
+
+      {/* Toast Notifications */}
+      {(error || successMessage) && (
         <Toast
           show={showToast}
-          onClose={() => setShowToast(false)}
+          onClose={() => {
+            setShowToast(false);
+            setError("");
+            setSuccessMessage("");
+          }}
           delay={5000}
           autohide
-          bg="danger"
+          bg={successMessage ? "success" : "danger"}
           style={{ position: "fixed", top: "20px", right: "20px", zIndex: 10000 }}
         >
-          <Toast.Body className="text-white">{error}</Toast.Body>
+          <Toast.Body className="text-white">
+            {successMessage || error}
+          </Toast.Body>
         </Toast>
       )}
-      
-      <Row>
-        <Col md={8}>
-          <Card className="p-4">
-            <Row>
-              <Col md={4} className="text-center">
-                <div className="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center mx-auto mb-3"
-                     style={{ width: 100, height: 100, fontSize: 36 }}>
-                  {profile.name ? profile.name[0].toUpperCase() : profile.username ? profile.username[0].toUpperCase() : 'S'}
-                </div>
-              </Col>
-              <Col md={8}>
-                <h4 className="fw-bold mb-3">{profile.name || profile.username}</h4>
-                <Table borderless>
-                  <tbody>
-                    <tr>
-                      <td><strong>Username:</strong></td>
-                      <td>{profile.username || "N/A"}</td>
-                    </tr>
-                    <tr>
-                      <td><strong>Email:</strong></td>
-                      <td>{profile.email || "N/A"}</td>
-                    </tr>
-                    <tr>
-                      <td><strong>Role:</strong></td>
-                      <td>
-                        <Badge bg="success">{profile.role || "Student"}</Badge>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td><strong>Credit Points:</strong></td>
-                      <td>
-                        <Badge bg="info">{profile.creditPoints || 0} points</Badge>
-                      </td>
-                    </tr>
-                  </tbody>
-                </Table>
-              </Col>
-            </Row>
+
+      {/* Stats Dashboard */}
+      <Row className="mb-4">
+        <Col md={3}>
+          <Card className="text-center border-0 shadow-sm h-100">
+            <Card.Body className="py-4">
+              <div className="text-primary mb-2">
+                <i className="bi bi-book" style={{ fontSize: '2rem' }}></i>
+              </div>
+              <h3 className="fw-bold text-primary mb-1">{stats.totalClasses}</h3>
+              <p className="text-muted mb-0 small">Enrolled Classes</p>
+            </Card.Body>
           </Card>
         </Col>
-        <Col md={4}>
-          <Card className="p-3 mb-3 bg-light">
-            <h6 className="fw-bold">Account Statistics</h6>
-            <div className="mt-2">
-              <small className="text-muted">Member since</small>
-              <div>{profile.createdAt ? new Date(profile.createdAt).toLocaleDateString() : 'Unknown'}</div>
-            </div>
+        <Col md={3}>
+          <Card className="text-center border-0 shadow-sm h-100">
+            <Card.Body className="py-4">
+              <div className="text-success mb-2">
+                <i className="bi bi-clipboard-check" style={{ fontSize: '2rem' }}></i>
+              </div>
+              <h3 className="fw-bold text-success mb-1">{stats.totalAssignments}</h3>
+              <p className="text-muted mb-0 small">Total Assignments</p>
+            </Card.Body>
           </Card>
-          <Card className="p-3 bg-light">
-            <h6 className="fw-bold">Quick Actions</h6>
-            <div className="d-grid gap-2 mt-2">
-              <Button variant="outline-primary" size="sm" as={Link} to="/student/dashboard">
-                📚 View Classes
-              </Button>
-              <Button variant="outline-success" size="sm" as={Link} to="/student/grades">
-                📊 Check Grades
-              </Button>
-            </div>
+        </Col>
+        <Col md={3}>
+          <Card className="text-center border-0 shadow-sm h-100">
+            <Card.Body className="py-4">
+              <div className="text-warning mb-2">
+                <i className="bi bi-star" style={{ fontSize: '2rem' }}></i>
+              </div>
+              <h3 className="fw-bold text-warning mb-1">{stats.averageGrade}%</h3>
+              <p className="text-muted mb-0 small">Average Grade</p>
+            </Card.Body>
+          </Card>
+        </Col>
+        <Col md={3}>
+          <Card className="text-center border-0 shadow-sm h-100">
+            <Card.Body className="py-4">
+              <div className="text-info mb-2">
+                <i className="bi bi-file-text" style={{ fontSize: '2rem' }}></i>
+              </div>
+              <h3 className="fw-bold text-info mb-1">{stats.totalExams}</h3>
+              <p className="text-muted mb-0 small">Exams Taken</p>
+            </Card.Body>
           </Card>
         </Col>
       </Row>
+      
+      {/* Main Profile Content */}
+      <Row>
+        <Col md={8}>
+          <Card className="border-0 shadow-sm mb-4">
+            <Card.Header className="bg-white border-0 py-3">
+              <h5 className="mb-0 fw-bold">📋 Personal Information</h5>
+            </Card.Header>
+            <Card.Body className="p-4">
+              <Row>
+                <Col md={4} className="text-center">
+                  <div className="position-relative d-inline-block">
+                    <div 
+                      className="bg-gradient rounded-circle d-flex align-items-center justify-content-center mx-auto mb-3 shadow-sm"
+                      style={{ 
+                        width: 120, 
+                        height: 120, 
+                        fontSize: 48,
+                        background: 'linear-gradient(45deg, #0d6efd, #6f42c1)'
+                      }}
+                    >
+                      <span className="text-white fw-bold">
+                        {profile.name ? profile.name[0].toUpperCase() : profile.username ? profile.username[0].toUpperCase() : 'S'}
+                      </span>
+                    </div>
+                    <Badge bg="success" className="position-absolute bottom-0 end-0" style={{ transform: 'translate(-20%, -20%)' }}>
+                      Online
+                    </Badge>
+                  </div>
+                  <h6 className="text-muted">Student ID: {profile.username}</h6>
+                </Col>
+                <Col md={8}>
+                  <h3 className="fw-bold mb-4 text-primary">{profile.name || profile.username}</h3>
+                  <Row className="g-3">
+                    <Col md={6}>
+                      <div className="d-flex align-items-center p-3 bg-light rounded">
+                        <i className="bi bi-person text-primary me-3" style={{ fontSize: '1.2rem' }}></i>
+                        <div>
+                          <small className="text-muted d-block">Username</small>
+                          <strong>{profile.username || "N/A"}</strong>
+                        </div>
+                      </div>
+                    </Col>
+                    <Col md={6}>
+                      <div className="d-flex align-items-center p-3 bg-light rounded">
+                        <i className="bi bi-envelope text-success me-3" style={{ fontSize: '1.2rem' }}></i>
+                        <div>
+                          <small className="text-muted d-block">Email</small>
+                          <strong>{profile.email || "N/A"}</strong>
+                        </div>
+                      </div>
+                    </Col>
+                    <Col md={6}>
+                      <div className="d-flex align-items-center p-3 bg-light rounded">
+                        <i className="bi bi-shield-check text-warning me-3" style={{ fontSize: '1.2rem' }}></i>
+                        <div>
+                          <small className="text-muted d-block">Role</small>
+                          <Badge bg="success" className="px-3 py-2">
+                            {profile.role || "Student"}
+                          </Badge>
+                        </div>
+                      </div>
+                    </Col>
+                    <Col md={6}>
+                      <div className="d-flex align-items-center p-3 bg-light rounded">
+                        <i className="bi bi-coin text-info me-3" style={{ fontSize: '1.2rem' }}></i>
+                        <div>
+                          <small className="text-muted d-block">Credit Points</small>
+                          <Badge bg="info" className="px-3 py-2">
+                            {profile.creditPoints || 0} points
+                          </Badge>
+                        </div>
+                      </div>
+                    </Col>
+                  </Row>
+                </Col>
+              </Row>
+            </Card.Body>
+          </Card>
+        </Col>
+        
+        <Col md={4}>
+          {/* Account Info */}
+          <Card className="border-0 shadow-sm mb-3">
+            <Card.Header className="bg-white border-0 py-3">
+              <h6 className="mb-0 fw-bold">📊 Account Statistics</h6>
+            </Card.Header>
+            <Card.Body>
+              <div className="d-flex justify-content-between align-items-center mb-3">
+                <span className="text-muted">Member since</span>
+                <strong>{profile.createdAt ? new Date(profile.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : 'Unknown'}</strong>
+              </div>
+              <div className="d-flex justify-content-between align-items-center mb-3">
+                <span className="text-muted">Last login</span>
+                <strong>Today</strong>
+              </div>
+              <div className="d-flex justify-content-between align-items-center">
+                <span className="text-muted">Status</span>
+                <Badge bg="success">Active</Badge>
+              </div>
+            </Card.Body>
+          </Card>
+
+          {/* Quick Actions */}
+          <Card className="border-0 shadow-sm">
+            <Card.Header className="bg-white border-0 py-3">
+              <h6 className="mb-0 fw-bold">⚡ Quick Actions</h6>
+            </Card.Header>
+            <Card.Body>
+              <div className="d-grid gap-2">
+                <Button variant="outline-primary" className="text-start">
+                  <i className="bi bi-book me-2"></i>
+                  View My Classes
+                </Button>
+                <Button variant="outline-success" className="text-start">
+                  <i className="bi bi-clipboard-check me-2"></i>
+                  Check Assignments
+                </Button>
+                <Button variant="outline-info" className="text-start">
+                  <i className="bi bi-graph-up me-2"></i>
+                  View Grades
+                </Button>
+                <Button variant="outline-warning" className="text-start">
+                  <i className="bi bi-calendar-event me-2"></i>
+                  Upcoming Exams
+                </Button>
+              </div>
+            </Card.Body>
+          </Card>
+        </Col>
+      </Row>
+
+      {/* Logout Confirmation Modal */}
+      <Modal show={showLogoutModal} onHide={() => setShowLogoutModal(false)} centered>
+        <Modal.Header closeButton className="border-0">
+          <Modal.Title>🚪 Confirm Logout</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <div className="text-center py-3">
+            <i className="bi bi-question-circle text-warning" style={{ fontSize: '3rem' }}></i>
+            <h5 className="mt-3 mb-2">Are you sure you want to logout?</h5>
+            <p className="text-muted">You will need to login again to access your account.</p>
+          </div>
+        </Modal.Body>
+        <Modal.Footer className="border-0">
+          <Button variant="outline-secondary" onClick={() => setShowLogoutModal(false)}>
+            Cancel
+          </Button>
+          <Button variant="danger" onClick={handleLogout}>
+            <i className="bi bi-box-arrow-right me-2"></i>
+            Logout
+          </Button>
+        </Modal.Footer>
+      </Modal>
     </div>
   );
 }
