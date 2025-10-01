@@ -777,6 +777,58 @@ app.get("/api/classes/:className/students", authenticateToken, requireTeacherOrA
   }
 });
 
+// Student: Get people (classmates and teacher) for a class they're enrolled in
+app.get("/api/classes/:className/people", authenticateToken, requireStudent, async (req, res) => {
+  try {
+    const className = req.params.className;
+    console.log(`Getting people for class: ${className} by student: ${req.user.username}`);
+    
+    // First verify the student is enrolled in this class
+    const classData = await Class.findOne({ 
+      name: className,
+      students: req.user.username  // Ensure student is enrolled in this class
+    });
+    
+    if (!classData) {
+      return res.status(404).json({ error: "Class not found or you're not enrolled" });
+    }
+    
+    // Get teacher details
+    const teacher = await User.findOne({
+      username: classData.teacher,
+      role: "Teacher"
+    }).select("name username email role");
+    
+    // Get classmate details (excluding the requesting student)
+    const classmateUsernames = classData.students.filter(username => username !== req.user.username);
+    const classmates = await User.find({
+      username: { $in: classmateUsernames },
+      role: "Student"
+    }).select("name username email role");
+    
+    const result = {
+      teacher: teacher ? {
+        name: teacher.name || teacher.username,
+        username: teacher.username,
+        email: teacher.email,
+        role: teacher.role
+      } : null,
+      classmates: classmates.map(student => ({
+        name: student.name || student.username,
+        username: student.username,
+        email: student.email,
+        role: student.role
+      }))
+    };
+    
+    console.log(`Found teacher and ${result.classmates.length} classmates for class ${className}`);
+    res.json(result);
+  } catch (err) {
+    console.error("Get class people error:", err);
+    res.status(500).json({ error: "Failed to get class people" });
+  }
+});
+
 // Student: Get classes for a specific student
 app.get("/api/student-classes/:username", authenticateToken, requireStudent, async (req, res) => {
   try {
