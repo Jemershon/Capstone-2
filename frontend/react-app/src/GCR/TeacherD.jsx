@@ -3096,11 +3096,6 @@ function Profile() {
       {/* Header Section */}
       <div className="d-flex justify-content-between align-items-center mb-4">
         <h2 className="fw-bold mb-0">👨‍🏫 Teacher Profile</h2>
-        <div>
-          <Button variant="outline-danger" onClick={() => setShowLogoutModal(true)}>
-            <i className="bi bi-box-arrow-right me-2"></i>Logout
-          </Button>
-        </div>
       </div>
 
       <Row>
@@ -3249,12 +3244,7 @@ function Profile() {
               </Button>
             </Col>
             <Col md={3} className="mb-3">
-              <Button variant="outline-danger" className="w-100 py-3" onClick={() => {
-                if (window.confirm("Are you sure you want to logout?")) {
-                  localStorage.clear();
-                  window.location.href = '/';
-                }
-              }}>
+              <Button variant="outline-danger" className="w-100 py-3" onClick={() => setShowLogoutModal(true)}>
                 <i className="bi bi-box-arrow-right d-block fs-3 mb-2"></i>
                 Logout
               </Button>

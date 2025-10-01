@@ -1946,11 +1946,6 @@ function StudentProfile() {
           <h2 className="fw-bold mb-1">🎓 My Profile</h2>
           <p className="text-muted mb-0">Manage your account and view your academic progress</p>
         </div>
-        <div>
-          <Button variant="outline-danger" onClick={() => setShowLogoutModal(true)}>
-            <i className="bi bi-box-arrow-right"></i> Logout
-          </Button>
-        </div>
       </div>
 
       {/* Toast Notifications */}
@@ -2145,6 +2140,10 @@ function StudentProfile() {
                 <Button variant="outline-warning" className="text-start">
                   <i className="bi bi-calendar-event me-2"></i>
                   Upcoming Exams
+                </Button>
+                <Button variant="outline-danger" className="text-start" onClick={() => setShowLogoutModal(true)}>
+                  <i className="bi bi-box-arrow-right me-2"></i>
+                  Logout
                 </Button>
               </div>
             </Card.Body>
