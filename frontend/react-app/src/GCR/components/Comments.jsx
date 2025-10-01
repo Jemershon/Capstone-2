@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
-import { Button, Form, ListGroup, Spinner, Toast } from 'react-bootstrap';
+import { Button, Form, ListGroup, Spinner, Toast, Badge } from 'react-bootstrap';
 import { API_BASE_URL } from '../../api';
 
 // Retry function for API calls
@@ -22,8 +22,14 @@ function Comments({ referenceType, referenceId, className }) {
   const [posting, setPosting] = useState(false);
   const [error, setError] = useState('');
   const [showToast, setShowToast] = useState(false);
-  const [userRole, setUserRole] = useState(localStorage.getItem('role') || '');
+  const [userRole, setUserRole] = useState(localStorage.getItem('userRole') || '');
   const [username, setUsername] = useState(localStorage.getItem('username') || '');
+  
+  // Reactions state
+  const [reactions, setReactions] = useState({});
+  const [userReaction, setUserReaction] = useState(null);
+  const [totalReactions, setTotalReactions] = useState(0);
+  const [reacting, setReacting] = useState(false);
   
   const fetchComments = useCallback(async () => {
     if (!referenceId) {
@@ -55,7 +61,57 @@ function Comments({ referenceType, referenceId, className }) {
   
   useEffect(() => {
     fetchComments();
+    fetchReactions();
   }, [fetchComments]);
+  
+  const fetchReactions = useCallback(async () => {
+    if (!referenceId) return;
+    
+    try {
+      const res = await retry(() => 
+        axios.get(`${API_BASE_URL}/api/reactions`, {
+          params: {
+            referenceType,
+            referenceId,
+          },
+          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+        })
+      );
+      setReactions(res.data.reactions || {});
+      setUserReaction(res.data.userReaction);
+      setTotalReactions(res.data.totalReactions || 0);
+    } catch (err) {
+      console.error('Fetch reactions error:', err.response?.data || err.message);
+    }
+  }, [referenceId, referenceType]);
+  
+  const handleReaction = async (reactionType = 'heart') => {
+    if (reacting) return;
+    
+    setReacting(true);
+    try {
+      await retry(() => 
+        axios.post(
+          `${API_BASE_URL}/api/reactions`,
+          {
+            referenceType,
+            referenceId,
+            reactionType,
+            class: className,
+          },
+          { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
+        )
+      );
+      
+      await fetchReactions();
+    } catch (err) {
+      console.error('Add reaction error:', err.response?.data || err.message);
+      setError(err.response?.data?.error || 'Failed to add reaction.');
+      setShowToast(true);
+    } finally {
+      setReacting(false);
+    }
+  };
   
   const handleAddComment = async (e) => {
     e.preventDefault();
@@ -113,6 +169,28 @@ function Comments({ referenceType, referenceId, className }) {
   
   return (
     <div className="comments-section mt-3">
+      {/* Reactions Section */}
+      <div className="reactions-section mb-3">
+        <div className="d-flex align-items-center gap-2">
+          <Button
+            variant={userReaction === 'heart' ? 'danger' : 'outline-danger'}
+            size="sm"
+            onClick={() => handleReaction('heart')}
+            disabled={reacting}
+            className="d-flex align-items-center gap-1"
+          >
+            <i className="bi bi-heart-fill"></i>
+            {reactions.heart || 0}
+          </Button>
+          
+          {totalReactions > 0 && (
+            <small className="text-muted">
+              {totalReactions} {totalReactions === 1 ? 'reaction' : 'reactions'}
+            </small>
+          )}
+        </div>
+      </div>
+      
       <h6 className="mb-2">Comments</h6>
       
       {error && (

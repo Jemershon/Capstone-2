@@ -19,6 +19,7 @@ import commentsRoutes from "./routes/comments.js";
 import notificationsRoutes from "./routes/notifications.js";
 import uploadRoutes from "./routes/upload.js";
 import examsRoutes, { setupModels } from "./routes/exams.js";
+import reactionsRoutes from "./routes/reactions.js";
 import Exam from "./models/Exam.js";
 
 // Fix __dirname for ES Modules
@@ -1229,6 +1230,7 @@ app.use("/api", materialsRoutes);
 app.use("/api", commentsRoutes);
 app.use("/api", notificationsRoutes);
 app.use("/api", uploadRoutes);
+app.use("/api", reactionsRoutes);
 app.use("/api/exams", examsRoutes);
 
 // Student: Submit exam answers
