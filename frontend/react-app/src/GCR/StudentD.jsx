@@ -1982,16 +1982,7 @@ function StudentProfile() {
   }
 
   return (
-    <div style={{ marginTop: '60px', padding: '20px' }}>
-      {/* Header Section */}
-      <div className="d-flex justify-content-between align-items-center mb-4">
-        <div>
-          <h2 className="fw-bold mb-1">🎓 My Profile</h2>
-          <p className="text-muted mb-0">Manage your account and view your academic progress</p>
-        </div>
-      </div>
-
-      {/* Toast Notifications */}
+    <div>
       {(error || successMessage) && (
         <Toast
           show={showToast}
@@ -2011,57 +2002,14 @@ function StudentProfile() {
         </Toast>
       )}
 
-      {/* Stats Dashboard */}
-      <Row className="mb-4">
-        <Col md={3}>
-          <Card className="text-center border-0 shadow-sm h-100">
-            <Card.Body className="py-4">
-              <div className="text-primary mb-2">
-                <i className="bi bi-book" style={{ fontSize: '2rem' }}></i>
-              </div>
-              <h3 className="fw-bold text-primary mb-1">{stats.totalClasses}</h3>
-              <p className="text-muted mb-0 small">Enrolled Classes</p>
-            </Card.Body>
-          </Card>
-        </Col>
-        <Col md={3}>
-          <Card className="text-center border-0 shadow-sm h-100">
-            <Card.Body className="py-4">
-              <div className="text-success mb-2">
-                <i className="bi bi-clipboard-check" style={{ fontSize: '2rem' }}></i>
-              </div>
-              <h3 className="fw-bold text-success mb-1">{stats.totalAssignments}</h3>
-              <p className="text-muted mb-0 small">Total Assignments</p>
-            </Card.Body>
-          </Card>
-        </Col>
-        <Col md={3}>
-          <Card className="text-center border-0 shadow-sm h-100">
-            <Card.Body className="py-4">
-              <div className="text-warning mb-2">
-                <i className="bi bi-star" style={{ fontSize: '2rem' }}></i>
-              </div>
-              <h3 className="fw-bold text-warning mb-1">{stats.averageGrade}%</h3>
-              <p className="text-muted mb-0 small">Average Grade</p>
-            </Card.Body>
-          </Card>
-        </Col>
-        <Col md={3}>
-          <Card className="text-center border-0 shadow-sm h-100">
-            <Card.Body className="py-4">
-              <div className="text-info mb-2">
-                <i className="bi bi-file-text" style={{ fontSize: '2rem' }}></i>
-              </div>
-              <h3 className="fw-bold text-info mb-1">{stats.totalExams}</h3>
-              <p className="text-muted mb-0 small">Exams Taken</p>
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
-      
-      {/* Main Profile Content */}
+      {/* Header Section */}
+      <div className="d-flex justify-content-between align-items-center mb-4">
+        <h2 className="fw-bold mb-0">🎓 Student Profile</h2>
+      </div>
+
       <Row>
-        <Col md={8}>
+        {/* Profile Information Card */}
+        <Col lg={8} className="mb-4">
           <Card className="h-100 shadow-sm">
             <Card.Header className="bg-primary text-white">
               <h5 className="mb-0">
@@ -2103,77 +2051,88 @@ function StudentProfile() {
                       <i className="bi bi-shield-check text-primary me-2"></i>
                       <strong className="text-muted">Role</strong>
                     </div>
-                    <h6 className="mb-0">
-                      <Badge bg="success">{profile.role || "Student"}</Badge>
-                    </h6>
-                  </div>
-                </Col>
-                <Col md={6} className="mb-3">
-                  <div className="p-3 bg-light rounded">
-                    <div className="d-flex align-items-center mb-2">
-                      <i className="bi bi-coin text-primary me-2"></i>
-                      <strong className="text-muted">Credit Points</strong>
-                    </div>
-                    <h6 className="mb-0">
-                      <Badge bg="info">{profile.creditPoints || 0} points</Badge>
-                    </h6>
+                    <span className="badge bg-success fs-6">{profile.role || "Student"}</span>
                   </div>
                 </Col>
               </Row>
             </Card.Body>
           </Card>
         </Col>
-        
-        <Col md={4}>
-          {/* Account Info */}
-          <Card className="border-0 shadow-sm mb-3">
-            <Card.Header className="bg-white border-0 py-3">
-              <h6 className="mb-0 fw-bold">📊 Account Statistics</h6>
-            </Card.Header>
-            <Card.Body>
-              <div className="d-flex justify-content-between align-items-center mb-3">
-                <span className="text-muted">Last login</span>
-                <strong>Today</strong>
-              </div>
-              <div className="d-flex justify-content-between align-items-center">
-                <span className="text-muted">Status</span>
-                <Badge bg="success">Active</Badge>
-              </div>
-            </Card.Body>
-          </Card>
 
-          {/* Quick Actions */}
-          <Card className="shadow-sm">
-            <Card.Header className="bg-secondary text-white">
+        {/* Statistics Card */}
+        <Col lg={4} className="mb-4">
+          <Card className="h-100 shadow-sm">
+            <Card.Header className="bg-success text-white">
               <h5 className="mb-0">
-                <i className="bi bi-lightning-charge me-2"></i>Quick Actions
+                <i className="bi bi-graph-up me-2"></i>Academic Statistics
               </h5>
             </Card.Header>
             <Card.Body>
-              <Row>
-                <Col md={4} className="mb-3">
-                  <Button variant="outline-primary" className="w-100 py-3" onClick={() => navigate('/student/dashboard')}>
-                    <i className="bi bi-house-fill d-block fs-3 mb-2"></i>
-                    Dashboard
-                  </Button>
-                </Col>
-                <Col md={4} className="mb-3">
-                  <Button variant="outline-success" className="w-100 py-3" onClick={handleEditProfile}>
-                    <i className="bi bi-gear-fill d-block fs-3 mb-2"></i>
-                    Settings
-                  </Button>
-                </Col>
-                <Col md={4} className="mb-3">
-                  <Button variant="outline-info" className="w-100 py-3" onClick={() => navigate('/student/grades')}>
-                    <i className="bi bi-graph-up d-block fs-3 mb-2"></i>
-                    Grades
-                  </Button>
-                </Col>
-              </Row>
+              <div className="row g-3">
+                <div className="col-6">
+                  <div className="text-center p-3 bg-primary bg-opacity-10 rounded">
+                    <i className="bi bi-journal-bookmark-fill text-primary fs-3"></i>
+                    <h3 className="fw-bold text-primary mb-0">{stats.totalClasses}</h3>
+                    <small className="text-muted">Classes</small>
+                  </div>
+                </div>
+                <div className="col-6">
+                  <div className="text-center p-3 bg-success bg-opacity-10 rounded">
+                    <i className="bi bi-clipboard-check-fill text-success fs-3"></i>
+                    <h3 className="fw-bold text-success mb-0">{stats.totalAssignments}</h3>
+                    <small className="text-muted">Assignments</small>
+                  </div>
+                </div>
+                <div className="col-6">
+                  <div className="text-center p-3 bg-warning bg-opacity-10 rounded">
+                    <i className="bi bi-star-fill text-warning fs-3"></i>
+                    <h3 className="fw-bold text-warning mb-0">{stats.averageGrade}%</h3>
+                    <small className="text-muted">Avg Grade</small>
+                  </div>
+                </div>
+                <div className="col-6">
+                  <div className="text-center p-3 bg-info bg-opacity-10 rounded">
+                    <i className="bi bi-file-earmark-text-fill text-info fs-3"></i>
+                    <h3 className="fw-bold text-info mb-0">{stats.totalExams}</h3>
+                    <small className="text-muted">Exams</small>
+                  </div>
+                </div>
+              </div>
             </Card.Body>
           </Card>
         </Col>
       </Row>
+
+      {/* Quick Actions */}
+      <Card className="shadow-sm">
+        <Card.Header className="bg-secondary text-white">
+          <h5 className="mb-0">
+            <i className="bi bi-lightning-charge me-2"></i>Quick Actions
+          </h5>
+        </Card.Header>
+        <Card.Body>
+          <Row>
+            <Col md={4} className="mb-3">
+              <Button variant="outline-primary" className="w-100 py-3" onClick={() => navigate('/student/dashboard')}>
+                <i className="bi bi-house-fill d-block fs-3 mb-2"></i>
+                Dashboard
+              </Button>
+            </Col>
+            <Col md={4} className="mb-3">
+              <Button variant="outline-success" className="w-100 py-3" onClick={handleEditProfile}>
+                <i className="bi bi-gear-fill d-block fs-3 mb-2"></i>
+                Settings
+              </Button>
+            </Col>
+            <Col md={4} className="mb-3">
+              <Button variant="outline-info" className="w-100 py-3" onClick={() => navigate('/student/grades')}>
+                <i className="bi bi-graph-up d-block fs-3 mb-2"></i>
+                Grades
+              </Button>
+            </Col>
+          </Row>
+        </Card.Body>
+      </Card>
 
       {/* Edit Profile Modal */}
       <Modal show={showEditModal} onHide={() => setShowEditModal(false)} centered>
