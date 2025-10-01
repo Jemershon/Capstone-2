@@ -465,20 +465,20 @@ app.post("/api/register-admin", async (req, res) => {
 app.post("/api/login", async (req, res) => {
   try {
     const { username, email, password } = req.body;
-    const loginIdentifier = username || email; // Support both username and email
+    const loginIdentifier = username || email; // Prioritize username, fallback to email
     console.log("Login attempt for identifier:", loginIdentifier);
     
     if (!loginIdentifier || !password) {
-      return res.status(400).json({ error: "Email/Username and password are required" });
+      return res.status(400).json({ error: "Username and password are required" });
     }
     
-    // Find user by either username or email
-    const user = await User.findOne({
-      $or: [
-        { username: loginIdentifier },
-        { email: loginIdentifier }
-      ]
-    });
+    // Find user by username first, then by email as fallback
+    let user;
+    if (username) {
+      user = await User.findOne({ username });
+    } else if (email) {
+      user = await User.findOne({ email });
+    }
     
     console.log("User found:", user ? "Yes" : "No");
     if (user) {

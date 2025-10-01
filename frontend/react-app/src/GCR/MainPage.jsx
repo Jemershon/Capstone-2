@@ -77,8 +77,8 @@ export default function LandingPage() {
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    if (!formData.email || !formData.password) {
-      setError("Email and password are required");
+    if (!formData.username || !formData.password) {
+      setError("Username and password are required");
       setShowToast(true);
       return;
     }
@@ -86,7 +86,7 @@ export default function LandingPage() {
     try {
       const res = await retry(() =>
         axios.post(`${API_BASE_URL}/api/login`, {
-          email: formData.email,
+          username: formData.username,
           password: formData.password,
         })
       );
@@ -283,19 +283,36 @@ export default function LandingPage() {
                 <label htmlFor="floatingUsername">Username</label>
               </Form.Floating>
             )}
-            <Form.Floating className="mb-3">
-              <Form.Control
-                id="floatingEmail"
-                name="email"
-                type="email"
-                placeholder="Email"
-                value={formData.email}
-                onChange={handleChange}
-                required
-                aria-required="true"
-              />
-              <label htmlFor="floatingEmail">Email</label>
-            </Form.Floating>
+            {!isLogin && (
+              <Form.Floating className="mb-3">
+                <Form.Control
+                  id="floatingEmail"
+                  name="email"
+                  type="email"
+                  placeholder="Email"
+                  value={formData.email}
+                  onChange={handleChange}
+                  required={!isLogin}
+                  aria-required={!isLogin}
+                />
+                <label htmlFor="floatingEmail">Email</label>
+              </Form.Floating>
+            )}
+            {isLogin && (
+              <Form.Floating className="mb-3">
+                <Form.Control
+                  id="floatingLoginUsername"
+                  name="username"
+                  type="text"
+                  placeholder="Username"
+                  value={formData.username}
+                  onChange={handleChange}
+                  required
+                  aria-required="true"
+                />
+                <label htmlFor="floatingLoginUsername">Username</label>
+              </Form.Floating>
+            )}
             <Form.Floating className="mb-3">
               <Form.Control
                 id="floatingPassword"
