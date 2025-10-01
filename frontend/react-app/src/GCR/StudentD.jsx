@@ -2121,28 +2121,22 @@ function StudentProfile() {
             </Card.Header>
             <Card.Body>
               <Row>
-                <Col md={6} className="mb-3">
-                  <Button variant="outline-primary" className="w-100 py-3" onClick={() => setCurrentView('dashboard')}>
+                <Col md={4} className="mb-3">
+                  <Button variant="outline-primary" className="w-100 py-3" onClick={() => navigate('/student/dashboard')}>
                     <i className="bi bi-house-fill d-block fs-3 mb-2"></i>
                     Dashboard
                   </Button>
                 </Col>
-                <Col md={6} className="mb-3">
-                  <Button variant="outline-success" className="w-100 py-3" onClick={() => setCurrentView('assignments')}>
+                <Col md={4} className="mb-3">
+                  <Button variant="outline-success" className="w-100 py-3" onClick={() => navigate('/student/dashboard')}>
                     <i className="bi bi-clipboard-check-fill d-block fs-3 mb-2"></i>
                     Assignments
                   </Button>
                 </Col>
-                <Col md={6} className="mb-3">
-                  <Button variant="outline-info" className="w-100 py-3" onClick={() => setCurrentView('grades')}>
+                <Col md={4} className="mb-3">
+                  <Button variant="outline-info" className="w-100 py-3" onClick={() => navigate('/student/grades')}>
                     <i className="bi bi-graph-up d-block fs-3 mb-2"></i>
                     Grades
-                  </Button>
-                </Col>
-                <Col md={6} className="mb-3">
-                  <Button variant="outline-danger" className="w-100 py-3" onClick={() => setShowLogoutModal(true)}>
-                    <i className="bi bi-box-arrow-right d-block fs-3 mb-2"></i>
-                    Logout
                   </Button>
                 </Col>
               </Row>

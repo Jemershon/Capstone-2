@@ -3008,6 +3008,12 @@ function Profile() {
   const [error, setError] = useState("");
   const [showToast, setShowToast] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editForm, setEditForm] = useState({
+    name: '',
+    email: '',
+    phone: ''
+  });
   const [stats, setStats] = useState({
     totalClasses: 0,
     totalStudents: 0,
@@ -3070,6 +3076,30 @@ function Profile() {
     localStorage.removeItem('token');
     localStorage.removeItem('authToken');
     navigate('/login');
+  };
+
+  const handleEditProfile = () => {
+    setEditForm({
+      name: profile.name || '',
+      email: profile.email || '',
+      phone: profile.phone || ''
+    });
+    setShowEditModal(true);
+  };
+
+  const handleSaveProfile = async () => {
+    try {
+      const token = getAuthToken();
+      const response = await axios.put(`${API_BASE_URL}/api/profile`, editForm, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setProfile(response.data);
+      setShowEditModal(false);
+      setShowToast(true);
+    } catch (err) {
+      console.error("Error updating profile:", err);
+      setError(err.response?.data?.error || "Failed to update profile");
+    }
   };
 
   useEffect(() => {
@@ -3225,33 +3255,74 @@ function Profile() {
         </Card.Header>
         <Card.Body>
           <Row>
-            <Col md={3} className="mb-3">
+            <Col md={4} className="mb-3">
               <Button variant="outline-primary" className="w-100 py-3" onClick={() => window.location.href = '/teacher/dashboard'}>
                 <i className="bi bi-house-fill d-block fs-3 mb-2"></i>
                 Dashboard
               </Button>
             </Col>
-            <Col md={3} className="mb-3">
-              <Button variant="outline-success" className="w-100 py-3" onClick={() => setShowEditModal(true)}>
+            <Col md={4} className="mb-3">
+              <Button variant="outline-success" className="w-100 py-3" onClick={handleEditProfile}>
                 <i className="bi bi-gear-fill d-block fs-3 mb-2"></i>
                 Settings
               </Button>
             </Col>
-            <Col md={3} className="mb-3">
+            <Col md={4} className="mb-3">
               <Button variant="outline-info" className="w-100 py-3" onClick={() => fetchProfile()}>
                 <i className="bi bi-arrow-clockwise d-block fs-3 mb-2"></i>
                 Refresh
               </Button>
             </Col>
-            <Col md={3} className="mb-3">
-              <Button variant="outline-danger" className="w-100 py-3" onClick={() => setShowLogoutModal(true)}>
-                <i className="bi bi-box-arrow-right d-block fs-3 mb-2"></i>
-                Logout
-              </Button>
-            </Col>
           </Row>
         </Card.Body>
       </Card>
+
+      {/* Edit Profile Modal */}
+      <Modal show={showEditModal} onHide={() => setShowEditModal(false)} centered>
+        <Modal.Header closeButton className="border-0">
+          <Modal.Title>⚙️ Edit Profile</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Form>
+            <Form.Group className="mb-3">
+              <Form.Label>Name</Form.Label>
+              <Form.Control
+                type="text"
+                value={editForm.name}
+                onChange={(e) => setEditForm({...editForm, name: e.target.value})}
+                placeholder="Enter your name"
+              />
+            </Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Label>Email</Form.Label>
+              <Form.Control
+                type="email"
+                value={editForm.email}
+                onChange={(e) => setEditForm({...editForm, email: e.target.value})}
+                placeholder="Enter your email"
+              />
+            </Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Label>Phone</Form.Label>
+              <Form.Control
+                type="tel"
+                value={editForm.phone}
+                onChange={(e) => setEditForm({...editForm, phone: e.target.value})}
+                placeholder="Enter your phone number"
+              />
+            </Form.Group>
+          </Form>
+        </Modal.Body>
+        <Modal.Footer className="border-0">
+          <Button variant="outline-secondary" onClick={() => setShowEditModal(false)}>
+            Cancel
+          </Button>
+          <Button variant="primary" onClick={handleSaveProfile}>
+            <i className="bi bi-check-circle me-2"></i>
+            Save Changes
+          </Button>
+        </Modal.Footer>
+      </Modal>
 
       {/* Logout Confirmation Modal */}
       <Modal show={showLogoutModal} onHide={() => setShowLogoutModal(false)} centered>
