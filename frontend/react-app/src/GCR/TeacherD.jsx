@@ -54,7 +54,7 @@ function DashboardAndClasses() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showToast, setShowToast] = useState(false);
-  const [debugData, setDebugData] = useState(null);
+  
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -66,7 +66,7 @@ function DashboardAndClasses() {
       ]);
       setClasses(classesRes.data || []);
       setUser(userRes.data);
-      setDebugData({ classes: classesRes.data, user: userRes.data });
+      
     } catch (err) {
       console.error("Fetch error:", err.response?.data || err.message);
       setError(err.response?.data?.error || "Failed to load classes or profile. Check network or login status.");
@@ -1973,7 +1973,7 @@ function Assignments() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showToast, setShowToast] = useState(false);
-  const [debugData, setDebugData] = useState(null);
+  
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -1985,7 +1985,7 @@ function Assignments() {
       ]);
       setAssignments(assignmentsRes.data || []);
       setClasses(classesRes.data || []);
-      setDebugData({ assignments: assignmentsRes.data, classes: classesRes.data });
+      
     } catch (err) {
       console.error("Fetch error:", err.response?.data || err.message);
       setError(err.response?.data?.error || "Failed to load assignments or classes. Check network or login status.");
@@ -2052,11 +2052,6 @@ function Assignments() {
         >
           <Toast.Body className="text-white">{error}</Toast.Body>
         </Toast>
-      )}
-      {debugData && (
-        <Alert variant="info" className="mb-4">
-          <strong>Debug Info:</strong> Assignments: {JSON.stringify(debugData.assignments.length)} items, Classes: {JSON.stringify(debugData.classes.length)}
-        </Alert>
       )}
       <Button
         variant="outline-primary"
@@ -2194,7 +2189,7 @@ function Announcements() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showToast, setShowToast] = useState(false);
-  const [debugData, setDebugData] = useState(null);
+  
 
   const fetchAnnouncements = useCallback(async () => {
     setLoading(true);
@@ -2205,7 +2200,7 @@ function Announcements() {
         })
       );
       setAnnouncements(res.data || []);
-      setDebugData({ announcements: res.data });
+      
     } catch (err) {
       console.error("Fetch announcements error:", err.response?.data || err.message);
       setError(err.response?.data?.error || "Failed to load announcements. Check network or login status.");
@@ -2272,11 +2267,6 @@ function Announcements() {
         >
           <Toast.Body className="text-white">{error}</Toast.Body>
         </Toast>
-      )}
-      {debugData && (
-        <Alert variant="info" className="mb-4">
-          <strong>Debug Info:</strong> Announcements: {JSON.stringify(debugData.announcements.length)} items
-        </Alert>
       )}
       <Button
         variant="outline-primary"
@@ -2387,7 +2377,7 @@ function Exams() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showToast, setShowToast] = useState(false);
-  const [debugData, setDebugData] = useState(null);
+  
 
   const fetchExams = useCallback(async () => {
     setLoading(true);
@@ -2406,7 +2396,7 @@ function Exams() {
       ]);
       setExams(examsRes.data || []);
       setClasses(classesRes.data || []);
-      setDebugData({ exams: examsRes.data, classes: classesRes.data });
+      
     } catch (err) {
       console.error("Fetch exams error:", err.response?.data || err.message);
       setError(err.response?.data?.error || "Failed to load exams. Check network or login status.");
@@ -2486,11 +2476,6 @@ function Exams() {
         >
           <Toast.Body className="text-white">{error}</Toast.Body>
         </Toast>
-      )}
-      {debugData && (
-        <Alert variant="info" className="mb-4">
-          <strong>Debug Info:</strong> Exams: {JSON.stringify(debugData.exams.length)} items
-        </Alert>
       )}
       <Button
         variant="outline-primary"
@@ -2687,7 +2672,7 @@ function Grades() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showToast, setShowToast] = useState(false);
-  const [debugData, setDebugData] = useState(null);
+  
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -2703,7 +2688,7 @@ function Grades() {
       const usernameSet = new Set();
       (classesRes.data || []).forEach((cls) => (cls.students || []).forEach((u) => usernameSet.add(u)));
       setStudents(Array.from(usernameSet));
-      setDebugData({ grades: gradesRes.data, classes: classesRes.data });
+      
     } catch (err) {
       console.error("Fetch grades error:", err.response?.data || err.message);
       setError(err.response?.data?.error || "Failed to load grades or classes. Check network or login status.");
@@ -2770,11 +2755,6 @@ function Grades() {
         >
           <Toast.Body className="text-white">{error}</Toast.Body>
         </Toast>
-      )}
-      {debugData && (
-        <Alert variant="info" className="mb-4">
-          <strong>Debug Info:</strong> Grades: {JSON.stringify(debugData.grades.length)} items, Classes: {JSON.stringify(debugData.classes.length)}
-        </Alert>
       )}
       <Button
         variant="outline-primary"
@@ -2934,7 +2914,7 @@ function Profile() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showToast, setShowToast] = useState(false);
-  const [debugData, setDebugData] = useState(null);
+  
 
   const fetchProfile = useCallback(async () => {
     setLoading(true);
@@ -2945,7 +2925,7 @@ function Profile() {
         })
       );
       setProfile(res.data);
-      setDebugData({ profile: res.data });
+      
     } catch (err) {
       console.error("Fetch profile error:", err.response?.data || err.message);
       setError(err.response?.data?.error || "Failed to load profile. Check login status.");
@@ -2986,11 +2966,6 @@ function Profile() {
         >
           <Toast.Body className="text-white">{error}</Toast.Body>
         </Toast>
-      )}
-      {debugData && (
-        <Alert variant="info" className="mb-4">
-          <strong>Debug Info:</strong> Profile: {JSON.stringify(debugData.profile.username)}
-        </Alert>
       )}
       <Card className="p-3 mt-3">
         <p>
@@ -3095,12 +3070,6 @@ export default function TeacherDashboard() {
         </Alert>
         <div className="mt-4">
           <Button variant="primary" onClick={() => navigate("/")}>Return to Login</Button>
-        </div>
-        <div className="mt-3 text-muted small">
-          <p>Debug Info:</p>
-          <div>Token present: {getAuthToken() ? "Yes" : "No"}</div>
-          <div>Username in storage: {getUsername() || "None"}</div>
-          <div>API URL: {API_BASE_URL}</div>
         </div>
       </div>
     );

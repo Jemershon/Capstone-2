@@ -269,7 +269,7 @@ function StudentMainDashboard() {
   const [showJoinModal, setShowJoinModal] = useState(false);
   const [showUnenrollModal, setShowUnenrollModal] = useState(false);
   const [selectedClassToUnenroll, setSelectedClassToUnenroll] = useState(null);
-  const [debugData, setDebugData] = useState(null);
+  
   const [refreshKey, setRefreshKey] = useState(0); // Used to force re-fetch of classes
 
   useEffect(() => {
@@ -289,7 +289,7 @@ function StudentMainDashboard() {
       const fetchedClasses = response.data || [];
       setClasses(fetchedClasses);
       localStorage.setItem('studentClasses', JSON.stringify(fetchedClasses));
-      setDebugData({ classes: fetchedClasses });
+      
     } catch (err) {
       console.error("Error fetching classes:", err);
       

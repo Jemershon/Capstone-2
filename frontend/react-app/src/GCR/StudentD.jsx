@@ -281,7 +281,7 @@ function StudentMainDashboard() {
   const [showJoinModal, setShowJoinModal] = useState(false);
   const [showUnenrollModal, setShowUnenrollModal] = useState(false);
   const [selectedClassToUnenroll, setSelectedClassToUnenroll] = useState(null);
-  const [debugData, setDebugData] = useState(null);
+  
   const [refreshKey, setRefreshKey] = useState(0); // Used to force re-fetch of classes
 
   useEffect(() => {
@@ -301,7 +301,7 @@ function StudentMainDashboard() {
       const fetchedClasses = response.data || [];
       setClasses(fetchedClasses);
       localStorage.setItem('studentClasses', JSON.stringify(fetchedClasses));
-      setDebugData({ classes: fetchedClasses });
+      
     } catch (err) {
       console.error("Error fetching classes:", err);
       
@@ -437,11 +437,6 @@ function StudentMainDashboard() {
         </Toast>
       )}
       
-      {debugData && (
-        <Alert variant="info" className="mb-4">
-          <strong>Debug Info:</strong> Classes: {JSON.stringify(debugData.classes?.length || 0)} items
-        </Alert>
-      )}
       
       {/* Statistics Cards */}
       <Row className="mb-4">
@@ -1803,7 +1798,7 @@ function StudentGrades() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showToast, setShowToast] = useState(false);
-  const [debugData, setDebugData] = useState(null);
+  
 
   useEffect(() => {
     fetchGrades();
@@ -1818,7 +1813,7 @@ function StudentGrades() {
         headers: { Authorization: `Bearer ${token}` }
       });
       setGrades(response.data || []);
-      setDebugData({ grades: response.data });
+      
     } catch (err) {
       console.error("Error fetching grades:", err);
       setError(err.response?.data?.error || "Failed to fetch grades");
@@ -1854,12 +1849,6 @@ function StudentGrades() {
         </Toast>
       )}
       
-      {debugData && (
-        <Alert variant="info" className="mb-4">
-          <strong>Debug Info:</strong> Grades: {JSON.stringify(debugData.grades?.length || 0)} items
-        </Alert>
-      )}
-
       {grades.length === 0 ? (
         <Card className="p-4 text-center text-muted">
           <h5>No grades available yet</h5>
@@ -1911,7 +1900,7 @@ function StudentProfile() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showToast, setShowToast] = useState(false);
-  const [debugData, setDebugData] = useState(null);
+  
 
   useEffect(() => {
     fetchProfile();
@@ -1925,7 +1914,7 @@ function StudentProfile() {
         headers: { Authorization: `Bearer ${token}` }
       });
       setProfile(response.data);
-      setDebugData({ profile: response.data });
+      
     } catch (err) {
       console.error("Error fetching profile:", err);
       setError(err.response?.data?.error || "Failed to load profile");
@@ -1961,12 +1950,6 @@ function StudentProfile() {
         </Toast>
       )}
       
-      {debugData && (
-        <Alert variant="info" className="mb-4">
-          <strong>Debug Info:</strong> Profile loaded for: {JSON.stringify(debugData.profile?.username)}
-        </Alert>
-      )}
-
       <Row>
         <Col md={8}>
           <Card className="p-4">

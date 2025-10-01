@@ -269,7 +269,7 @@ function StudentMainDashboard() {
   const [showJoinModal, setShowJoinModal] = useState(false);
   const [showUnenrollModal, setShowUnenrollModal] = useState(false);
   const [selectedClassToUnenroll, setSelectedClassToUnenroll] = useState(null);
-  const [debugData, setDebugData] = useState(null);
+  
   const [refreshKey, setRefreshKey] = useState(0); // Used to force re-fetch of classes
 
   useEffect(() => {
@@ -289,7 +289,7 @@ function StudentMainDashboard() {
       const fetchedClasses = response.data || [];
       setClasses(fetchedClasses);
       localStorage.setItem('studentClasses', JSON.stringify(fetchedClasses));
-      setDebugData({ classes: fetchedClasses });
+      
     } catch (err) {
       console.error("Error fetching classes:", err);
       
@@ -1341,7 +1341,7 @@ function StudentGrades() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showToast, setShowToast] = useState(false);
-  const [debugData, setDebugData] = useState(null);
+  
 
   useEffect(() => {
     fetchGrades();
@@ -1356,7 +1356,7 @@ function StudentGrades() {
         headers: { Authorization: `Bearer ${token}` }
       });
       setGrades(response.data || []);
-      setDebugData({ grades: response.data });
+      
     } catch (err) {
       console.error("Error fetching grades:", err);
       setError(err.response?.data?.error || "Failed to fetch grades");
@@ -1449,7 +1449,7 @@ function StudentProfile() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showToast, setShowToast] = useState(false);
-  const [debugData, setDebugData] = useState(null);
+  
 
   useEffect(() => {
     fetchProfile();
@@ -1463,7 +1463,7 @@ function StudentProfile() {
         headers: { Authorization: `Bearer ${token}` }
       });
       setProfile(response.data);
-      setDebugData({ profile: response.data });
+      
     } catch (err) {
       console.error("Error fetching profile:", err);
       setError(err.response?.data?.error || "Failed to load profile");
