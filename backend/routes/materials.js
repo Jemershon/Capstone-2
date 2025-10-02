@@ -1,6 +1,13 @@
 import express from "express";
 import Material from "../models/Material.js";
+import Notification from "../models/Notification.js";
 import { authenticateToken, requireTeacherOrAdmin } from "../middlewares/auth.js";
+
+// Import Class model for getting students
+let Class;
+export const setupMaterialsModels = (models) => {
+  Class = models.Class;
+};
 
 const router = express.Router();
 
@@ -55,6 +62,44 @@ router.post("/materials", authenticateToken, requireTeacherOrAdmin, async (req, 
     });
     
     await material.save();
+    
+    // Send notifications to all students in the class
+    try {
+      const classDoc = await Class.findOne({ name: className });
+      if (classDoc && classDoc.students && classDoc.students.length > 0) {
+        console.log(`Sending material notifications to ${classDoc.students.length} students in class ${className}`);
+        
+        const notifications = classDoc.students.map(studentUsername => ({
+          recipient: studentUsername,
+          sender: req.user.username,
+          type: 'material',
+          message: `New material posted in ${className}: "${title}"`,
+          referenceId: material._id,
+          class: className,
+          read: false,
+          createdAt: new Date()
+        }));
+        
+        await Notification.insertMany(notifications);
+        console.log(`✅ Material notifications sent to students in ${className}`);
+        
+        // Emit socket event to notify students in real-time
+        if (req.app.io) {
+          classDoc.students.forEach(studentUsername => {
+            req.app.io.to(`user:${studentUsername}`).emit('new-notification', {
+              type: 'material',
+              message: `New material posted in ${className}: "${title}"`,
+              class: className,
+              sender: req.user.username
+            });
+          });
+        }
+      }
+    } catch (notifErr) {
+      console.error('Error sending material notifications:', notifErr);
+      // Don't fail the material creation if notifications fail
+    }
+    
     res.status(201).json({ message: "Material created successfully", material });
   } catch (err) {
     console.error("Create material error:", err);

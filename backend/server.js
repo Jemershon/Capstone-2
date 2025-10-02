@@ -14,7 +14,7 @@ import { setupSocketIO } from "./socket.js";
 
 // Import middleware and routes
 import { authenticateToken, requireAdmin, requireTeacherOrAdmin, requireStudent } from "./middlewares/auth.js";
-import materialsRoutes from "./routes/materials.js";
+import materialsRoutes, { setupMaterialsModels } from "./routes/materials.js";
 import commentsRoutes from "./routes/comments.js";
 import notificationsRoutes from "./routes/notifications.js";
 import testNotificationsRoutes from "./routes/testNotifications.js";
@@ -1219,6 +1219,42 @@ app.post("/api/announcements", authenticateToken, requireTeacherOrAdmin, async (
     });
     await announcement.save();
     
+    // Send notifications to all students in the class
+    try {
+      if (cls.students && cls.students.length > 0) {
+        console.log(`Sending announcement notifications to ${cls.students.length} students in class ${className}`);
+        
+        const notifications = cls.students.map(studentUsername => ({
+          recipient: studentUsername,
+          sender: req.user.username,
+          type: 'announcement',
+          message: `New announcement in ${className}: "${message.substring(0, 50)}${message.length > 50 ? '...' : ''}"}`,
+          referenceId: announcement._id,
+          class: className,
+          read: false,
+          createdAt: new Date()
+        }));
+        
+        await Notification.insertMany(notifications);
+        console.log(`✅ Announcement notifications sent to students in ${className}`);
+        
+        // Emit socket event to notify students in real-time
+        if (req.app.io) {
+          cls.students.forEach(studentUsername => {
+            req.app.io.to(`user:${studentUsername}`).emit('new-notification', {
+              type: 'announcement',
+              message: `New announcement in ${className}: "${message.substring(0, 50)}${message.length > 50 ? '...' : ''}"}`,
+              class: className,
+              sender: req.user.username
+            });
+          });
+        }
+      }
+    } catch (notifErr) {
+      console.error('Error sending announcement notifications:', notifErr);
+      // Don't fail the announcement creation if notifications fail
+    }
+    
     // Emit announcement via socket.io to the class
     if (req.app.io) {
       console.log(`Emitting announcement to class:${className}`);
@@ -1539,6 +1575,11 @@ setupModels({
   Class,
   Grade,
   ExamSubmission
+});
+
+// Set up models for materials routes
+setupMaterialsModels({
+  Class
 });
 
 // Use route modules
