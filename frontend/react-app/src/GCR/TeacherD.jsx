@@ -2938,17 +2938,16 @@ function Grades() {
       );
     }
     
-    // Apply sorting
+    // Apply simple sorting
     data.sort((a, b) => {
       let aVal = a[sortBy];
       let bVal = b[sortBy];
       
-      if (sortBy === "submittedAt") {
-        aVal = new Date(aVal);
-        bVal = new Date(bVal);
-      }
-      
-      if (typeof aVal === "string") {
+      // Handle different data types
+      if (sortBy === "finalScore") {
+        aVal = Number(aVal) || 0;
+        bVal = Number(bVal) || 0;
+      } else if (typeof aVal === "string") {
         aVal = aVal.toLowerCase();
         bVal = bVal.toLowerCase();
       }
@@ -3110,11 +3109,10 @@ function Grades() {
                 onChange={(e) => setSortBy(e.target.value)}
                 size="sm"
               >
-                <option value="finalScore">Final Score</option>
-                <option value="rawScore">Raw Score</option>
-                <option value="student">Student Name</option>
-                <option value="submittedAt">Submission Time</option>
-                <option value="className">Class Name</option>
+                <option value="finalScore">Score</option>
+                <option value="student">Name</option>
+                <option value="section">Section</option>
+                <option value="className">Class</option>
               </Form.Select>
             </Col>
             
@@ -3157,9 +3155,11 @@ function Grades() {
               <h5 className="mb-0">
                 🎯 Showing {currentData.length} submission{currentData.length !== 1 ? 's' : ''}
               </h5>
-              <small className="text-muted">
-                Updated: {new Date().toLocaleTimeString()}
-              </small>
+              <div className="d-flex align-items-center gap-3">
+                <small className="text-muted">
+                  Updated: {new Date().toLocaleTimeString()}
+                </small>
+              </div>
             </div>
           </Card.Header>
           <div className="table-responsive">

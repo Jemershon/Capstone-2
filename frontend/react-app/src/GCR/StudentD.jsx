@@ -210,14 +210,7 @@ function StudentDashboard() {
             >
               🏠 Dashboard & Classes
             </Nav.Link>
-            <Nav.Link
-              as={NavLink}
-              to="/student/grades"
-              className="text-white nav-link-custom"
-              aria-label="My Grades"
-            >
-              📊 My Grades
-            </Nav.Link>
+
             <Nav.Link
               as={NavLink}
               to="/student/profile"
@@ -252,14 +245,7 @@ function StudentDashboard() {
                   >
                     🏠 Dashboard & Classes
                   </Nav.Link>
-                  <Nav.Link
-                    as={Link}
-                    to="/student/grades"
-                    className="mobile-nav-link"
-                    aria-label="My Grades"
-                  >
-                    📊 My Grades
-                  </Nav.Link>
+
                   <Nav.Link
                     as={Link}
                     to="/student/profile"
@@ -287,7 +273,7 @@ function StudentDashboard() {
             <Route path="/" element={<StudentMainDashboard />} />
             <Route path="/dashboard" element={<StudentMainDashboard />} />
             <Route path="/class/:className" element={<StudentClassStream />} />
-            <Route path="/grades" element={<StudentGrades />} />
+
             <Route path="/profile" element={<StudentProfile />} />
             {/* Default route - redirect to dashboard */}
             <Route path="*" element={<StudentMainDashboard />} />
@@ -729,6 +715,7 @@ function StudentClassStream() {
   const [useCreditPoints, setUseCreditPoints] = useState(false);
   const [userCreditPoints, setUserCreditPoints] = useState(0);
   const [submittedExams, setSubmittedExams] = useState([]);
+  const [examGrades, setExamGrades] = useState([]);
   const [currentClass, setCurrentClass] = useState(null);
   const [showLeaveModal, setShowLeaveModal] = useState(false);
   const navigate = useNavigate();
@@ -736,6 +723,16 @@ function StudentClassStream() {
   useEffect(() => {
     fetchClassData();
   }, [className]);
+
+  // Fetch exam grades when exams are loaded
+  useEffect(() => {
+    if (exams.length > 0) {
+      const token = getAuthToken();
+      if (token) {
+        fetchSubmittedExams(token);
+      }
+    }
+  }, [exams]);
 
   const fetchClassData = async () => {
     setLoading(true);
@@ -749,7 +746,6 @@ function StudentClassStream() {
         fetchExams(token),
         fetchMaterials(token),
         fetchClassmates(token),
-        fetchSubmittedExams(token),
         fetchGrades(token, username)
       ]);
     } catch (err) {
@@ -938,7 +934,29 @@ function StudentClassStream() {
       const response = await axios.get(`${API_BASE_URL}/api/exam-submissions/student`, {
         headers: { Authorization: `Bearer ${token}` }
       });
+      
+      // Set submitted exam IDs for checking purposes
       setSubmittedExams(response.data.map(submission => submission.examId));
+      
+      // Filter submissions for current class and set exam grades
+      const classSubmissions = response.data.filter(submission => 
+        submission.examId && exams.some(exam => 
+          exam._id === submission.examId && exam.className === className
+        )
+      );
+      
+      // Combine with exam data for better display
+      const gradesWithExamInfo = classSubmissions.map(submission => {
+        const examInfo = exams.find(exam => exam._id === submission.examId);
+        return {
+          ...submission,
+          examTitle: examInfo?.title || 'Unknown Exam',
+          examDue: examInfo?.due,
+          isLate: examInfo?.due ? new Date(submission.submittedAt) > new Date(examInfo.due) : false
+        };
+      }).sort((a, b) => new Date(b.submittedAt) - new Date(a.submittedAt)); // Sort by newest first
+      
+      setExamGrades(gradesWithExamInfo);
     } catch (err) {
       console.error("Error fetching submitted exams:", err);
     }
@@ -1454,39 +1472,107 @@ function StudentClassStream() {
             <Tab eventKey="grades" title="Grades">
               <Card>
                 <Card.Header>
-                  <h5 className="mb-0">📊 Your Grades</h5>
+                  <div className="d-flex justify-content-between align-items-center">
+                    <h5 className="mb-0">📊 Your Exam Scores</h5>
+                    <small className="text-muted">{className}</small>
+                  </div>
                 </Card.Header>
                 <Card.Body>
-                  {grades.length === 0 ? (
-                    <p className="text-muted text-center">No grades yet</p>
+                  {examGrades.length === 0 ? (
+                    <div className="text-center py-4">
+                      <div className="text-muted">
+                        <h6>No exam submissions yet</h6>
+                        <p>Your exam scores will appear here after you submit exams.</p>
+                      </div>
+                    </div>
                   ) : (
                     <Table striped bordered hover responsive>
                       <thead>
                         <tr>
-                          <th>Assignment</th>
-                          <th>Grade</th>
-                          <th>Feedback</th>
-                          <th>Date</th>
+                          <th>Exam</th>
+                          <th>Raw Score</th>
+                          <th>Final Score</th>
+                          <th>Credits Used</th>
+                          <th>Status</th>
+                          <th>Submitted</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {grades.map((grade, index) => (
+                        {examGrades.map((examGrade, index) => (
                           <tr key={index}>
-                            <td>{grade.assignment || 'General'}</td>
-                            <td>
+                            <td className="fw-bold">{examGrade.examTitle}</td>
+                            <td className="text-center">{examGrade.rawScore || 0}</td>
+                            <td className="text-center">
                               <Badge 
-                                bg={parseFloat(grade.grade) >= 80 ? 'success' : 
-                                    parseFloat(grade.grade) >= 70 ? 'warning' : 'danger'}
+                                bg={examGrade.finalScore >= 90 ? 'success' : 
+                                    examGrade.finalScore >= 80 ? 'info' :
+                                    examGrade.finalScore >= 70 ? 'warning' : 'danger'}
                               >
-                                {grade.grade}
+                                {examGrade.finalScore || 0}
+                                {examGrade.creditsUsed > 0 && (
+                                  <span className="small"> (+{examGrade.creditsUsed})</span>
+                                )}
                               </Badge>
                             </td>
-                            <td>{grade.feedback || '-'}</td>
-                            <td>{new Date(grade.date).toLocaleDateString()}</td>
+                            <td className="text-center">
+                              {examGrade.creditsUsed > 0 ? (
+                                <Badge bg="warning">{examGrade.creditsUsed}</Badge>
+                              ) : (
+                                <span className="text-muted">-</span>
+                              )}
+                            </td>
+                            <td>
+                              {examGrade.isLate ? (
+                                <Badge bg="danger">⏰ Late</Badge>
+                              ) : examGrade.examDue ? (
+                                <Badge bg="success">✅ On Time</Badge>
+                              ) : (
+                                <Badge bg="info">📝 No Due Date</Badge>
+                              )}
+                            </td>
+                            <td className="small">
+                              {new Date(examGrade.submittedAt).toLocaleDateString("en-US", {
+                                month: "short",
+                                day: "numeric",
+                                hour: "2-digit",
+                                minute: "2-digit"
+                              })}
+                            </td>
                           </tr>
                         ))}
                       </tbody>
                     </Table>
+                  )}
+                  
+                  {examGrades.length > 0 && (
+                    <div className="mt-3 p-3 bg-light rounded">
+                      <Row className="text-center">
+                        <Col md={3}>
+                          <div className="fw-bold text-primary">
+                            {examGrades.length}
+                          </div>
+                          <small className="text-muted">Total Exams</small>
+                        </Col>
+                        <Col md={3}>
+                          <div className="fw-bold text-success">
+                            {(examGrades.reduce((sum, grade) => sum + (grade.finalScore || 0), 0) / examGrades.length).toFixed(1)}
+                          </div>
+                          <small className="text-muted">Average Score</small>
+                        </Col>
+                        <Col md={3}>
+                          <div className="fw-bold text-warning">
+                            {examGrades.reduce((sum, grade) => sum + (grade.creditsUsed || 0), 0)}
+                          </div>
+                          <small className="text-muted">Total Credits Used</small>
+                        </Col>
+                        <Col md={3}>
+                          <div className="fw-bold text-info">
+                            {Math.max(...examGrades.map(grade => grade.finalScore || 0))}
+                          </div>
+                          <small className="text-muted">Highest Score</small>
+                        </Col>
+                      </Row>
+                    </div>
                   )}
                 </Card.Body>
               </Card>
