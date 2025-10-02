@@ -1593,13 +1593,6 @@ app.post("/api/exam-submissions", authenticateToken, async (req, res) => {
       return res.status(403).json({ error: "You are not enrolled in this class" });
     }
 
-    // Check if student has already submitted this exam
-    const existingSubmission = await ExamSubmission.findOne({ examId, student });
-    if (existingSubmission) {
-      console.log("Exam already submitted");
-      return res.status(400).json({ error: "You have already submitted this exam" });
-    }
-
     // Calculate raw score
     let correctAnswers = 0;
     const totalQuestions = exam.questions.length;
@@ -1785,11 +1778,6 @@ app.get("/api/exam-submissions/exam/:examId", authenticateToken, async (req, res
     console.error("Get exam submissions error:", err);
     res.status(500).json({ error: "Failed to fetch exam submissions" });
   }
-});
-
-// Test endpoint
-app.get("/api/test", (req, res) => {
-  res.json({ message: "Backend is working", timestamp: new Date().toISOString() });
 });
 
 // Debug endpoint to list all classes (for testing)
