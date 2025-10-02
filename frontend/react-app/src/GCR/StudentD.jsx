@@ -989,49 +989,13 @@ function StudentClassStream() {
   };
 
   const handleTakeExam = async (exam) => {
-    console.log("Take Exam clicked:", exam);
-    
-    // Triple-check if student has already submitted this exam
+    // Simple check - if already submitted, don't allow
     if (submittedExams.includes(exam._id)) {
-      alert("You have already submitted this exam and cannot retake it.");
+      alert("You have already submitted this exam.");
       return;
     }
     
-    // Additional server-side check for submitted exams using correct endpoint
-    try {
-      const token = getAuthToken();
-      const response = await axios.get(`${API_BASE_URL}/api/exam-submissions/student`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      
-      const submittedExamIds = response.data.map(submission => submission.examId);
-      console.log("Server submitted exams:", submittedExamIds);
-      console.log("Checking exam ID:", exam._id);
-      
-      if (submittedExamIds.includes(exam._id)) {
-        alert("You have already submitted this exam and cannot retake it.");
-        // Update local state to match server state
-        setSubmittedExams(prev => {
-          const updated = [...new Set([...prev, exam._id])];
-          console.log("Updated submitted exams:", updated);
-          return updated;
-        });
-        return;
-      }
-    } catch (err) {
-      console.error("Error checking submission status:", err);
-      // If we can't check server status, don't allow exam to open
-      alert("Unable to verify exam status. Please try again.");
-      return;
-    }
-    
-    // Final safety check before opening modal
-    if (submittedExams.includes(exam._id)) {
-      alert("You have already submitted this exam and cannot retake it.");
-      return;
-    }
-    
-    console.log("Opening exam modal for:", exam.title);
+    // Open exam modal
     setSelectedExam(exam);
     setExamAnswers({});
     setExamSubmitted(false);
@@ -1089,13 +1053,8 @@ function StudentClassStream() {
 
       console.log("Submission successful:", response.data);
       
-      // Immediately update submitted exams state to prevent retaking
-      setSubmittedExams(prev => {
-        const updated = [...new Set([...prev, selectedExam._id])];
-        console.log("Updated submitted exams after submission:", updated);
-        return updated;
-      });
-      
+      // Add exam to submitted list so button becomes disabled
+      setSubmittedExams(prev => [...prev, selectedExam._id]);
       setExamSubmitted(true);
       
       const { score, creditsUsed, creditPointsRemaining } = response.data;
@@ -1355,35 +1314,7 @@ function StudentClassStream() {
                               <Button 
                                 variant="success" 
                                 size="sm"
-                                onClick={async () => {
-                                  // Comprehensive final check before opening modal
-                                  if (submittedExams.includes(exam._id)) {
-                                    alert("You have already submitted this exam and cannot retake it.");
-                                    return;
-                                  }
-                                  
-                                  // Additional server check
-                                  try {
-                                    const token = getAuthToken();
-                                    const response = await axios.get(`${API_BASE_URL}/api/exam-submissions/student`, {
-                                      headers: { Authorization: `Bearer ${token}` }
-                                    });
-                                    
-                                    const submittedExamIds = response.data.map(submission => submission.examId);
-                                    if (submittedExamIds.includes(exam._id)) {
-                                      alert("You have already submitted this exam and cannot retake it.");
-                                      // Force update local state
-                                      setSubmittedExams(prev => [...new Set([...prev, exam._id])]);
-                                      return;
-                                    }
-                                  } catch (err) {
-                                    console.error("Error in button click check:", err);
-                                    alert("Unable to verify exam status. Please refresh the page and try again.");
-                                    return;
-                                  }
-                                  
-                                  handleTakeExam(exam);
-                                }}
+                                onClick={() => handleTakeExam(exam)}
                               >
                                 Take Exam
                               </Button>
