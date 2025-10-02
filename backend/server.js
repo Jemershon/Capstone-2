@@ -1582,14 +1582,23 @@ app.post("/api/exam-submissions", authenticateToken, async (req, res) => {
     // Determine early/late submission timing bonus/penalty
     const now = new Date();
     let creditDelta = 0;
+    console.log(`Exam due date: ${exam.due}`);
+    console.log(`Current time: ${now}`);
+    
     if (exam.due) {
-      if (now < new Date(exam.due)) {
+      const dueDate = new Date(exam.due);
+      console.log(`Due date parsed: ${dueDate}`);
+      console.log(`Is now < due? ${now < dueDate}`);
+      
+      if (now < dueDate) {
         creditDelta = 1; // +1 for early submission
-        console.log("Early submission: +1 credit point bonus");
+        console.log("✅ Early submission: +1 credit point bonus");
       } else {
         creditDelta = -2; // -2 for late submission
-        console.log("Late submission: -2 credit points penalty");
+        console.log("❌ Late submission: -2 credit points penalty");
       }
+    } else {
+      console.log("⚠️ No due date set for this exam - no timing bonus/penalty");
     }
     
     // Calculate final credit points: original - used + timing bonus/penalty
