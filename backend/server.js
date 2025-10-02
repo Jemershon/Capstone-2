@@ -194,7 +194,7 @@ const UserSchema = new mongoose.Schema({
   email: { type: String, unique: true },
   password: String,
   role: { type: String, enum: ["Student", "Teacher", "Admin"], default: "Student" },
-  creditPoints: { type: Number, default: 0 },
+  creditPoints: { type: Number, default: 5, min: 0, max: 10 }, // Max 10 credit points
 });
 
 const ClassSchema = new mongoose.Schema({
@@ -1691,9 +1691,9 @@ app.post("/api/exam-submissions", authenticateToken, async (req, res) => {
     
     // Calculate final credit points: original - used + timing bonus/penalty
     const calculatedCreditPoints = originalCreditPoints - creditsUsed + creditDelta;
-    const finalCreditPoints = Math.max(0, calculatedCreditPoints);
+    const finalCreditPoints = Math.max(0, Math.min(10, calculatedCreditPoints)); // Max 10, Min 0
     
-    console.log(`Credit points calculation: ${originalCreditPoints} - ${creditsUsed} + ${creditDelta} = ${calculatedCreditPoints} → ${finalCreditPoints} (min 0)`);
+    console.log(`Credit points calculation: ${originalCreditPoints} - ${creditsUsed} + ${creditDelta} = ${calculatedCreditPoints} → ${finalCreditPoints} (min 0, max 10)`);
     
     // Update user credit points
     user.creditPoints = finalCreditPoints;
