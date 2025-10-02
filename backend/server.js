@@ -1751,7 +1751,10 @@ app.get("/api/exam-submissions/student", authenticateToken, async (req, res) => 
   try {
     const student = req.user.username;
     
-    const submissions = await ExamSubmission.find({ student }).select('examId submittedAt finalScore');
+    const submissions = await ExamSubmission.find({ student })
+      .populate('examId', 'title className due')
+      .select('examId submittedAt finalScore rawScore creditsUsed')
+      .sort({ submittedAt: -1 });
     
     res.json(submissions);
   } catch (err) {
