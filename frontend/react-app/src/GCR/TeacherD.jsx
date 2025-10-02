@@ -3735,10 +3735,10 @@ export default function TeacherDashboard() {
           </Nav>
         </Col>
         {/* Mobile Navbar */}
-        <div className="d-md-none position-fixed w-100" style={{top: 0, zIndex: 1000}}>
-          <Navbar expand="lg" bg="white" variant="light" className="shadow-sm">
+        <div className="d-md-none position-fixed w-100" style={{top: 0, zIndex: 1030}}>
+          <Navbar expand="lg" bg="white" variant="light" className="shadow-sm px-4">
             <Container fluid>
-              <Navbar.Brand className="fw-bold text-primary">🏫 Teacher Panel</Navbar.Brand>
+              <Navbar.Brand className="fw-bold text-primary fs-3">🏫 Teacher</Navbar.Brand>
               <Navbar.Toggle aria-controls="mobile-nav" />
               <Navbar.Collapse id="mobile-nav">
                 <Nav className="ms-auto align-items-lg-center">
@@ -3746,33 +3746,31 @@ export default function TeacherDashboard() {
                     as={Link}
                     to="/teacher/dashboard"
                     className="mx-2 text-dark"
-                    aria-label="Dashboard and Classes"
                   >
-                    🏠 Dashboard
+                    Dashboard
                   </Nav.Link>
                   <Nav.Link
                     as={Link}
                     to="/teacher/grades"
                     className="mx-2 text-dark"
-                    aria-label="Grades"
                   >
-                    📊 Grades
+                    Grades
                   </Nav.Link>
                   <Nav.Link
                     as={Link}
                     to="/teacher/profile"
                     className="mx-2 text-dark"
-                    aria-label="Profile"
                   >
-                    👤 Profile
+                    Profile
                   </Nav.Link>
-                  <Nav.Link
+                  <Button
+                    variant="danger"
+                    className="ms-lg-3"
                     onClick={() => setShowLogoutModal(true)}
-                    className="mx-2 text-danger"
-                    aria-label="Logout"
+                    size="sm"
                   >
-                    🚪 Logout
-                  </Nav.Link>
+                    Logout
+                  </Button>
                 </Nav>
               </Navbar.Collapse>
             </Container>
