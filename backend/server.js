@@ -88,14 +88,34 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 
-// Static file serving (only for development)
+// Ensure uploads directory exists (only in development)
 if (NODE_ENV === 'development') {
   const uploadsDir = path.join(__dirname, "uploads");
-  if (!fs.existsSync(uploadsDir)) {
-    fs.mkdirSync(uploadsDir, { recursive: true });
+  const subdirs = ['materials', 'assignments', 'profiles'];
+  
+  try {
+    if (!fs.existsSync(uploadsDir)) {
+      fs.mkdirSync(uploadsDir, { recursive: true });
+      console.log("✅ Created uploads directory");
+    }
+    
+    // Create subdirectories
+    subdirs.forEach(subdir => {
+      const subdirPath = path.join(uploadsDir, subdir);
+      if (!fs.existsSync(subdirPath)) {
+        fs.mkdirSync(subdirPath, { recursive: true });
+        console.log(`✅ Created ${subdir} subdirectory`);
+      }
+    });
+    
+    app.use("/uploads", express.static(uploadsDir));
+    console.log("ℹ️ Serving static files locally (development mode)");
+  } catch (error) {
+    console.warn("⚠️ Could not create uploads directory:", error.message);
+    console.warn("⚠️ File uploads may not work locally");
   }
-  app.use("/uploads", express.static(uploadsDir));
-  console.log("ℹ️ Serving static files locally (development mode)");
+} else {
+  console.log("ℹ️ Production mode: Using Cloudinary for file storage");
 }
 
 // Security headers
@@ -1980,6 +2000,27 @@ process.on('SIGTERM', () => {
   });
 });
 
+// Handle unhandled promise rejections
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('⚠️ Unhandled Rejection at:', promise, 'reason:', reason);
+  // Don't exit the process in production
+  if (NODE_ENV !== 'production') {
+    console.warn('⚠️ Unhandled rejection detected - continuing in development');
+  }
+});
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (error) => {
+  console.error('💥 Uncaught Exception:', error);
+  if (NODE_ENV === 'production') {
+    console.error('⚠️ Uncaught exception in production - attempting to continue');
+    // Log but don't exit to keep server running for Railway
+  } else {
+    console.error('💥 Uncaught exception - exiting');
+    process.exit(1);
+  }
+});
+
 // Start server
 httpServer.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Server running on port ${PORT}`);
@@ -1988,5 +2029,4 @@ httpServer.listen(PORT, '0.0.0.0', () => {
   console.log(`🔧 File Storage: ${NODE_ENV === 'production' ? 'Cloudinary (Cloud)' : 'Local Filesystem'}`);
   console.log(`🌐 CORS Origin: ${CORS_ORIGIN}`);
   console.log(`📡 WebSocket server initialized`);
-  console.log(`🔄 Restarting after MongoDB IP whitelist update`);
 });
