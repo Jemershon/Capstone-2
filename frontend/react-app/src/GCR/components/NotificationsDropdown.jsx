@@ -27,17 +27,28 @@ function NotificationsDropdown() {
   const fetchNotifications = useCallback(async () => {
     setLoading(true);
     try {
+      const token = getAuthToken();
+      if (!token) {
+        console.log('No auth token available');
+        setLoading(false);
+        return;
+      }
+      
       const res = await retry(() => 
         axios.get(`${API_BASE_URL}/api/notifications`, {
           params: { limit: 5 },
-          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+          headers: { Authorization: `Bearer ${token}` }
         })
       );
       
+      console.log('Notifications fetched:', res.data);
       setNotifications(res.data.notifications || []);
       setUnreadCount(res.data.unreadCount || 0);
     } catch (err) {
       console.error('Fetch notifications error:', err.response?.data || err.message);
+      // Set empty notifications on error to prevent crashes
+      setNotifications([]);
+      setUnreadCount(0);
     } finally {
       setLoading(false);
     }
@@ -52,40 +63,51 @@ function NotificationsDropdown() {
     // Set up Socket.IO connection for real-time notifications
     const token = getAuthToken();
     if (token) {
-      // Create socket connection
-      const socket = io(API_BASE_URL);
-      socketRef.current = socket;
-      
-      // Socket connection events
-      socket.on('connect', () => {
-        console.log('Connected to notification server');
-        socket.emit('authenticate', token);
-      });
-      
-      socket.on('connect_error', (error) => {
-        console.error('Socket connection error:', error);
-      });
-      
-      // Listen for new notifications
-      socket.on('new-notification', (notification) => {
-        console.log('Received new notification:', notification);
-        // Add the new notification to the top of the list
-        setNotifications(prev => [notification, ...prev.slice(0, 4)]);
-        // Increment unread count
-        setUnreadCount(prev => prev + 1);
+      try {
+        // Create socket connection
+        const socket = io(API_BASE_URL, {
+          transports: ['websocket', 'polling'],
+          timeout: 10000
+        });
+        socketRef.current = socket;
         
-        // Show browser notification if supported
-        if ('Notification' in window && Notification.permission === 'granted') {
-          new Notification('New Notification', {
-            body: notification.message,
-            icon: '/favicon.ico'
-          });
+        // Socket connection events
+        socket.on('connect', () => {
+          console.log('Connected to notification server');
+          socket.emit('authenticate', token);
+        });
+        
+        socket.on('connect_error', (error) => {
+          console.error('Socket connection error:', error);
+        });
+        
+        socket.on('disconnect', (reason) => {
+          console.log('Socket disconnected:', reason);
+        });
+        
+        // Listen for new notifications
+        socket.on('new-notification', (notification) => {
+          console.log('Received new notification:', notification);
+          // Add the new notification to the top of the list
+          setNotifications(prev => [notification, ...prev.slice(0, 4)]);
+          // Increment unread count
+          setUnreadCount(prev => prev + 1);
+          
+          // Show browser notification if supported
+          if ('Notification' in window && Notification.permission === 'granted') {
+            new Notification('New Notification', {
+              body: notification.message,
+              icon: '/favicon.ico'
+            });
+          }
+        });
+        
+        // Request notification permission if not already granted
+        if ('Notification' in window && Notification.permission !== 'denied') {
+          Notification.requestPermission();
         }
-      });
-      
-      // Request notification permission if not already granted
-      if ('Notification' in window && Notification.permission !== 'denied') {
-        Notification.requestPermission();
+      } catch (error) {
+        console.error('Error setting up socket connection:', error);
       }
     }
     
@@ -99,9 +121,15 @@ function NotificationsDropdown() {
   
   const handleMarkAsRead = async (notificationId) => {
     try {
+      const token = getAuthToken();
+      if (!token) {
+        console.error('No auth token available');
+        return;
+      }
+      
       await retry(() => 
         axios.put(`${API_BASE_URL}/api/notifications/${notificationId}/read`, {}, {
-          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+          headers: { Authorization: `Bearer ${token}` }
         })
       );
       
@@ -121,9 +149,15 @@ function NotificationsDropdown() {
   
   const handleMarkAllAsRead = async () => {
     try {
+      const token = getAuthToken();
+      if (!token) {
+        console.error('No auth token available');
+        return;
+      }
+      
       await retry(() => 
         axios.put(`${API_BASE_URL}/api/notifications/read-all`, {}, {
-          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+          headers: { Authorization: `Bearer ${token}` }
         })
       );
       
@@ -141,24 +175,53 @@ function NotificationsDropdown() {
   
   const handleDeleteNotification = async (notificationId) => {
     try {
+      const token = getAuthToken();
+      if (!token) {
+        console.error('No auth token available');
+        return;
+      }
+      
       await retry(() => 
         axios.delete(`${API_BASE_URL}/api/notifications/${notificationId}`, {
-          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+          headers: { Authorization: `Bearer ${token}` }
         })
       );
       
       // Remove notification from the local state
+      const notification = notifications.find(n => n._id === notificationId);
       setNotifications(prevNotifications => 
-        prevNotifications.filter(notification => notification._id !== notificationId)
+        prevNotifications.filter(n => n._id !== notificationId)
       );
       
-      // Update unread count if needed
-      const deletedNotification = notifications.find(notification => notification._id === notificationId);
-      if (deletedNotification && !deletedNotification.read) {
+      // Decrease unread count if the deleted notification was unread
+      if (notification && !notification.read) {
         setUnreadCount(prev => Math.max(0, prev - 1));
       }
     } catch (err) {
       console.error('Delete notification error:', err.response?.data || err.message);
+    }
+  };
+  
+  // Test notification function
+  const sendTestNotification = async () => {
+    try {
+      const token = getAuthToken();
+      if (!token) {
+        console.error('No auth token available');
+        return;
+      }
+      
+      await axios.post(`${API_BASE_URL}/api/test-notification`, {
+        message: `Test notification sent at ${new Date().toLocaleTimeString()}`
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      console.log('Test notification sent');
+      // Refresh notifications to show the new one
+      fetchNotifications();
+    } catch (err) {
+      console.error('Send test notification error:', err.response?.data || err.message);
     }
   };
   
@@ -199,16 +262,26 @@ function NotificationsDropdown() {
         <Dropdown.Menu align="end" style={{ width: '300px', maxHeight: '400px', overflowY: 'auto' }}>
           <div className="d-flex justify-content-between align-items-center px-3 py-2">
             <h6 className="mb-0">Notifications</h6>
-            {unreadCount > 0 && (
+            <div className="d-flex gap-2">
               <Button
-                variant="link"
+                variant="outline-primary"
                 size="sm"
-                className="p-0 text-primary"
-                onClick={handleMarkAllAsRead}
+                onClick={sendTestNotification}
+                title="Send test notification"
               >
-                Mark all as read
+                Test
               </Button>
-            )}
+              {unreadCount > 0 && (
+                <Button
+                  variant="link"
+                  size="sm"
+                  className="p-0 text-primary"
+                  onClick={handleMarkAllAsRead}
+                >
+                  Mark all as read
+                </Button>
+              )}
+            </div>
           </div>
           
           <Dropdown.Divider className="my-1" />

@@ -17,10 +17,12 @@ import { authenticateToken, requireAdmin, requireTeacherOrAdmin, requireStudent 
 import materialsRoutes from "./routes/materials.js";
 import commentsRoutes from "./routes/comments.js";
 import notificationsRoutes from "./routes/notifications.js";
+import testNotificationsRoutes from "./routes/testNotifications.js";
 import uploadRoutes from "./routes/upload.js";
 import examsRoutes, { setupModels } from "./routes/exams.js";
 import reactionsRoutes from "./routes/reactions.js";
 import Exam from "./models/Exam.js";
+import Notification from "./models/Notification.js";
 
 // Fix __dirname for ES Modules
 const __filename = fileURLToPath(import.meta.url);
@@ -1503,6 +1505,7 @@ setupModels({
 app.use("/api", materialsRoutes);
 app.use("/api", commentsRoutes);
 app.use("/api", notificationsRoutes);
+app.use("/api", testNotificationsRoutes);
 app.use("/api", uploadRoutes);
 app.use("/api", reactionsRoutes);
 app.use("/api/exams", examsRoutes);
@@ -1712,6 +1715,25 @@ app.post("/api/exam-submissions", authenticateToken, async (req, res) => {
         score: finalScorePercentage,
         submittedAt: new Date()
       });
+    }
+
+    // Create notification for student about successful submission
+    try {
+      const notification = new Notification({
+        recipient: student,
+        sender: 'System',
+        type: 'grade',
+        message: `Exam "${exam.title}" submitted successfully! Score: ${finalScorePercentage}%`,
+        class: exam.className
+      });
+      await notification.save();
+      
+      // Send real-time notification to student
+      if (req.app.io) {
+        req.app.io.to(`user:${student}`).emit('new-notification', notification);
+      }
+    } catch (notificationError) {
+      console.log("Notification creation failed, but continuing:", notificationError.message);
     }
 
     // Create grade entry with detailed feedback
