@@ -703,7 +703,9 @@ function StudentMainDashboard() {
 }
 
 function StudentClassStream() {
-  const { className } = useParams();
+  const { className: rawClassName } = useParams();
+  const className = decodeURIComponent(rawClassName || "");
+  console.log('StudentClassStream initialized with className:', className);
   const [announcements, setAnnouncements] = useState([]);
   const [assignments, setAssignments] = useState([]);
   const [exams, setExams] = useState([]);
@@ -802,7 +804,7 @@ function StudentClassStream() {
 
   const fetchAssignments = async (token) => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/api/assignments?className=${className}`, {
+      const response = await axios.get(`${API_BASE_URL}/api/assignments?className=${encodeURIComponent(className)}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setAssignments(response.data);
@@ -813,9 +815,11 @@ function StudentClassStream() {
 
   const fetchExams = async (token) => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/api/exams?className=${className}`, {
+      console.log('Fetching exams for class:', className);
+      const response = await axios.get(`${API_BASE_URL}/api/exams?className=${encodeURIComponent(className)}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
+      console.log('Exams fetched:', response.data);
       setExams(response.data);
     } catch (err) {
       console.error("Error fetching exams:", err);
@@ -824,7 +828,7 @@ function StudentClassStream() {
 
   const fetchMaterials = async (token) => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/api/materials?className=${className}`, {
+      const response = await axios.get(`${API_BASE_URL}/api/materials?className=${encodeURIComponent(className)}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setMaterials(response.data);
@@ -838,7 +842,7 @@ function StudentClassStream() {
       console.log("🔍 Fetching people data for class:", className);
       
       // Use the new people endpoint that returns teacher and classmates details
-      const peopleResponse = await axios.get(`${API_BASE_URL}/api/classes/${className}/people`, {
+      const peopleResponse = await axios.get(`${API_BASE_URL}/api/classes/${encodeURIComponent(className)}/people`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
@@ -859,7 +863,7 @@ function StudentClassStream() {
       }
       
       // Also fetch the basic class info for other purposes
-      const classResponse = await axios.get(`${API_BASE_URL}/api/classes/${className}`, {
+      const classResponse = await axios.get(`${API_BASE_URL}/api/classes/${encodeURIComponent(className)}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
@@ -902,7 +906,7 @@ function StudentClassStream() {
       if (err.response?.status === 404 || err.response?.status === 403) {
         console.log("⚠️ New people endpoint failed, falling back to old method");
         try {
-          const response = await axios.get(`${API_BASE_URL}/api/classes/${className}`, {
+          const response = await axios.get(`${API_BASE_URL}/api/classes/${encodeURIComponent(className)}`, {
             headers: { Authorization: `Bearer ${token}` }
           });
           
@@ -942,7 +946,7 @@ function StudentClassStream() {
 
   const fetchGrades = async (token, username) => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/api/grades?class=${className}&student=${username}`, {
+      const response = await axios.get(`${API_BASE_URL}/api/grades?class=${encodeURIComponent(className)}&student=${username}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setGrades(response.data);
