@@ -930,7 +930,7 @@ function TeacherClassStream() {
       }
       
       // Show success message
-      setError("Exam created successfully!");
+      setSuccessMessage("Exam created successfully!");
       setShowToast(true);
     } catch (err) {
       console.error("Create exam error:", err.response?.data || err.message);
@@ -2635,7 +2635,7 @@ function Exams() {
       await fetchExams();
       setShowCreateModal(false);
       setExamData({ title: "", description: "", class: "", questions: [{ text: "", type: "short", options: [], correctAnswer: "" }] });
-      setError("Exam created successfully!");
+      setSuccessMessage("Exam created successfully!");
       setShowToast(true);
     } catch (err) {
       console.error("Create exam error:", err.response?.data || err.message);
