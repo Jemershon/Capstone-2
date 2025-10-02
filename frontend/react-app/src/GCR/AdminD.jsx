@@ -678,7 +678,7 @@ export default function AdminDashboard() {
         </Col>
 
         {/* Mobile Navbar */}
-        <div className="d-md-none position-fixed w-100" style={{top: 0, zIndex: 1030}}>
+        <div className="d-md-none">
           <Navbar expand="lg" bg="white" variant="light" className="shadow-sm px-4">
             <Container fluid>
               <Navbar.Brand className="fw-bold text-primary fs-3">👑 Admin</Navbar.Brand>

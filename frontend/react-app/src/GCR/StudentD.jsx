@@ -12,7 +12,6 @@ const customStyles = `
   .main-content-responsive {
     margin-left: 0;
     padding: 15px;
-    padding-top: 70px; /* Space for mobile navbar */
     min-height: 100vh;
   }
   
@@ -20,7 +19,6 @@ const customStyles = `
     .main-content-responsive {
       margin-left: 16.666667%;
       padding: 20px;
-      padding-top: 20px; /* Reset padding-top for desktop */
     }
   }
   
@@ -193,7 +191,7 @@ function StudentDashboard() {
         </Col>
         
         {/* Mobile navbar */}
-        <div className="d-md-none position-fixed w-100" style={{top: 0, zIndex: 1030}}>
+        <div className="d-md-none">
           <Navbar expand="lg" bg="white" variant="light" className="shadow-sm px-4">
             <Container fluid>
               <Navbar.Brand className="fw-bold text-primary fs-3">📚 Student</Navbar.Brand>
