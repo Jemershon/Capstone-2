@@ -89,11 +89,67 @@ const customStyles = `
   }
   
   @media (max-width: 767px) {
+    body {
+      margin: 0 !important;
+      padding: 0 !important;
+    }
+    
+    .student-dashboard-container {
+      padding: 0 !important;
+      margin: 0 !important;
+    }
+    
+    .row, .row.g-0 {
+      margin: 0 !important;
+      padding: 0 !important;
+    }
+    
+    .col, [class*="col-"] {
+      padding: 0 !important;
+      margin: 0 !important;
+    }
+    
+    /* Add small gaps between stat cards */
+    .row.mb-4 > [class*="col-"] {
+      padding: 0 5px !important;
+      margin-bottom: 10px !important;
+    }
+    
+    .row.mb-4 {
+      margin-left: -5px !important;
+      margin-right: -5px !important;
+    }
+    
+    .container, .container-fluid {
+      padding: 0 !important;
+      margin: 0 !important;
+    }
+    
+    .main-content-responsive {
+      padding: 10px !important;
+      margin: 0 !important;
+    }
+    
     .dashboard-content {
-      padding: 0;
+      padding: 10px !important;
+      margin: 0 !important;
+    }
+    
+    .dashboard-content > * {
+      margin-top: 10px !important;
+    }
+    
+    .dashboard-content > *:first-child,
+    .dashboard-content > h1:first-child,
+    .dashboard-content > h2:first-child {
+      margin-top: 0 !important;
     }
     
     .card, .container {
+      margin-top: 10px !important;
+    }
+    
+    h1, h2, h3, h4, h5, h6 {
       margin-top: 0 !important;
     }
   }
