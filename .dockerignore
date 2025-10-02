@@ -1,0 +1,49 @@
+# Dependencies
+node_modules/
+*/node_modules/
+**/node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Frontend build (not needed for backend deployment)
+frontend/react-app/dist/
+frontend/react-app/build/
+frontend/react-app/.vite/
+
+# Development files
+.git/
+.gitignore
+.env.local
+.env.development
+*.md
+README.md
+DEPLOYMENT.md
+EASY-DEPLOYMENT-GUIDE.md
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Large upload files (create on Railway instead)
+backend/uploads/materials/*.pdf
+backend/uploads/materials/*.pptx
+backend/uploads/materials/*.jpg
+backend/uploads/materials/*.png
+backend/uploads/profiles/*
+backend/uploads/assignments/*
+
+# Debug files
+debug.js
+debug-teacher.js
+
+# Deployment helpers
+deploy.sh
+deploy.bat
+deploy-helper.bat
