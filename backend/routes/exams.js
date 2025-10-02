@@ -1,5 +1,6 @@
 import express from 'express';
 import Exam from '../models/Exam.js';
+import Notification from '../models/Notification.js';
 import { authenticateToken, requireTeacherOrAdmin, requireStudent } from '../middlewares/auth.js';
 
 // We'll import these models from server.js
@@ -128,6 +129,51 @@ router.post('/', authenticateToken, requireTeacherOrAdmin, async (req, res) => {
     
     await exam.save();
     console.log(`Exam created successfully with ID: ${exam._id}`);
+    
+    // Send notifications to all students in the class
+    try {
+      const classDoc = await Class.findOne({ name: className });
+      if (classDoc && classDoc.students && classDoc.students.length > 0) {
+        console.log(`Sending notifications to ${classDoc.students.length} students in class ${className}`);
+        
+        const notifications = classDoc.students.map(studentUsername => ({
+          recipient: studentUsername,
+          sender: req.user.username,
+          type: 'assignment',
+          message: `New exam posted: "${title}"`,
+          referenceId: exam._id,
+          class: className,
+          read: false,
+          createdAt: new Date()
+        }));
+        
+        await Notification.insertMany(notifications);
+        console.log(`✅ Notifications sent to students in ${className}`);
+        
+        // Emit socket event to notify students in real-time
+        if (req.app.io) {
+          req.app.io.to(`class:${className}`).emit('new-exam', {
+            exam,
+            message: `${req.user.username} posted a new exam: ${title}`
+          });
+          
+          // Send notification event to each student
+          classDoc.students.forEach(studentUsername => {
+            req.app.io.to(`user:${studentUsername}`).emit('new-notification', {
+              type: 'assignment',
+              message: `New exam posted: "${title}"`,
+              class: className,
+              sender: req.user.username
+            });
+          });
+        }
+      } else {
+        console.log(`⚠️ No students found in class ${className} to notify`);
+      }
+    } catch (notifErr) {
+      console.error('Error sending notifications:', notifErr);
+      // Don't fail the exam creation if notifications fail
+    }
     
     res.status(201).json({ message: 'Exam created successfully', exam });
   } catch (err) {
