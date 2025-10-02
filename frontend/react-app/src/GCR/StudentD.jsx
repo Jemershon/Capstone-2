@@ -684,6 +684,11 @@ function StudentClassStream() {
   const [showLeaveModal, setShowLeaveModal] = useState(false);
   const navigate = useNavigate();
 
+  // Debug: Log when submittedExams changes
+  useEffect(() => {
+    console.log('📊 submittedExams state changed:', submittedExams);
+  }, [submittedExams]);
+
   useEffect(() => {
     fetchClassData();
   }, [className]);
@@ -936,19 +941,27 @@ function StudentClassStream() {
 
   const fetchSubmittedExams = async (token) => {
     try {
-      console.log('Fetching submitted exams for student');
+      console.log('📋 Fetching submitted exams for student');
       const response = await axios.get(`${API_BASE_URL}/api/exam-submissions/student`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
-      console.log('Submitted exams response:', response.data);
+      console.log('📋 Submitted exams response:', response.data);
       
-      // Get exam IDs that have been submitted
-      const submittedIds = response.data.map(submission => submission.examId);
-      console.log('Submitted exam IDs:', submittedIds);
+      // Get exam IDs that have been submitted (handle both populated and non-populated examId)
+      const submittedIds = response.data.map(submission => {
+        // Handle both populated and non-populated examId
+        if (typeof submission.examId === 'object' && submission.examId !== null) {
+          return submission.examId._id || submission.examId;
+        }
+        return submission.examId;
+      }).filter(id => id); // Remove any null/undefined values
+      
+      console.log('📋 Submitted exam IDs:', submittedIds);
       
       // Update the submitted exams state
       setSubmittedExams(submittedIds);
+      console.log('✅ submittedExams state updated to:', submittedIds);
       
       // Filter submissions for current class and set exam grades
       const classSubmissions = response.data.filter(submission => 
@@ -1088,8 +1101,9 @@ function StudentClassStream() {
 
       console.log("Submission successful:", response.data);
       
-      // Add exam to submitted list so button becomes disabled
+      // Immediately add exam to submitted list for instant UI update
       const updatedSubmissions = [...submittedExams, selectedExam._id];
+      console.log("Updating submittedExams:", updatedSubmissions);
       setSubmittedExams(updatedSubmissions);
       setExamSubmitted(true);
       
@@ -1133,24 +1147,26 @@ function StudentClassStream() {
         }
       }
       
+      // Fetch fresh submitted exams data from server immediately
+      try {
+        await fetchSubmittedExams(getAuthToken());
+        console.log("✅ Successfully fetched updated submitted exams list");
+      } catch (fetchErr) {
+        console.error("❌ Error fetching submitted exams after submission:", fetchErr);
+      }
+      
       // Display success message for a moment
       setTimeout(() => {
-        // First close the modal
+        // Close the modal
         setShowExamModal(false);
         setExamSubmitted(false); // Reset for next exam
         
-        // Then force a complete reload of class data with a small delay
+        // Refresh all class data to ensure everything is in sync
         setTimeout(() => {
           console.log("Reloading class data after exam submission");
           fetchClassData();
         }, 500);
       }, 2000);
-      
-      // Immediately update the UI to show exam as taken
-      setSubmittedExams(updatedSubmissions);
-      
-      // Refresh exam grades to show the new submission
-      await fetchSubmittedExams(getAuthToken());
       
     } catch (err) {
       console.error("Error submitting exam:", err);
