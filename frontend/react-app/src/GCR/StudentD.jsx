@@ -1146,11 +1146,8 @@ function StudentClassStream() {
         }, 500);
       }, 2000);
       
-      // Create a forced render to immediately update all buttons
-      setTimeout(() => {
-        // Force the component to re-render by updating the state
-        setSubmittedExams([...updatedSubmissions]);
-      }, 0);
+      // Immediately update the UI to show exam as taken
+      setSubmittedExams(updatedSubmissions);
       
       // Refresh exam grades to show the new submission
       await fetchSubmittedExams(getAuthToken());
