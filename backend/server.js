@@ -1235,6 +1235,90 @@ app.post("/api/grades", authenticateToken, requireTeacherOrAdmin, async (req, re
   }
 });
 
+// Teacher: Get leaderboard data (exam scores by class)
+app.get("/api/leaderboard", authenticateToken, requireTeacherOrAdmin, async (req, res) => {
+  try {
+    // Get all classes taught by this teacher
+    const classes = await Class.find({ teacher: req.user.username }).select("name");
+    const classNames = classes.map(cls => cls.name);
+    
+    // Get all exams for these classes
+    const exams = await Exam.find({ className: { $in: classNames } })
+      .select("title className due");
+    
+    // Get all exam submissions for these exams
+    const examIds = exams.map(exam => exam._id);
+    const submissions = await ExamSubmission.find({ examId: { $in: examIds } })
+      .populate('examId', 'title className due')
+      .sort({ finalScore: -1, submittedAt: 1 });
+    
+    // Get user data for student names and sections
+    const studentUsernames = [...new Set(submissions.map(sub => sub.student))];
+    const users = await User.find({ username: { $in: studentUsernames } })
+      .select("username email role section creditPoints");
+    
+    // Create user lookup map
+    const userMap = {};
+    users.forEach(user => {
+      userMap[user.username] = user;
+    });
+    
+    // Transform submissions data for leaderboard
+    const leaderboardData = submissions.map(submission => ({
+      _id: submission._id,
+      student: submission.student,
+      studentEmail: userMap[submission.student]?.email || '',
+      section: userMap[submission.student]?.section || 'No Section',
+      creditPoints: userMap[submission.student]?.creditPoints || 0,
+      examTitle: submission.examId?.title || 'Unknown Exam',
+      className: submission.examId?.className || 'Unknown Class',
+      rawScore: submission.rawScore || 0,
+      finalScore: submission.finalScore || 0,
+      creditsUsed: submission.creditsUsed || 0,
+      submittedAt: submission.submittedAt,
+      examDue: submission.examId?.due || null,
+      isEarly: submission.examId?.due ? new Date(submission.submittedAt) < new Date(submission.examId.due) : null,
+      isLate: submission.examId?.due ? new Date(submission.submittedAt) > new Date(submission.examId.due) : null
+    }));
+    
+    // Group by class and section for organized display
+    const groupedData = {
+      allSubmissions: leaderboardData,
+      byClass: {},
+      bySection: {},
+      summary: {
+        totalSubmissions: leaderboardData.length,
+        totalStudents: studentUsernames.length,
+        classes: classNames,
+        topPerformers: leaderboardData.slice(0, 10)
+      }
+    };
+    
+    // Group by class
+    leaderboardData.forEach(item => {
+      if (!groupedData.byClass[item.className]) {
+        groupedData.byClass[item.className] = [];
+      }
+      groupedData.byClass[item.className].push(item);
+    });
+    
+    // Group by section
+    leaderboardData.forEach(item => {
+      if (!groupedData.bySection[item.section]) {
+        groupedData.bySection[item.section] = [];
+      }
+      groupedData.bySection[item.section].push(item);
+    });
+    
+    console.log(`Leaderboard data: ${leaderboardData.length} submissions from ${studentUsernames.length} students`);
+    res.json(groupedData);
+    
+  } catch (err) {
+    console.error("Get leaderboard error:", err);
+    res.status(500).json({ error: "Failed to fetch leaderboard data" });
+  }
+});
+
 // Student: Get classes
 app.get("/api/student/classes", authenticateToken, requireStudent, async (req, res) => {
   try {
@@ -1481,34 +1565,38 @@ app.post("/api/exam-submissions", authenticateToken, async (req, res) => {
       return res.status(404).json({ error: "User not found" });
     }
 
-    // Determine early/late submission and adjust credit points
+    // Store original credit points before any modifications
+    const originalCreditPoints = user.creditPoints || 0;
+    
+    // Apply credit points if student chose to use them (from ORIGINAL amount)
+    let creditsUsed = 0;
+    let finalScore = rawScore;
+    
+    if (useCreditPoints && originalCreditPoints > 0) {
+      const missing = Math.max(0, totalQuestions - rawScore);
+      creditsUsed = Math.min(originalCreditPoints, missing);
+      finalScore = rawScore + creditsUsed;
+      console.log(`Used ${creditsUsed} credit points from original ${originalCreditPoints}. Final score: ${finalScore}/${totalQuestions}`);
+    }
+
+    // Determine early/late submission timing bonus/penalty
     const now = new Date();
     let creditDelta = 0;
     if (exam.due) {
       if (now < new Date(exam.due)) {
         creditDelta = 1; // +1 for early submission
-        console.log("Early submission: +1 credit point");
+        console.log("Early submission: +1 credit point bonus");
       } else {
         creditDelta = -2; // -2 for late submission
-        console.log("Late submission: -2 credit points");
+        console.log("Late submission: -2 credit points penalty");
       }
     }
     
-    // Update credit points based on submission timing
-    const originalCreditPoints = user.creditPoints || 0;
-    user.creditPoints = Math.max(0, originalCreditPoints + creditDelta);
+    // Calculate final credit points: original - used + timing bonus/penalty
+    const finalCreditPoints = Math.max(0, originalCreditPoints - creditsUsed + creditDelta);
+    user.creditPoints = finalCreditPoints;
     
-    // Apply credit points if student chose to use them
-    let creditsUsed = 0;
-    let finalScore = rawScore;
-    
-    if (useCreditPoints && user.creditPoints > 0) {
-      const missing = Math.max(0, totalQuestions - rawScore);
-      creditsUsed = Math.min(user.creditPoints, missing);
-      finalScore = rawScore + creditsUsed;
-      user.creditPoints = Math.max(0, user.creditPoints - creditsUsed);
-      console.log(`Used ${creditsUsed} credit points. Final score: ${finalScore}/${totalQuestions}`);
-    }
+    console.log(`Credit points: ${originalCreditPoints} → ${finalCreditPoints} (used: ${creditsUsed}, timing: ${creditDelta > 0 ? '+' : ''}${creditDelta})`);
     
     await user.save();
 

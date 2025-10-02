@@ -2868,249 +2868,418 @@ function Exams() {
   );
 }
 
-// ================= Grades =================
+// ================= Grades (Leaderboard) =================
 function Grades() {
-  const [grades, setGrades] = useState([]);
-  const [classes, setClasses] = useState([]);
-  const [students, setStudents] = useState([]);
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [gradeData, setGradeData] = useState({ class: "", student: "", grade: "", feedback: "" });
+  const [leaderboardData, setLeaderboardData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [successMessage, setSuccessMessage] = useState("");
   const [showToast, setShowToast] = useState(false);
-  
+  const [viewMode, setViewMode] = useState("all"); // all, byClass, bySection
+  const [selectedClass, setSelectedClass] = useState("");
+  const [selectedSection, setSelectedSection] = useState("");
+  const [sortBy, setSortBy] = useState("finalScore"); // finalScore, submittedAt, student
+  const [sortOrder, setSortOrder] = useState("desc"); // desc, asc
+  const [searchTerm, setSearchTerm] = useState("");
 
-  const fetchData = useCallback(async () => {
+  const fetchLeaderboardData = useCallback(async () => {
     setLoading(true);
     try {
       const headers = { Authorization: `Bearer ${localStorage.getItem("token")}` };
-      const [gradesRes, classesRes] = await Promise.all([
-        retry(() => axios.get(`${API_BASE_URL}/api/grades?page=1&limit=100`, { headers })),
-        retry(() => axios.get(`${API_BASE_URL}/api/classes?page=1&limit=100`, { headers })),
-      ]);
-      setGrades(gradesRes.data || []);
-      setClasses(classesRes.data || []);
-      // Derive students from classes (usernames)
-      const usernameSet = new Set();
-      (classesRes.data || []).forEach((cls) => (cls.students || []).forEach((u) => usernameSet.add(u)));
-      setStudents(Array.from(usernameSet));
+      const response = await retry(() => 
+        axios.get(`${API_BASE_URL}/api/leaderboard`, { headers })
+      );
+      setLeaderboardData(response.data);
+      
+      // Set default class if available
+      if (response.data?.summary?.classes?.length > 0 && !selectedClass) {
+        setSelectedClass(response.data.summary.classes[0]);
+      }
       
     } catch (err) {
-      console.error("Fetch grades error:", err.response?.data || err.message);
-      setError(err.response?.data?.error || "Failed to load grades or classes. Check network or login status.");
+      console.error("Fetch leaderboard error:", err.response?.data || err.message);
+      setError(err.response?.data?.error || "Failed to load leaderboard data");
       setShowToast(true);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [selectedClass]);
 
   useEffect(() => {
     let cancelled = false;
-    if (!cancelled) fetchData();
+    if (!cancelled) fetchLeaderboardData();
     return () => {
       cancelled = true;
     };
-  }, [fetchData]);
+  }, [fetchLeaderboardData]);
 
-  const handleCreateGrade = async () => {
-    if (!gradeData.class || !gradeData.student || !gradeData.grade) {
-      setError("Class, student, and grade are required");
-      setShowToast(true);
-      return;
+  // Get current data based on view mode
+  const getCurrentData = () => {
+    if (!leaderboardData) return [];
+    
+    let data = [];
+    switch (viewMode) {
+      case "byClass":
+        data = selectedClass ? (leaderboardData.byClass[selectedClass] || []) : [];
+        break;
+      case "bySection":
+        data = selectedSection ? (leaderboardData.bySection[selectedSection] || []) : [];
+        break;
+      default:
+        data = leaderboardData.allSubmissions || [];
     }
-    try {
-      await retry(() =>
-        axios.post(
-          `${API_BASE_URL}/api/grades`,
-          gradeData,
-          { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
-        )
+    
+    // Apply search filter
+    if (searchTerm) {
+      data = data.filter(item => 
+        item.student.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.examTitle.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.className.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.section.toLowerCase().includes(searchTerm.toLowerCase())
       );
-      await fetchData();
-      setShowCreateModal(false);
-      setGradeData({ class: "", student: "", grade: "", feedback: "" });
-      setError("Grade assigned successfully!");
-      setShowToast(true);
-    } catch (err) {
-      console.error("Create grade error:", err.response?.data || err.message);
-      setError(err.response?.data?.error || "Failed to assign grade. Check inputs or network.");
-      setShowToast(true);
     }
+    
+    // Apply sorting
+    data.sort((a, b) => {
+      let aVal = a[sortBy];
+      let bVal = b[sortBy];
+      
+      if (sortBy === "submittedAt") {
+        aVal = new Date(aVal);
+        bVal = new Date(bVal);
+      }
+      
+      if (typeof aVal === "string") {
+        aVal = aVal.toLowerCase();
+        bVal = bVal.toLowerCase();
+      }
+      
+      if (sortOrder === "desc") {
+        return bVal > aVal ? 1 : bVal < aVal ? -1 : 0;
+      } else {
+        return aVal > bVal ? 1 : aVal < bVal ? -1 : 0;
+      }
+    });
+    
+    return data;
+  };
+
+  const getScoreColor = (finalScore, rawScore) => {
+    const percentage = (finalScore / 100) * 100; // Assuming scores are out of 100
+    if (percentage >= 90) return "success";
+    if (percentage >= 80) return "info";
+    if (percentage >= 70) return "warning";
+    return "danger";
+  };
+
+  const formatDate = (dateString) => {
+    return new Date(dateString).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit"
+    });
   };
 
   if (loading) {
     return (
       <div className="text-center py-4">
-        <Spinner animation="border" role="status" aria-label="Loading grades" />
-        <p>Loading grades...</p>
+        <Spinner animation="border" role="status" aria-label="Loading leaderboard" />
+        <p>Loading leaderboard...</p>
       </div>
     );
   }
 
+  const currentData = getCurrentData();
+  const availableClasses = leaderboardData?.summary?.classes || [];
+  const availableSections = leaderboardData ? Object.keys(leaderboardData.bySection) : [];
+
   return (
     <div className="dashboard-content">
-      <h2 className="fw-bold mb-3">Grades</h2>
+      <div className="d-flex justify-content-between align-items-center mb-4">
+        <h2 className="fw-bold mb-0">🏆 Student Leaderboard</h2>
+        <div className="d-flex gap-2">
+          <Button variant="outline-secondary" size="sm" onClick={fetchLeaderboardData}>
+            🔄 Refresh
+          </Button>
+        </div>
+      </div>
+
       {error && (
         <Toast
           show={showToast}
           onClose={() => setShowToast(false)}
           delay={5000}
           autohide
-          bg={error.toLowerCase().includes("success") || error.toLowerCase().includes("created") || error.toLowerCase().includes("deleted") || error.toLowerCase().includes("removed") || error.toLowerCase().includes("posted") || error.toLowerCase().includes("assigned") || error.toLowerCase().includes("sent") ? "success" : "danger"}
+          bg="danger"
           style={{ position: "fixed", top: "20px", right: "20px", zIndex: 10000 }}
         >
           <Toast.Body className="text-white">{error}</Toast.Body>
         </Toast>
       )}
-      <Button
-        variant="outline-primary"
-        className="mb-3 me-2"
-        onClick={() => setShowCreateModal(true)}
-        aria-label="Assign new grade"
-      >
-        + Assign Grade
-      </Button>
-      <Button
-        variant="outline-secondary"
-        className="mb-3"
-        onClick={fetchData}
-        aria-label="Refresh grades"
-      >
-        Refresh
-      </Button>
 
-      {grades.length === 0 ? (
-        <Card className="p-4 text-center text-muted">No grades yet.</Card>
-      ) : (
-        <Row>
-          {grades.map((g, idx) => (
-            <Col key={g._id || idx} md={6} lg={4} className="mb-3">
-              <Card className="h-100">
-                <Card.Body>
-                  <div className="d-flex justify-content-between align-items-start">
-                    <div>
-                      <div className="fw-bold">{g.class}</div>
-                      <div className="text-muted" style={{ fontSize: 12 }}>{g.student}</div>
-                    </div>
-                    <span className="badge bg-primary">{g.grade}</span>
-                  </div>
-                  {g.feedback && <div className="mt-2" style={{ whiteSpace: "pre-wrap" }}>{g.feedback}</div>}
-                </Card.Body>
-                <Card.Footer className="d-flex justify-content-end gap-2">
-                  <Button
-                    variant="outline-danger"
-                    size="sm"
-                    onClick={async () => {
-                      try {
-                        await retry(() => axios.delete(`${API_BASE_URL}/api/grades/${g._id || idx}`, { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }));
-                        await fetchData();
-                      } catch (err) {
-                        console.error("Delete grade error:", err.response?.data || err.message);
-                        setError(err.response?.data?.error || "Failed to delete grade.");
-                        setShowToast(true);
-                      }
-                    }}
-                  >
-                    Delete
-                  </Button>
-                </Card.Footer>
-              </Card>
-            </Col>
-          ))}
+      {/* Summary Cards */}
+      {leaderboardData?.summary && (
+        <Row className="mb-4">
+          <Col md={3} sm={6} className="mb-3">
+            <Card className="h-100 border-primary">
+              <Card.Body className="text-center">
+                <h4 className="text-primary">{leaderboardData.summary.totalSubmissions}</h4>
+                <small className="text-muted">Total Submissions</small>
+              </Card.Body>
+            </Card>
+          </Col>
+          <Col md={3} sm={6} className="mb-3">
+            <Card className="h-100 border-success">
+              <Card.Body className="text-center">
+                <h4 className="text-success">{leaderboardData.summary.totalStudents}</h4>
+                <small className="text-muted">Active Students</small>
+              </Card.Body>
+            </Card>
+          </Col>
+          <Col md={3} sm={6} className="mb-3">
+            <Card className="h-100 border-info">
+              <Card.Body className="text-center">
+                <h4 className="text-info">{availableClasses.length}</h4>
+                <small className="text-muted">Classes</small>
+              </Card.Body>
+            </Card>
+          </Col>
+          <Col md={3} sm={6} className="mb-3">
+            <Card className="h-100 border-warning">
+              <Card.Body className="text-center">
+                <h4 className="text-warning">{availableSections.length}</h4>
+                <small className="text-muted">Sections</small>
+              </Card.Body>
+            </Card>
+          </Col>
         </Row>
       )}
 
-      <Modal
-        show={showCreateModal}
-        onHide={() => {
-          setShowCreateModal(false);
-          setGradeData({ class: "", student: "", grade: "", feedback: "" });
-          setError("");
-        }}
-        centered
-      >
-        <Modal.Header closeButton>
-          <Modal.Title>Assign Grade</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          <Form>
-            <Form.Group className="mb-3">
-              <Form.Label>Class</Form.Label>
+      {/* Controls */}
+      <Card className="mb-4">
+        <Card.Body>
+          <Row className="align-items-end">
+            <Col md={2} sm={6} className="mb-2">
+              <Form.Label className="fw-bold">View Mode</Form.Label>
               <Form.Select
-                value={gradeData.class}
-                onChange={(e) => setGradeData({ ...gradeData, class: e.target.value })}
-                required
-                aria-required="true"
+                value={viewMode}
+                onChange={(e) => setViewMode(e.target.value)}
+                size="sm"
               >
-                <option value="">Select Class</option>
-                {classes.map((cls) => (
-                  <option key={cls._id || cls.id} value={cls.name}>
-                    {cls.name}
-                  </option>
-                ))}
+                <option value="all">All Submissions</option>
+                <option value="byClass">By Class</option>
+                <option value="bySection">By Section</option>
               </Form.Select>
-            </Form.Group>
-            <Form.Group className="mb-3">
-              <Form.Label>Student</Form.Label>
+            </Col>
+            
+            {viewMode === "byClass" && (
+              <Col md={2} sm={6} className="mb-2">
+                <Form.Label className="fw-bold">Class</Form.Label>
+                <Form.Select
+                  value={selectedClass}
+                  onChange={(e) => setSelectedClass(e.target.value)}
+                  size="sm"
+                >
+                  {availableClasses.map(className => (
+                    <option key={className} value={className}>{className}</option>
+                  ))}
+                </Form.Select>
+              </Col>
+            )}
+            
+            {viewMode === "bySection" && (
+              <Col md={2} sm={6} className="mb-2">
+                <Form.Label className="fw-bold">Section</Form.Label>
+                <Form.Select
+                  value={selectedSection}
+                  onChange={(e) => setSelectedSection(e.target.value)}
+                  size="sm"
+                >
+                  <option value="">Select Section</option>
+                  {availableSections.map(section => (
+                    <option key={section} value={section}>{section}</option>
+                  ))}
+                </Form.Select>
+              </Col>
+            )}
+            
+            <Col md={2} sm={6} className="mb-2">
+              <Form.Label className="fw-bold">Sort By</Form.Label>
               <Form.Select
-                value={gradeData.student}
-                onChange={(e) => setGradeData({ ...gradeData, student: e.target.value })}
-                required
-                aria-required="true"
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                size="sm"
               >
-                <option value="">Select Student</option>
-                {students.map((username) => (
-                  <option key={username} value={username}>
-                    {username}
-                  </option>
-                ))}
+                <option value="finalScore">Final Score</option>
+                <option value="rawScore">Raw Score</option>
+                <option value="student">Student Name</option>
+                <option value="submittedAt">Submission Time</option>
+                <option value="className">Class Name</option>
               </Form.Select>
-            </Form.Group>
-            <Form.Group className="mb-3">
-              <Form.Label>Grade</Form.Label>
+            </Col>
+            
+            <Col md={2} sm={6} className="mb-2">
+              <Form.Label className="fw-bold">Order</Form.Label>
+              <Form.Select
+                value={sortOrder}
+                onChange={(e) => setSortOrder(e.target.value)}
+                size="sm"
+              >
+                <option value="desc">Highest First</option>
+                <option value="asc">Lowest First</option>
+              </Form.Select>
+            </Col>
+            
+            <Col md={2} sm={12} className="mb-2">
+              <Form.Label className="fw-bold">Search</Form.Label>
               <Form.Control
                 type="text"
-                value={gradeData.grade}
-                onChange={(e) => setGradeData({ ...gradeData, grade: e.target.value })}
-                placeholder="e.g., A, B+, 85"
-                required
-                aria-required="true"
+                placeholder="Search students, exams..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                size="sm"
               />
-            </Form.Group>
-            <Form.Group className="mb-3">
-              <Form.Label>Feedback</Form.Label>
-              <Form.Control
-                as="textarea"
-                rows={3}
-                value={gradeData.feedback}
-                onChange={(e) => setGradeData({ ...gradeData, feedback: e.target.value })}
-                placeholder="Enter feedback"
-              />
-            </Form.Group>
-          </Form>
-        </Modal.Body>
-        <Modal.Footer>
-          <Button
-            variant="secondary"
-            onClick={() => {
-              setShowCreateModal(false);
-              setGradeData({ class: "", student: "", grade: "", feedback: "" });
-              setError("");
-            }}
-          >
-            Cancel
-          </Button>
-          <Button
-            variant="success"
-            onClick={handleCreateGrade}
-            disabled={!gradeData.class || !gradeData.student || !gradeData.grade}
-            aria-label="Assign grade"
-          >
-            Assign
-          </Button>
-        </Modal.Footer>
-      </Modal>
+            </Col>
+          </Row>
+        </Card.Body>
+      </Card>
+
+      {/* Leaderboard Table */}
+      {currentData.length === 0 ? (
+        <Card className="p-4 text-center text-muted">
+          <h5>No exam submissions found</h5>
+          <p>Students haven't submitted any exams yet, or no exams match your current filters.</p>
+        </Card>
+      ) : (
+        <Card>
+          <Card.Header className="bg-light">
+            <div className="d-flex justify-content-between align-items-center">
+              <h5 className="mb-0">
+                🎯 Showing {currentData.length} submission{currentData.length !== 1 ? 's' : ''}
+              </h5>
+              <small className="text-muted">
+                Updated: {new Date().toLocaleTimeString()}
+              </small>
+            </div>
+          </Card.Header>
+          <div className="table-responsive">
+            <Table striped hover className="mb-0">
+              <thead className="table-dark">
+                <tr>
+                  <th>#</th>
+                  <th>Student</th>
+                  <th>Section</th>
+                  <th>Class</th>
+                  <th>Exam</th>
+                  <th>Raw Score</th>
+                  <th>Final Score</th>
+                  <th>Credits Used</th>
+                  <th>Credit Points</th>
+                  <th>Submitted</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {currentData.map((submission, index) => (
+                  <tr key={submission._id}>
+                    <td>
+                      <Badge bg={index < 3 ? "warning" : "secondary"}>
+                        {index + 1}
+                        {index === 0 && " 🥇"}
+                        {index === 1 && " 🥈"}
+                        {index === 2 && " 🥉"}
+                      </Badge>
+                    </td>
+                    <td className="fw-bold">{submission.student}</td>
+                    <td>
+                      <Badge bg="info" className="small">
+                        {submission.section}
+                      </Badge>
+                    </td>
+                    <td className="small">{submission.className}</td>
+                    <td className="small">{submission.examTitle}</td>
+                    <td className="text-center">{submission.rawScore}</td>
+                    <td className="text-center">
+                      <Badge bg={getScoreColor(submission.finalScore, submission.rawScore)}>
+                        {submission.finalScore}
+                        {submission.creditsUsed > 0 && (
+                          <span className="small"> (+{submission.creditsUsed})</span>
+                        )}
+                      </Badge>
+                    </td>
+                    <td className="text-center">
+                      {submission.creditsUsed > 0 ? (
+                        <Badge bg="warning">{submission.creditsUsed}</Badge>
+                      ) : (
+                        <span className="text-muted">-</span>
+                      )}
+                    </td>
+                    <td className="text-center">
+                      <Badge bg="primary">{submission.creditPoints}</Badge>
+                    </td>
+                    <td className="small">{formatDate(submission.submittedAt)}</td>
+                    <td>
+                      {submission.isEarly === true && (
+                        <Badge bg="success" className="small">⚡ Early</Badge>
+                      )}
+                      {submission.isLate === true && (
+                        <Badge bg="danger" className="small">⏰ Late</Badge>
+                      )}
+                      {submission.isEarly === false && submission.isLate === false && (
+                        <Badge bg="info" className="small">✅ On Time</Badge>
+                      )}
+                      {submission.isEarly === null && (
+                        <Badge bg="secondary" className="small">📝 No Due Date</Badge>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </Table>
+          </div>
+        </Card>
+      )}
+
+      {/* Top Performers Section */}
+      {leaderboardData?.summary?.topPerformers?.length > 0 && viewMode === "all" && (
+        <Card className="mt-4">
+          <Card.Header className="bg-warning text-dark">
+            <h5 className="mb-0">🌟 Top 10 Performers (All Time)</h5>
+          </Card.Header>
+          <Card.Body>
+            <Row>
+              {leaderboardData.summary.topPerformers.slice(0, 10).map((performer, index) => (
+                <Col key={performer._id} md={6} lg={4} xl={3} className="mb-3">
+                  <Card className={`h-100 ${index < 3 ? 'border-warning' : 'border-light'}`}>
+                    <Card.Body className="text-center p-3">
+                      <div className="mb-2">
+                        {index === 0 && <span style={{ fontSize: '2rem' }}>🥇</span>}
+                        {index === 1 && <span style={{ fontSize: '2rem' }}>🥈</span>}
+                        {index === 2 && <span style={{ fontSize: '2rem' }}>🥉</span>}
+                        {index >= 3 && (
+                          <Badge bg="secondary" style={{ fontSize: '1rem' }}>
+                            #{index + 1}
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="fw-bold">{performer.student}</div>
+                      <div className="small text-muted">{performer.section}</div>
+                      <div className="mt-1">
+                        <Badge bg={getScoreColor(performer.finalScore)} className="fs-6">
+                          {performer.finalScore}
+                        </Badge>
+                      </div>
+                      <div className="small text-muted mt-1">
+                        {performer.examTitle}
+                      </div>
+                    </Card.Body>
+                  </Card>
+                </Col>
+              ))}
+            </Row>
+          </Card.Body>
+        </Card>
+      )}
     </div>
   );
 }
