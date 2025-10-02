@@ -650,48 +650,6 @@ app.post("/api/debug/reset-credit-points", authenticateToken, async (req, res) =
     res.status(500).json({ error: "Failed to reset credit points" });
   }
 });
-    if (!user) {
-      return res.status(404).json({ error: "User not found" });
-    }
-    
-    console.log(`Debug: User ${req.user.username} has ${user.creditPoints} credit points`);
-    
-    res.json({ 
-      username: req.user.username,
-      creditPoints: user.creditPoints,
-      message: `User ${req.user.username} has ${user.creditPoints} credit points`
-    });
-  } catch (err) {
-    console.error("Get credit points error:", err);
-    res.status(500).json({ error: "Failed to get credit points" });
-  }
-});
-
-// Debug endpoint: Reset credit points to 10 for testing
-app.post("/api/debug/reset-credit-points", authenticateToken, async (req, res) => {
-  try {
-    const user = await User.findOne({ username: req.user.username });
-    if (!user) {
-      return res.status(404).json({ error: "User not found" });
-    }
-    
-    const oldPoints = user.creditPoints;
-    user.creditPoints = 10; // Reset to default
-    await user.save();
-    
-    console.log(`Debug: Reset credit points for ${req.user.username} from ${oldPoints} to 10`);
-    
-    res.json({ 
-      username: req.user.username,
-      oldCreditPoints: oldPoints,
-      newCreditPoints: 10,
-      message: `Credit points reset from ${oldPoints} to 10`
-    });
-  } catch (err) {
-    console.error("Reset credit points error:", err);
-    res.status(500).json({ error: "Failed to reset credit points" });
-  }
-});
 
 // Admin: Delete user
 app.delete("/api/admin/users/:id", authenticateToken, requireAdmin, async (req, res) => {
@@ -1657,10 +1615,10 @@ app.post("/api/exam-submissions", authenticateToken, async (req, res) => {
     // Store original credit points before any modifications
     const originalCreditPoints = user.creditPoints || 0;
     
-    // Validate user credit points - ensure it's a valid number
-    if (typeof user.creditPoints !== 'number' || isNaN(user.creditPoints)) {
-      console.log(`⚠️ Invalid credit points for user ${student}, resetting to 0`);
-      user.creditPoints = 0;
+    // Validate user credit points - ensure it's a valid number and initialize if needed
+    if (typeof user.creditPoints !== 'number' || isNaN(user.creditPoints) || user.creditPoints === undefined) {
+      console.log(`⚠️ Invalid/missing credit points for user ${student}, initializing to 5`);
+      user.creditPoints = 5; // Initialize new users with 5 credit points
     }
     
     console.log(`Student ${student} has ${originalCreditPoints} credit points available`);
@@ -1692,17 +1650,19 @@ app.post("/api/exam-submissions", authenticateToken, async (req, res) => {
       // Only apply timing bonus/penalty if due date is valid
       if (!isNaN(dueDate.getTime())) {
         if (now < dueDate) {
-          creditDelta = 1; // +1 for early submission
-          console.log("✅ Early submission: +1 credit point bonus");
+          creditDelta = 2; // +2 for early submission
+          console.log("✅ Early submission: +2 credit point bonus");
         } else {
-          creditDelta = -2; // -2 for late submission
-          console.log("❌ Late submission: -2 credit points penalty");
+          creditDelta = -1; // -1 for late submission (less harsh)
+          console.log("❌ Late submission: -1 credit point penalty");
         }
       } else {
-        console.log("⚠️ Invalid due date format - no timing bonus/penalty applied");
+        console.log("⚠️ Invalid due date format - giving +1 completion bonus instead");
+        creditDelta = 1; // +1 for completing exam even with invalid due date
       }
     } else {
-      console.log("⚠️ No due date set for this exam - no timing bonus/penalty");
+      console.log("⚠️ No due date set for this exam - giving +1 completion bonus");
+      creditDelta = 1; // +1 for completing any exam (base reward)
     }
     
     // Calculate final credit points: original - used + timing bonus/penalty
