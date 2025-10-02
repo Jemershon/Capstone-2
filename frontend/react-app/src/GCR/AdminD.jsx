@@ -41,14 +41,17 @@ const customStyles = `
       transition: all 0.3s ease;
       border-radius: 8px;
       margin: 5px 10px;
+      color: #212529 !important;
     }
     
     .mobile-nav-link:hover {
       background-color: #f0f0f0 !important;
       transform: translateX(5px);
+      color: #212529 !important;
     }
     
-    .mobile-nav-link.active {
+    .mobile-nav-link.active,
+    .nav-link.mobile-nav-link.active {
       background-color: #e3f2fd !important;
       color: #1976d2 !important;
       font-weight: 600;
@@ -60,6 +63,26 @@ const customStyles = `
     
     .navbar-nav {
       width: 100%;
+    }
+    
+    /* Remove all gaps on mobile */
+    .dashboard-content {
+      padding: 15px !important;
+      margin: 0 !important;
+    }
+    
+    .dashboard-content > h2:first-child {
+      margin-top: 0 !important;
+    }
+    
+    .row {
+      margin-left: 0 !important;
+      margin-right: 0 !important;
+    }
+    
+    .col, [class*="col-"] {
+      padding-left: 5px !important;
+      padding-right: 5px !important;
     }
   }
   
@@ -100,10 +123,6 @@ const customStyles = `
   }
   
   @media (max-width: 767px) {
-    .dashboard-content {
-      padding: 0;
-    }
-    
     .card, .container {
       margin-top: 0 !important;
     }
@@ -128,110 +147,6 @@ const retry = async (fn, retries = 3, delay = 1000) => {
     }
   }
 };
-
-// ================= Admin Login =================
-function AdminLogin({ onLogin }) {
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
-  const [showToast, setShowToast] = useState(false);
-  const navigate = useNavigate();
-
-  const handleLogin = async (e) => {
-    e.preventDefault();
-    try {
-      const res = await retry(() =>
-        axios.post(`${API_BASE_URL}/api/login`, {
-          username,
-          password,
-        })
-      );
-      
-      // Use proper auth data setting
-      const { setAuthData } = await import('../api');
-      setAuthData(res.data.token, res.data.user.username, res.data.user.role);
-      onLogin();
-      setError("Login successful!");
-      setShowToast(true);
-      setTimeout(() => navigate("/admin/dashboard"), 1000);
-    } catch (err) {
-      console.error("Login error:", err.response?.data || err.message);
-      setError(err.response?.data?.error || "Login failed. Check credentials.");
-      setShowToast(true);
-    }
-  };
-
-  return (
-    <Container className="d-flex flex-column align-items-center justify-content-center vh-100 bg-light">
-      <Card className="p-4 shadow-lg border-0 position-relative" style={{ maxWidth: 400, width: "100%" }}>
-        {/* X Close Button */}
-        <Button
-          variant="light"
-          size="sm"
-          className="position-absolute top-0 end-0 m-2 border-0"
-          onClick={() => navigate("/")}
-          aria-label="Close login form"
-        >
-          ✖
-        </Button>
-
-        <h3 className="mb-4 text-center fw-bold">🔑 Admin Login</h3>
-        {error && (
-          <Toast
-            show={showToast}
-            onClose={() => setShowToast(false)}
-            delay={5000}
-            autohide
-            bg={error.toLowerCase().includes("success") ? "success" : "danger"}
-            style={{ position: "absolute", top: "10px", right: "10px", zIndex: 10000 }}
-          >
-            <Toast.Body className="text-white">{error}</Toast.Body>
-          </Toast>
-        )}
-        <form onSubmit={handleLogin}>
-          <div className="mb-3">
-            <label className="fw-semibold" htmlFor="admin-username">
-              Username
-            </label>
-            <input
-              type="text"
-              id="admin-username"
-              className="form-control"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              required
-              placeholder="adminusername"
-              aria-required="true"
-            />
-          </div>
-          <div className="mb-3">
-            <label className="fw-semibold" htmlFor="admin-password">
-              Password
-            </label>
-            <input
-              type="password"
-              id="admin-password"
-              className="form-control"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              placeholder="Enter your password"
-              aria-required="true"
-            />
-          </div>
-          <Button
-            type="submit"
-            variant="primary"
-            className="w-100 fw-bold py-2 shadow-sm d-flex justify-content-center align-items-center gap-2"
-            aria-label="Submit login"
-          >
-            <i className="bi bi-box-arrow-in-right"></i> Login
-          </Button>
-        </form>
-      </Card>
-    </Container>
-  );
-}
 
 // ================= Dashboard Home =================
 function DashboardHome() {
@@ -748,7 +663,14 @@ export default function AdminDashboard() {
   }
 
   if (!isAuthenticated) {
-    return <AdminLogin onLogin={() => setIsAuthenticated(true)} />;
+    // Redirect to main landing page for login
+    navigate("/");
+    return (
+      <div className="text-center py-4">
+        <Spinner animation="border" role="status" aria-label="Redirecting to login" />
+        <p>Redirecting to login...</p>
+      </div>
+    );
   }
 
   return (
@@ -791,12 +713,12 @@ export default function AdminDashboard() {
                   >
                     Dashboard
                   </Nav.Link>
-                  <div className="text-center my-2">
+                  <div className="text-center my-2 px-3">
                     <Button
                       variant="danger"
                       onClick={() => setShowLogoutModal(true)}
-                      size="sm"
-                      className="px-4"
+                      className="w-100"
+                      style={{maxWidth: '200px'}}
                     >
                       Logout
                     </Button>

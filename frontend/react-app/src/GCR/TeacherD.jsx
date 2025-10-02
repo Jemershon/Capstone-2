@@ -52,14 +52,17 @@ const customStyles = `
       transition: all 0.3s ease;
       border-radius: 8px;
       margin: 5px 10px;
+      color: #212529 !important;
     }
     
     .mobile-nav-link:hover {
       background-color: #f0f0f0 !important;
       transform: translateX(5px);
+      color: #212529 !important;
     }
     
-    .mobile-nav-link.active {
+    .mobile-nav-link.active,
+    .nav-link.mobile-nav-link.active {
       background-color: #e3f2fd !important;
       color: #1976d2 !important;
       font-weight: 600;
@@ -3754,32 +3757,32 @@ export default function TeacherDashboard() {
               <Navbar.Collapse id="mobile-nav">
                 <Nav className="w-100">
                   <Nav.Link
-                    as={Link}
+                    as={NavLink}
                     to="/teacher/dashboard"
                     className="mobile-nav-link"
                   >
                     Dashboard
                   </Nav.Link>
                   <Nav.Link
-                    as={Link}
+                    as={NavLink}
                     to="/teacher/grades"
                     className="mobile-nav-link"
                   >
                     Grades
                   </Nav.Link>
                   <Nav.Link
-                    as={Link}
+                    as={NavLink}
                     to="/teacher/profile"
                     className="mobile-nav-link"
                   >
                     Profile
                   </Nav.Link>
-                  <div className="text-center my-2">
+                  <div className="text-center my-2 px-3">
                     <Button
                       variant="danger"
                       onClick={() => setShowLogoutModal(true)}
-                      size="sm"
-                      className="px-4"
+                      className="w-100"
+                      style={{maxWidth: '200px'}}
                     >
                       Logout
                     </Button>
