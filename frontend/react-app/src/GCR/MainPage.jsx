@@ -1,8 +1,104 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button, Modal, Form, Toast, Spinner, Navbar, Nav, Container, InputGroup } from "react-bootstrap";
 import axios from "axios";
 import { API_BASE_URL } from "../api";
+
+// Mobile optimization styles
+const mobileStyles = `
+  @media (max-width: 767px) {
+    /* Center all content on mobile */
+    .landing-hero-section {
+      padding: 20px 15px !important;
+      text-align: center !important;
+    }
+    
+    .landing-hero-section .col-md-6,
+    .landing-hero-section .col-md-5 {
+      width: 100% !important;
+      max-width: 100% !important;
+      padding: 0 15px !important;
+    }
+    
+    .landing-hero-section h1 {
+      font-size: 2rem !important;
+      text-align: center !important;
+      margin-bottom: 1rem !important;
+    }
+    
+    .landing-hero-section p.lead {
+      font-size: 1.1rem !important;
+      text-align: center !important;
+      margin-bottom: 1.5rem !important;
+    }
+    
+    /* Button container on mobile */
+    .landing-hero-buttons {
+      display: flex !important;
+      flex-direction: column !important;
+      align-items: center !important;
+      gap: 10px !important;
+      width: 100% !important;
+      padding: 0 15px !important;
+    }
+    
+    .landing-hero-buttons .btn {
+      width: 100% !important;
+      max-width: 300px !important;
+      margin: 0 !important;
+    }
+    
+    /* Image on mobile */
+    .landing-hero-image {
+      margin-top: 30px !important;
+      padding: 0 30px !important;
+    }
+    
+    .landing-hero-image img {
+      max-width: 250px !important;
+      height: auto !important;
+    }
+    
+    /* Features section on mobile */
+    .features-section {
+      padding: 30px 15px !important;
+    }
+    
+    .features-section .row {
+      gap: 15px !important;
+    }
+    
+    .features-section .col-md-4 {
+      width: 100% !important;
+      padding: 0 !important;
+      margin-bottom: 15px !important;
+    }
+    
+    .features-section .card {
+      margin: 0 !important;
+    }
+    
+    /* Navbar optimization */
+    .navbar {
+      padding: 10px 15px !important;
+    }
+    
+    .navbar-brand {
+      font-size: 1.5rem !important;
+    }
+    
+    .navbar-collapse {
+      text-align: center !important;
+      margin-top: 10px !important;
+    }
+    
+    .navbar .btn {
+      width: 100% !important;
+      max-width: 200px !important;
+      margin: 10px auto 0 !important;
+    }
+  }
+`;
 
 // Retry function for API calls
 const retry = async (fn, retries = 3, delay = 1000) => {
@@ -31,6 +127,17 @@ export default function LandingPage() {
   const [showToast, setShowToast] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+
+  // Inject mobile styles
+  useEffect(() => {
+    const styleElement = document.createElement('style');
+    styleElement.textContent = mobileStyles;
+    document.head.appendChild(styleElement);
+    
+    return () => {
+      document.head.removeChild(styleElement);
+    };
+  }, []);
 
   const handleShowModal = () => {
     setShowModal(true);
@@ -157,7 +264,7 @@ export default function LandingPage() {
         </Container>
       </Navbar>
 
-      <section className="container flex-grow-1 d-flex flex-column flex-md-row align-items-center justify-content-between py-5">
+      <section className="container flex-grow-1 d-flex flex-column flex-md-row align-items-center justify-content-between py-5 landing-hero-section">
         <div className="col-md-6">
           <h1 className="display-4 fw-bold text-dark">
             A Smarter Way to Learn
@@ -165,7 +272,7 @@ export default function LandingPage() {
           <p className="lead text-muted mt-3">
             Connect teachers and students in one simple platform.
           </p>
-          <div className="mt-4">
+          <div className="mt-4 landing-hero-buttons">
             <button
               className="btn btn-primary btn-lg me-3"
               onClick={() => openModalWithRole("Student")}
@@ -182,7 +289,7 @@ export default function LandingPage() {
             </button>
           </div>
         </div>
-        <div className="col-md-5 text-center mt-5 mt-md-0">
+        <div className="col-md-5 text-center mt-5 mt-md-0 landing-hero-image">
           <img
             src="https://cdn-icons-png.flaticon.com/512/3135/3135755.png"
             alt="Classroom Illustration"
@@ -191,7 +298,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <section id="features" className="py-5 bg-white">
+      <section id="features" className="py-5 bg-white features-section">
         <div className="container text-center">
           <h2 className="fw-bold mb-5">Features</h2>
           <div className="row g-4">
