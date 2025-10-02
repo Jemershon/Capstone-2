@@ -563,10 +563,25 @@ app.get("/api/profile", authenticateToken, async (req, res) => {
       await user.save();
     }
     
+    // Ensure creditPoints is initialized for legacy users
+    if (typeof user.creditPoints !== 'number' || isNaN(user.creditPoints) || user.creditPoints === undefined || user.creditPoints === null) {
+      console.log(`Initializing credit points for user ${user.username}`);
+      user.creditPoints = 0;
+      await user.save();
+    }
+    
+    // Ensure creditPoints doesn't exceed max
+    if (user.creditPoints > 10) {
+      console.log(`Capping credit points for user ${user.username} from ${user.creditPoints} to 10`);
+      user.creditPoints = 10;
+      await user.save();
+    }
+    
     res.json(user);
   } catch (err) {
     console.error("Profile error:", err);
-    res.status(500).json({ error: "Failed to fetch profile" });
+    console.error("Profile error stack:", err.stack);
+    res.status(500).json({ error: "Failed to fetch profile", message: err.message });
   }
 });
 
@@ -1674,19 +1689,22 @@ app.post("/api/exam-submissions", authenticateToken, async (req, res) => {
       // Only apply timing bonus/penalty if due date is valid
       if (!isNaN(dueDate.getTime())) {
         if (now < dueDate) {
-          creditDelta = 1; // +1 for early submission
+          creditDelta = 1; // +1 for early submission (before due date)
           console.log("✅ Early submission: +1 credit point bonus");
-        } else {
-          creditDelta = -2; // -2 for late submission
+        } else if (now > dueDate) {
+          creditDelta = -2; // -2 for late submission (after due date)
           console.log("❌ Late submission: -2 credit points penalty");
+        } else {
+          creditDelta = 0; // No bonus/penalty for on-time submission
+          console.log("⏰ On-time submission: no bonus or penalty");
         }
       } else {
-        console.log("⚠️ Invalid due date format - giving +1 completion bonus instead");
-        creditDelta = 1; // +1 for completing exam even with invalid due date
+        console.log("⚠️ Invalid due date format - no bonus or penalty");
+        creditDelta = 0; // No bonus for invalid due date
       }
     } else {
-      console.log("⚠️ No due date set for this exam - giving +1 completion bonus");
-      creditDelta = 1; // +1 for completing any exam (base reward)
+      console.log("⚠️ No due date set for this exam - no bonus or penalty");
+      creditDelta = 0; // No bonus if no due date is set
     }
     
     // Calculate final credit points: original - used + timing bonus/penalty
