@@ -194,37 +194,36 @@ function StudentDashboard() {
         
         {/* Mobile navbar */}
         <div className="d-md-none">
-          <Navbar bg="dark" variant="dark" expand="lg" className="mobile-navbar">
+          <Navbar expand="lg" bg="white" variant="light" className="shadow-sm mobile-navbar">
             <Container fluid>
-              <Navbar.Brand className="mobile-nav-brand">📚 Student Panel</Navbar.Brand>
-              <Navbar.Toggle aria-controls="mobile-nav" className="border-0" />
+              <Navbar.Brand className="fw-bold text-primary">📚 Student Panel</Navbar.Brand>
+              <Navbar.Toggle aria-controls="mobile-nav" />
               <Navbar.Collapse id="mobile-nav">
-                <div className="mobile-nav-links w-100">
+                <Nav className="ms-auto align-items-lg-center">
                   <Nav.Link
                     as={Link}
                     to="/student/dashboard"
-                    className="mobile-nav-link"
+                    className="mx-2 text-dark"
                     aria-label="Dashboard and Classes"
                   >
-                    🏠 Dashboard & Classes
+                    🏠 Dashboard
                   </Nav.Link>
-
                   <Nav.Link
                     as={Link}
                     to="/student/profile"
-                    className="mobile-nav-link"
+                    className="mx-2 text-dark"
                     aria-label="Profile"
                   >
                     👤 Profile
                   </Nav.Link>
                   <Nav.Link
                     onClick={() => setShowLogoutModal(true)}
-                    className="mobile-nav-link logout"
+                    className="mx-2 text-danger"
                     aria-label="Logout"
                   >
                     🚪 Logout
                   </Nav.Link>
-                </div>
+                </Nav>
               </Navbar.Collapse>
             </Container>
           </Navbar>

@@ -3736,44 +3736,46 @@ export default function TeacherDashboard() {
         </Col>
         {/* Mobile Navbar */}
         <div className="d-md-none position-fixed w-100" style={{top: 0, zIndex: 1000}}>
-          <Navbar bg="dark" variant="dark" expand="md">
-            <Navbar.Brand className="ms-2">🏫 Teacher Panel</Navbar.Brand>
-            <Navbar.Toggle aria-controls="mobile-nav" />
-            <Navbar.Collapse id="mobile-nav">
-              <Nav className="flex-column p-2">
-                <Nav.Link
-                  as={Link}
-                  to="/teacher/dashboard"
-                  className="text-white"
-                  aria-label="Dashboard and Classes"
-                >
-                  🏠 Dashboard & Classes
-                </Nav.Link>
-                <Nav.Link
-                  as={Link}
-                  to="/teacher/grades"
-                  className="text-white"
-                  aria-label="Grades"
-                >
-                  📊 Grades
-                </Nav.Link>
-                <Nav.Link
-                  as={Link}
-                  to="/teacher/profile"
-                  className="text-white"
-                  aria-label="Profile"
-                >
-                  👤 Profile
-                </Nav.Link>
-                <Nav.Link
-                  onClick={() => setShowLogoutModal(true)}
-                  className="text-danger"
-                  aria-label="Logout"
-                >
-                  🚪 Logout
-                </Nav.Link>
-              </Nav>
-            </Navbar.Collapse>
+          <Navbar expand="lg" bg="white" variant="light" className="shadow-sm">
+            <Container fluid>
+              <Navbar.Brand className="fw-bold text-primary">🏫 Teacher Panel</Navbar.Brand>
+              <Navbar.Toggle aria-controls="mobile-nav" />
+              <Navbar.Collapse id="mobile-nav">
+                <Nav className="ms-auto align-items-lg-center">
+                  <Nav.Link
+                    as={Link}
+                    to="/teacher/dashboard"
+                    className="mx-2 text-dark"
+                    aria-label="Dashboard and Classes"
+                  >
+                    🏠 Dashboard
+                  </Nav.Link>
+                  <Nav.Link
+                    as={Link}
+                    to="/teacher/grades"
+                    className="mx-2 text-dark"
+                    aria-label="Grades"
+                  >
+                    📊 Grades
+                  </Nav.Link>
+                  <Nav.Link
+                    as={Link}
+                    to="/teacher/profile"
+                    className="mx-2 text-dark"
+                    aria-label="Profile"
+                  >
+                    👤 Profile
+                  </Nav.Link>
+                  <Nav.Link
+                    onClick={() => setShowLogoutModal(true)}
+                    className="mx-2 text-danger"
+                    aria-label="Logout"
+                  >
+                    🚪 Logout
+                  </Nav.Link>
+                </Nav>
+              </Navbar.Collapse>
+            </Container>
           </Navbar>
         </div>
         {/* Main Content */}

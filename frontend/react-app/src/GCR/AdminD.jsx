@@ -679,28 +679,30 @@ export default function AdminDashboard() {
 
         {/* Mobile Navbar */}
         <div className="d-md-none position-fixed w-100" style={{top: 0, zIndex: 1000}}>
-          <Navbar bg="dark" variant="dark" expand="md">
-            <Navbar.Brand className="ms-2">Admin Panel</Navbar.Brand>
-            <Navbar.Toggle aria-controls="mobile-nav" />
-            <Navbar.Collapse id="mobile-nav">
-              <Nav className="flex-column p-2">
-                <Nav.Link
-                  as={NavLink}
-                  to="/admin/dashboard"
-                  className="text-white"
-                  aria-label="Dashboard"
-                >
-                  🏠 Dashboard
-                </Nav.Link>
-                <Nav.Link
-                  onClick={() => setShowLogoutModal(true)}
-                  className="text-danger"
-                  aria-label="Logout"
-                >
-                  🚪 Logout
-                </Nav.Link>
-              </Nav>
-            </Navbar.Collapse>
+          <Navbar expand="lg" bg="white" variant="light" className="shadow-sm">
+            <Container fluid>
+              <Navbar.Brand className="fw-bold text-primary">👑 Admin Panel</Navbar.Brand>
+              <Navbar.Toggle aria-controls="mobile-nav" />
+              <Navbar.Collapse id="mobile-nav">
+                <Nav className="ms-auto align-items-lg-center">
+                  <Nav.Link
+                    as={NavLink}
+                    to="/admin/dashboard"
+                    className="mx-2 text-dark"
+                    aria-label="Dashboard"
+                  >
+                    🏠 Dashboard
+                  </Nav.Link>
+                  <Nav.Link
+                    onClick={() => setShowLogoutModal(true)}
+                    className="mx-2 text-danger"
+                    aria-label="Logout"
+                  >
+                    🚪 Logout
+                  </Nav.Link>
+                </Nav>
+              </Navbar.Collapse>
+            </Container>
           </Navbar>
         </div>
 
