@@ -3749,52 +3749,50 @@ export default function TeacherDashboard() {
             </Nav.Link>
           </Nav>
         </Col>
-        {/* Mobile navbar */}
-        <div className="d-md-none">
-          <Navbar bg="dark" variant="dark" expand="lg" className="mobile-navbar">
-            <Container fluid>
-              <Navbar.Brand className="mobile-nav-brand">🏫 Teacher Panel</Navbar.Brand>
-              <Navbar.Toggle aria-controls="mobile-nav" className="border-0" />
-              <Navbar.Collapse id="mobile-nav">
-                <div className="mobile-nav-links w-100">
-                  <Nav.Link
-                    as={Link}
-                    to="/teacher/dashboard"
-                    className="mobile-nav-link"
-                    aria-label="Dashboard and Classes"
-                  >
-                    🏠 Dashboard & Classes
-                  </Nav.Link>
-                  <Nav.Link
-                    as={Link}
-                    to="/teacher/grades"
-                    className="mobile-nav-link"
-                    aria-label="Grades"
-                  >
-                    📊 Grades
-                  </Nav.Link>
-                  <Nav.Link
-                    as={Link}
-                    to="/teacher/profile"
-                    className="mobile-nav-link"
-                    aria-label="Profile"
-                  >
-                    👤 Profile
-                  </Nav.Link>
-                  <Nav.Link
-                    onClick={() => setShowLogoutModal(true)}
-                    className="mobile-nav-link logout"
-                    aria-label="Logout"
-                  >
-                    🚪 Logout
-                  </Nav.Link>
-                </div>
-              </Navbar.Collapse>
-            </Container>
+        {/* Mobile Navbar */}
+        <div className="d-md-none position-fixed w-100" style={{top: 0, zIndex: 1000}}>
+          <Navbar bg="dark" variant="dark" expand="md">
+            <Navbar.Brand className="ms-2">🏫 Teacher Panel</Navbar.Brand>
+            <Navbar.Toggle aria-controls="mobile-nav" />
+            <Navbar.Collapse id="mobile-nav">
+              <Nav className="flex-column p-2">
+                <Nav.Link
+                  as={Link}
+                  to="/teacher/dashboard"
+                  className="text-white"
+                  aria-label="Dashboard and Classes"
+                >
+                  🏠 Dashboard & Classes
+                </Nav.Link>
+                <Nav.Link
+                  as={Link}
+                  to="/teacher/grades"
+                  className="text-white"
+                  aria-label="Grades"
+                >
+                  📊 Grades
+                </Nav.Link>
+                <Nav.Link
+                  as={Link}
+                  to="/teacher/profile"
+                  className="text-white"
+                  aria-label="Profile"
+                >
+                  👤 Profile
+                </Nav.Link>
+                <Nav.Link
+                  onClick={() => setShowLogoutModal(true)}
+                  className="text-danger"
+                  aria-label="Logout"
+                >
+                  🚪 Logout
+                </Nav.Link>
+              </Nav>
+            </Navbar.Collapse>
           </Navbar>
         </div>
         {/* Main Content */}
-        <Col md={10} className="main-content-responsive">
+        <Col md={10} xs={12} className="main-content-responsive">
           <Routes>
             <Route path="dashboard" element={<DashboardAndClasses />} />
             {/* Removed global Assignments and Announcements to match per-class stream */}

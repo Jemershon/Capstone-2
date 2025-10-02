@@ -24,44 +24,6 @@ const customStyles = `
     }
   }
   
-  .mobile-navbar {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    z-index: 1030;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-  }
-  
-  .mobile-nav-brand {
-    font-weight: 600;
-    font-size: 1.1rem;
-  }
-  
-  .mobile-nav-links {
-    background-color: #343a40;
-    border-top: 1px solid #495057;
-  }
-  
-  .mobile-nav-link {
-    padding: 0.75rem 1rem;
-    border-bottom: 1px solid #495057;
-    color: #fff !important;
-    text-decoration: none;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-  }
-  
-  .mobile-nav-link:hover {
-    background-color: #495057;
-    color: #fff !important;
-  }
-  
-  .mobile-nav-link.logout {
-    color: #dc3545 !important;
-  }
-  
   .nav-link-custom {
     border-radius: 4px;
     margin-bottom: 5px;
@@ -269,7 +231,7 @@ function StudentDashboard() {
         </div>
         
         {/* Main Content */}
-        <Col md={10} className="main-content-responsive">
+        <Col md={10} xs={12} className="main-content-responsive">
           <Routes>
             <Route path="/" element={<StudentMainDashboard />} />
             <Route path="/dashboard" element={<StudentMainDashboard />} />
@@ -1142,17 +1104,17 @@ function StudentClassStream() {
   }
 
   return (
-    <Container fluid className="p-4">
+    <Container fluid>
       <Row>
         <Col>
-          <div className="d-flex justify-content-between align-items-center mb-4">
+          <div className="d-flex justify-content-between align-items-center mb-3">
             <h2 className="fw-bold text-primary">{className}</h2>
             <div className="d-flex align-items-center gap-3">
               <NotificationsDropdown />
             </div>
           </div>
 
-          <Tabs activeKey={activeTab} onSelect={(tab) => setActiveTab(tab)} className="mb-4">
+          <Tabs activeKey={activeTab} onSelect={(tab) => setActiveTab(tab)} className="mb-3">
             {/* Stream Tab */}
             <Tab eventKey="stream" title="Stream">
               <div className="stream-content">
