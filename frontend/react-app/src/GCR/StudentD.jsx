@@ -1361,22 +1361,22 @@ function StudentClassStream() {
                               )}
                               {submittedExams.includes(exam._id) && (
                                 <Badge bg="success" className="ms-2">
-                                  Submitted
+                                  <i className="bi bi-check-circle-fill me-1"></i>
+                                  Completed
                                 </Badge>
                               )}
                             </div>
                             {submittedExams.includes(exam._id) ? (
-                              <Button 
-                                variant="success" 
-                                size="sm"
-                                disabled
-                                className="d-flex align-items-center"
-                                title="This exam has already been submitted"
-                                data-exam-id={exam._id}
-                                data-status="submitted"
-                              >
-                                <i className="bi bi-check-circle-fill me-1"></i> Submitted
-                              </Button>
+                              <div className="d-flex align-items-center">
+                                <Badge 
+                                  bg="success" 
+                                  className="d-flex align-items-center px-3 py-2"
+                                  style={{ fontSize: '0.875rem' }}
+                                >
+                                  <i className="bi bi-check-circle-fill me-2"></i>
+                                  Exam Taken
+                                </Badge>
+                              </div>
                             ) : (
                               <Button 
                                 variant="primary" 
