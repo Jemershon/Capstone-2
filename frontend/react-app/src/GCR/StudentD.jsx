@@ -986,10 +986,33 @@ function StudentClassStream() {
   const handleTakeExam = async (exam) => {
     console.log("Take Exam clicked:", exam);
     
-    // Check if student has already submitted this exam
+    // Double-check if student has already submitted this exam
     if (submittedExams.includes(exam._id)) {
       alert("You have already submitted this exam and cannot retake it.");
       return;
+    }
+    
+    // Additional server-side check for submitted exams
+    try {
+      const token = getAuthToken();
+      const response = await axios.get(`${API_BASE_URL}/api/student-submissions`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      const submittedExamIds = response.data.map(submission => submission.examId);
+      if (submittedExamIds.includes(exam._id)) {
+        alert("You have already submitted this exam and cannot retake it.");
+        // Update local state to match server state
+        setSubmittedExams(prev => {
+          if (!prev.includes(exam._id)) {
+            return [...prev, exam._id];
+          }
+          return prev;
+        });
+        return;
+      }
+    } catch (err) {
+      console.error("Error checking submission status:", err);
     }
     
     setSelectedExam(exam);
@@ -1073,6 +1096,12 @@ function StudentClassStream() {
           message += `\n⏰ Late submission penalty: -2 credit points`;
         }
       }
+      
+      // Close the modal after a short delay to show success message
+      setTimeout(() => {
+        setShowExamModal(false);
+        setExamSubmitted(false); // Reset for next exam
+      }, 2000);
       
       // Refresh exam grades to show the new submission
       await fetchSubmittedExams(getAuthToken());
@@ -1292,6 +1321,7 @@ function StudentClassStream() {
                                 variant="secondary" 
                                 size="sm"
                                 disabled
+                                title="This exam has already been submitted"
                               >
                                 Already Submitted
                               </Button>
@@ -1299,7 +1329,14 @@ function StudentClassStream() {
                               <Button 
                                 variant="success" 
                                 size="sm"
-                                onClick={() => handleTakeExam(exam)}
+                                onClick={() => {
+                                  // Final check before opening modal
+                                  if (submittedExams.includes(exam._id)) {
+                                    alert("You have already submitted this exam and cannot retake it.");
+                                    return;
+                                  }
+                                  handleTakeExam(exam);
+                                }}
                               >
                                 Take Exam
                               </Button>
