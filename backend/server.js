@@ -552,29 +552,54 @@ app.get("/api/verify-token", authenticateToken, async (req, res) => {
 // Profile endpoint
 app.get("/api/profile", authenticateToken, async (req, res) => {
   try {
+    console.log("Fetching profile for user ID:", req.user.id);
     const user = await User.findById(req.user.id).select("-password");
     if (!user) {
+      console.log("User not found with ID:", req.user.id);
       return res.status(404).json({ error: "User not found" });
     }
+    
+    console.log("User found:", user.username, "Credit points:", user.creditPoints);
+    
+    let needsSave = false;
     
     // If user doesn't have createdAt (legacy user), add it
     if (!user.createdAt) {
       user.createdAt = user._id.getTimestamp(); // Use ObjectId timestamp as fallback
-      await user.save();
+      needsSave = true;
+      console.log("Added createdAt for legacy user");
     }
     
     // Ensure creditPoints is initialized for legacy users
     if (typeof user.creditPoints !== 'number' || isNaN(user.creditPoints) || user.creditPoints === undefined || user.creditPoints === null) {
-      console.log(`Initializing credit points for user ${user.username}`);
+      console.log(`Initializing credit points for user ${user.username} from ${user.creditPoints} to 0`);
       user.creditPoints = 0;
-      await user.save();
+      needsSave = true;
     }
     
     // Ensure creditPoints doesn't exceed max
     if (user.creditPoints > 10) {
       console.log(`Capping credit points for user ${user.username} from ${user.creditPoints} to 10`);
       user.creditPoints = 10;
-      await user.save();
+      needsSave = true;
+    }
+    
+    // Ensure creditPoints is not negative
+    if (user.creditPoints < 0) {
+      console.log(`Fixing negative credit points for user ${user.username} from ${user.creditPoints} to 0`);
+      user.creditPoints = 0;
+      needsSave = true;
+    }
+    
+    // Save if any changes were made
+    if (needsSave) {
+      try {
+        await user.save();
+        console.log("User profile updated successfully");
+      } catch (saveErr) {
+        console.error("Error saving user updates:", saveErr);
+        // Continue anyway and return the user data
+      }
     }
     
     res.json(user);
