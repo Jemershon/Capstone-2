@@ -64,30 +64,34 @@ function NotificationsDropdown() {
     const token = getAuthToken();
     if (token) {
       try {
+        console.log("Setting up socket connection for notifications...");
         // Create socket connection
         const socket = io(API_BASE_URL, {
           transports: ['websocket', 'polling'],
-          timeout: 10000
+          timeout: 10000,
+          reconnection: true,
+          reconnectionDelay: 1000,
+          reconnectionAttempts: 5
         });
         socketRef.current = socket;
         
         // Socket connection events
         socket.on('connect', () => {
-          console.log('Connected to notification server');
+          console.log('✅ Connected to notification server, socket ID:', socket.id);
           socket.emit('authenticate', token);
         });
         
         socket.on('connect_error', (error) => {
-          console.error('Socket connection error:', error);
+          console.error('❌ Socket connection error:', error);
         });
         
         socket.on('disconnect', (reason) => {
-          console.log('Socket disconnected:', reason);
+          console.log('🔌 Socket disconnected:', reason);
         });
         
         // Listen for new notifications
         socket.on('new-notification', (notification) => {
-          console.log('Received new notification:', notification);
+          console.log('🔔 Received new notification:', notification);
           // Add the new notification to the top of the list
           setNotifications(prev => [notification, ...prev.slice(0, 4)]);
           // Increment unread count

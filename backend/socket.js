@@ -13,16 +13,20 @@ export function setupSocketIO(httpServer) {
   });
 
   // Socket connection handling
-  io.on("connection", (socket) => {    
+  io.on("connection", (socket) => {
+    console.log("New socket connection:", socket.id);
+    
     // Authenticate socket connection
     socket.on("authenticate", (token) => {
       try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || "devsecret123");
         // Join user to their personal room for targeted messages
-        socket.join(decoded.username);
+        const userRoom = `user:${decoded.username}`;
+        socket.join(userRoom);
         socket.user = decoded;
+        console.log(`User ${decoded.username} authenticated and joined room ${userRoom}`);
       } catch (err) {
-        // Authentication failed
+        console.error("Socket authentication failed:", err.message);
       }
     });
     
@@ -57,7 +61,9 @@ export function setupSocketIO(httpServer) {
 // Function to send notification to a specific user
 export function sendNotificationToUser(io, username, notification) {
   if (!io) return;
-  io.to(username).emit('new-notification', notification);
+  const userRoom = `user:${username}`;
+  console.log(`Sending notification to room: ${userRoom}`);
+  io.to(userRoom).emit('new-notification', notification);
 }
 
 // Function to broadcast notification to all connected clients
