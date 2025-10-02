@@ -98,7 +98,7 @@ router.post('/', authenticateToken, requireTeacherOrAdmin, async (req, res) => {
       body: req.body
     });
     
-    const { title, description, class: className, questions, createdBy } = req.body;
+    const { title, description, class: className, questions, createdBy, due } = req.body;
     
     if (!title) {
       console.log('Validation error: Title is required');
@@ -115,7 +115,7 @@ router.post('/', authenticateToken, requireTeacherOrAdmin, async (req, res) => {
       return res.status(400).json({ error: 'At least one question is required' });
     }
     
-    console.log(`Creating exam "${title}" for class "${className}"`);
+    console.log(`Creating exam "${title}" for class "${className}" with due date: ${due}`);
     
     const exam = new Exam({
       title,
@@ -123,6 +123,7 @@ router.post('/', authenticateToken, requireTeacherOrAdmin, async (req, res) => {
       class: className,
       questions,
       createdBy: createdBy || req.user.username,
+      due: due ? new Date(due) : null,
     });
     
     await exam.save();
@@ -148,7 +149,7 @@ router.put('/:id', authenticateToken, requireTeacherOrAdmin, async (req, res) =>
       examId: req.params.id
     });
     
-    const { title, description, questions } = req.body;
+    const { title, description, questions, due } = req.body;
     const exam = await Exam.findById(req.params.id);
     
     if (!exam) {
@@ -174,6 +175,9 @@ router.put('/:id', authenticateToken, requireTeacherOrAdmin, async (req, res) =>
     exam.title = title;
     exam.description = description;
     exam.questions = questions;
+    exam.due = due ? new Date(due) : null;
+    
+    console.log(`Updating exam ${req.params.id} with due date: ${exam.due}`);
     
     // Keep the class field as is - don't change it during updates
     // This prevents issues if the frontend sends a different value

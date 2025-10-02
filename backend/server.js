@@ -604,6 +604,95 @@ app.post("/api/admin/users", authenticateToken, requireAdmin, async (req, res) =
   }
 });
 
+// Debug endpoint: Get current user credit points
+app.get("/api/debug/credit-points", authenticateToken, async (req, res) => {
+  try {
+    const user = await User.findOne({ username: req.user.username });
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+    
+    console.log(`Debug: User ${req.user.username} has ${user.creditPoints} credit points`);
+    
+    res.json({ 
+      username: req.user.username,
+      creditPoints: user.creditPoints,
+      message: `User ${req.user.username} has ${user.creditPoints} credit points`
+    });
+  } catch (err) {
+    console.error("Get credit points error:", err);
+    res.status(500).json({ error: "Failed to get credit points" });
+  }
+});
+
+// Debug endpoint: Reset credit points to 10 for testing
+app.post("/api/debug/reset-credit-points", authenticateToken, async (req, res) => {
+  try {
+    const user = await User.findOne({ username: req.user.username });
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+    
+    const oldPoints = user.creditPoints;
+    user.creditPoints = 10; // Reset to default
+    await user.save();
+    
+    console.log(`Debug: Reset credit points for ${req.user.username} from ${oldPoints} to 10`);
+    
+    res.json({ 
+      username: req.user.username,
+      oldCreditPoints: oldPoints,
+      newCreditPoints: 10,
+      message: `Credit points reset from ${oldPoints} to 10`
+    });
+  } catch (err) {
+    console.error("Reset credit points error:", err);
+    res.status(500).json({ error: "Failed to reset credit points" });
+  }
+});
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+    
+    console.log(`Debug: User ${req.user.username} has ${user.creditPoints} credit points`);
+    
+    res.json({ 
+      username: req.user.username,
+      creditPoints: user.creditPoints,
+      message: `User ${req.user.username} has ${user.creditPoints} credit points`
+    });
+  } catch (err) {
+    console.error("Get credit points error:", err);
+    res.status(500).json({ error: "Failed to get credit points" });
+  }
+});
+
+// Debug endpoint: Reset credit points to 10 for testing
+app.post("/api/debug/reset-credit-points", authenticateToken, async (req, res) => {
+  try {
+    const user = await User.findOne({ username: req.user.username });
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+    
+    const oldPoints = user.creditPoints;
+    user.creditPoints = 10; // Reset to default
+    await user.save();
+    
+    console.log(`Debug: Reset credit points for ${req.user.username} from ${oldPoints} to 10`);
+    
+    res.json({ 
+      username: req.user.username,
+      oldCreditPoints: oldPoints,
+      newCreditPoints: 10,
+      message: `Credit points reset from ${oldPoints} to 10`
+    });
+  } catch (err) {
+    console.error("Reset credit points error:", err);
+    res.status(500).json({ error: "Failed to reset credit points" });
+  }
+});
+
 // Admin: Delete user
 app.delete("/api/admin/users/:id", authenticateToken, requireAdmin, async (req, res) => {
   try {
@@ -1568,6 +1657,14 @@ app.post("/api/exam-submissions", authenticateToken, async (req, res) => {
     // Store original credit points before any modifications
     const originalCreditPoints = user.creditPoints || 0;
     
+    // Validate user credit points - ensure it's a valid number
+    if (typeof user.creditPoints !== 'number' || isNaN(user.creditPoints)) {
+      console.log(`⚠️ Invalid credit points for user ${student}, resetting to 0`);
+      user.creditPoints = 0;
+    }
+    
+    console.log(`Student ${student} has ${originalCreditPoints} credit points available`);
+    
     // Apply credit points if student chose to use them (from ORIGINAL amount)
     let creditsUsed = 0;
     let finalScore = rawScore;
@@ -1584,30 +1681,48 @@ app.post("/api/exam-submissions", authenticateToken, async (req, res) => {
     let creditDelta = 0;
     console.log(`Exam due date: ${exam.due}`);
     console.log(`Current time: ${now}`);
+    console.log(`Due date type: ${typeof exam.due}`);
     
     if (exam.due) {
       const dueDate = new Date(exam.due);
       console.log(`Due date parsed: ${dueDate}`);
+      console.log(`Due date is valid: ${!isNaN(dueDate.getTime())}`);
       console.log(`Is now < due? ${now < dueDate}`);
       
-      if (now < dueDate) {
-        creditDelta = 1; // +1 for early submission
-        console.log("✅ Early submission: +1 credit point bonus");
+      // Only apply timing bonus/penalty if due date is valid
+      if (!isNaN(dueDate.getTime())) {
+        if (now < dueDate) {
+          creditDelta = 1; // +1 for early submission
+          console.log("✅ Early submission: +1 credit point bonus");
+        } else {
+          creditDelta = -2; // -2 for late submission
+          console.log("❌ Late submission: -2 credit points penalty");
+        }
       } else {
-        creditDelta = -2; // -2 for late submission
-        console.log("❌ Late submission: -2 credit points penalty");
+        console.log("⚠️ Invalid due date format - no timing bonus/penalty applied");
       }
     } else {
       console.log("⚠️ No due date set for this exam - no timing bonus/penalty");
     }
     
     // Calculate final credit points: original - used + timing bonus/penalty
-    const finalCreditPoints = Math.max(0, originalCreditPoints - creditsUsed + creditDelta);
+    const calculatedCreditPoints = originalCreditPoints - creditsUsed + creditDelta;
+    const finalCreditPoints = Math.max(0, calculatedCreditPoints);
+    
+    console.log(`Credit points calculation: ${originalCreditPoints} - ${creditsUsed} + ${creditDelta} = ${calculatedCreditPoints} → ${finalCreditPoints} (min 0)`);
+    
+    // Update user credit points
     user.creditPoints = finalCreditPoints;
     
     console.log(`Credit points: ${originalCreditPoints} → ${finalCreditPoints} (used: ${creditsUsed}, timing: ${creditDelta > 0 ? '+' : ''}${creditDelta})`);
     
-    await user.save();
+    try {
+      await user.save();
+      console.log("✅ User credit points saved successfully");
+    } catch (saveError) {
+      console.error("❌ Error saving user credit points:", saveError);
+      throw saveError;
+    }
 
     // Convert to percentage
     const finalScorePercentage = totalQuestions > 0 ? Math.round((finalScore / totalQuestions) * 100) : 0;

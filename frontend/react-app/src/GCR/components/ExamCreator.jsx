@@ -9,6 +9,7 @@ import { API_BASE_URL, getAuthToken, getUsername } from '../../api';
 const ExamCreator = ({ className, onExamCreated }) => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [dueDate, setDueDate] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -50,6 +51,7 @@ const ExamCreator = ({ className, onExamCreated }) => {
         class: className,        // Using 'class' field as in the model
         className: className,    // Also include 'className' field as backup
         createdBy: username || 'unknown-user',
+        due: dueDate || null,    // Add due date to exam data
         questions: [
           {
             text: 'Test question',
@@ -90,6 +92,7 @@ const ExamCreator = ({ className, onExamCreated }) => {
       setSuccess(`Exam "${title}" created successfully!`);
       setTitle('');
       setDescription('');
+      setDueDate('');
 
       // Call the callback if provided
       if (onExamCreated && typeof onExamCreated === 'function') {
@@ -136,6 +139,19 @@ const ExamCreator = ({ className, onExamCreated }) => {
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Enter exam description"
             />
+          </Form.Group>
+
+          <Form.Group className="mb-3">
+            <Form.Label>Due Date (optional)</Form.Label>
+            <Form.Control
+              type="datetime-local"
+              value={dueDate}
+              onChange={(e) => setDueDate(e.target.value)}
+            />
+            <Form.Text className="text-muted">
+              Set a due date to enable early/late submission credit point bonuses/penalties. 
+              Early: +1 credit point, Late: -2 credit points.
+            </Form.Text>
           </Form.Group>
 
           <Form.Group className="mb-3">
