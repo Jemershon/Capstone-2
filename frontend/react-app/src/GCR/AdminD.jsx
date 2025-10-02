@@ -18,6 +18,105 @@ import {
   Alert,
 } from "react-bootstrap";
 
+// Add custom styles for responsive design
+const customStyles = `
+  .main-content-responsive {
+    margin-left: 0;
+    padding: 0;
+    min-height: 100vh;
+  }
+  
+  @media (min-width: 768px) {
+    .main-content-responsive {
+      margin-left: 16.666667%;
+      padding: 20px;
+    }
+  }
+  
+  /* Mobile navbar styles */
+  @media (max-width: 991px) {
+    .mobile-nav-link {
+      text-align: center !important;
+      padding: 12px 20px !important;
+      transition: all 0.3s ease;
+      border-radius: 8px;
+      margin: 5px 10px;
+    }
+    
+    .mobile-nav-link:hover {
+      background-color: #f0f0f0 !important;
+      transform: translateX(5px);
+    }
+    
+    .mobile-nav-link.active {
+      background-color: #e3f2fd !important;
+      color: #1976d2 !important;
+      font-weight: 600;
+    }
+    
+    .navbar-collapse {
+      text-align: center;
+    }
+    
+    .navbar-nav {
+      width: 100%;
+    }
+  }
+  
+  .nav-link-custom {
+    border-radius: 4px;
+    margin-bottom: 5px;
+    transition: background-color 0.2s;
+    color: #fff !important;
+    text-decoration: none;
+  }
+  
+  .nav-link-custom:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: #fff !important;
+  }
+  
+  .nav-link-custom.active {
+    background-color: rgba(255, 255, 255, 0.2);
+  }
+  
+  /* Fix container gaps */
+  .container-fluid {
+    padding: 0;
+  }
+  
+  .row.g-0 {
+    margin: 0;
+  }
+  
+  /* Ensure full height layout */
+  .admin-dashboard-container {
+    min-height: 100vh;
+  }
+  
+  .dashboard-content {
+    padding: 0;
+    margin: 0;
+  }
+  
+  @media (max-width: 767px) {
+    .dashboard-content {
+      padding: 0;
+    }
+    
+    .card, .container {
+      margin-top: 0 !important;
+    }
+  }
+`;
+
+// Inject styles
+if (typeof document !== 'undefined') {
+  const styleElement = document.createElement('style');
+  styleElement.textContent = customStyles;
+  document.head.appendChild(styleElement);
+}
+
 // Retry function for API calls
 const retry = async (fn, retries = 3, delay = 1000) => {
   for (let i = 0; i < retries; i++) {
@@ -679,27 +778,29 @@ export default function AdminDashboard() {
 
         {/* Mobile Navbar */}
         <div className="d-md-none">
-          <Navbar expand="lg" bg="white" variant="light" className="shadow-sm px-4">
+          <Navbar expand="lg" bg="white" variant="light" className="shadow-sm">
             <Container fluid>
-              <Navbar.Brand className="fw-bold text-primary fs-3">👑 Admin</Navbar.Brand>
+              <Navbar.Brand className="fw-bold text-primary fs-4">👑 Admin</Navbar.Brand>
               <Navbar.Toggle aria-controls="mobile-nav" />
               <Navbar.Collapse id="mobile-nav">
-                <Nav className="ms-auto align-items-lg-center">
+                <Nav className="w-100">
                   <Nav.Link
                     as={NavLink}
                     to="/admin/dashboard"
-                    className="mx-2 text-dark"
+                    className="mobile-nav-link"
                   >
                     Dashboard
                   </Nav.Link>
-                  <Button
-                    variant="danger"
-                    className="ms-lg-3"
-                    onClick={() => setShowLogoutModal(true)}
-                    size="sm"
-                  >
-                    Logout
-                  </Button>
+                  <div className="text-center my-2">
+                    <Button
+                      variant="danger"
+                      onClick={() => setShowLogoutModal(true)}
+                      size="sm"
+                      className="px-4"
+                    >
+                      Logout
+                    </Button>
+                  </div>
                 </Nav>
               </Navbar.Collapse>
             </Container>

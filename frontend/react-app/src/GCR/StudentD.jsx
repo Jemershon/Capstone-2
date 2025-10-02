@@ -11,7 +11,7 @@ import { io } from "socket.io-client";
 const customStyles = `
   .main-content-responsive {
     margin-left: 0;
-    padding: 15px;
+    padding: 0;
     min-height: 100vh;
   }
   
@@ -36,9 +36,43 @@ const customStyles = `
     background-color: rgba(255, 255, 255, 0.2);
   }
   
+  /* Mobile navbar styles */
+  @media (max-width: 991px) {
+    .mobile-nav-link {
+      text-align: center !important;
+      padding: 12px 20px !important;
+      transition: all 0.3s ease;
+      border-radius: 8px;
+      margin: 5px 10px;
+    }
+    
+    .mobile-nav-link:hover {
+      background-color: #f0f0f0 !important;
+      transform: translateX(5px);
+    }
+    
+    .mobile-nav-link.active {
+      background-color: #e3f2fd !important;
+      color: #1976d2 !important;
+      font-weight: 600;
+    }
+    
+    .navbar-collapse {
+      text-align: center;
+    }
+    
+    .navbar-nav {
+      width: 100%;
+    }
+  }
+  
   /* Fix container gaps */
   .container-fluid {
     padding: 0;
+  }
+  
+  .row.g-0 {
+    margin: 0;
   }
   
   /* Ensure full height layout */
@@ -53,7 +87,11 @@ const customStyles = `
   
   @media (max-width: 767px) {
     .dashboard-content {
-      padding-top: 10px;
+      padding: 0;
+    }
+    
+    .card, .container {
+      margin-top: 0 !important;
     }
   }
 `;
@@ -192,34 +230,36 @@ function StudentDashboard() {
         
         {/* Mobile navbar */}
         <div className="d-md-none">
-          <Navbar expand="lg" bg="white" variant="light" className="shadow-sm px-4">
+          <Navbar expand="lg" bg="white" variant="light" className="shadow-sm">
             <Container fluid>
-              <Navbar.Brand className="fw-bold text-primary fs-3">📚 Student</Navbar.Brand>
+              <Navbar.Brand className="fw-bold text-primary fs-4">📚 Student</Navbar.Brand>
               <Navbar.Toggle aria-controls="mobile-nav" />
               <Navbar.Collapse id="mobile-nav">
-                <Nav className="ms-auto align-items-lg-center">
+                <Nav className="w-100">
                   <Nav.Link
-                    as={Link}
+                    as={NavLink}
                     to="/student/dashboard"
-                    className="mx-2 text-dark"
+                    className="mobile-nav-link"
                   >
                     Dashboard
                   </Nav.Link>
                   <Nav.Link
-                    as={Link}
+                    as={NavLink}
                     to="/student/profile"
-                    className="mx-2 text-dark"
+                    className="mobile-nav-link"
                   >
                     Profile
                   </Nav.Link>
-                  <Button
-                    variant="danger"
-                    className="ms-lg-3"
-                    onClick={() => setShowLogoutModal(true)}
-                    size="sm"
-                  >
-                    Logout
-                  </Button>
+                  <div className="text-center my-2">
+                    <Button
+                      variant="danger"
+                      onClick={() => setShowLogoutModal(true)}
+                      size="sm"
+                      className="px-4"
+                    >
+                      Logout
+                    </Button>
+                  </div>
                 </Nav>
               </Navbar.Collapse>
             </Container>

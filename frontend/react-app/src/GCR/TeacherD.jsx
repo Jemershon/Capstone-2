@@ -33,8 +33,7 @@ import ExamCreator from "./components/ExamCreator";
 const customStyles = `
   .main-content-responsive {
     margin-left: 0;
-    padding: 15px;
-    padding-top: 70px; /* Space for mobile navbar */
+    padding: 0;
     min-height: 100vh;
   }
   
@@ -42,46 +41,37 @@ const customStyles = `
     .main-content-responsive {
       margin-left: 16.666667%;
       padding: 20px;
-      padding-top: 20px; /* Reset padding-top for desktop */
     }
   }
   
-  .mobile-navbar {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    z-index: 1030;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-  }
-  
-  .mobile-nav-brand {
-    font-weight: 600;
-    font-size: 1.1rem;
-  }
-  
-  .mobile-nav-links {
-    background-color: #343a40;
-    border-top: 1px solid #495057;
-  }
-  
-  .mobile-nav-link {
-    padding: 0.75rem 1rem;
-    border-bottom: 1px solid #495057;
-    color: #fff !important;
-    text-decoration: none;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-  }
-  
-  .mobile-nav-link:hover {
-    background-color: #495057;
-    color: #fff !important;
-  }
-  
-  .mobile-nav-link.logout {
-    color: #dc3545 !important;
+  /* Mobile navbar styles */
+  @media (max-width: 991px) {
+    .mobile-nav-link {
+      text-align: center !important;
+      padding: 12px 20px !important;
+      transition: all 0.3s ease;
+      border-radius: 8px;
+      margin: 5px 10px;
+    }
+    
+    .mobile-nav-link:hover {
+      background-color: #f0f0f0 !important;
+      transform: translateX(5px);
+    }
+    
+    .mobile-nav-link.active {
+      background-color: #e3f2fd !important;
+      color: #1976d2 !important;
+      font-weight: 600;
+    }
+    
+    .navbar-collapse {
+      text-align: center;
+    }
+    
+    .navbar-nav {
+      width: 100%;
+    }
   }
   
   .nav-link-custom {
@@ -106,8 +96,29 @@ const customStyles = `
     padding: 0;
   }
   
+  .row.g-0 {
+    margin: 0;
+  }
+  
   /* Ensure full height layout */
   .teacher-dashboard-container {
+    min-height: 100vh;
+  }
+  
+  .dashboard-content {
+    padding: 0;
+    margin: 0;
+  }
+  
+  @media (max-width: 767px) {
+    .dashboard-content {
+      padding: 0;
+    }
+    
+    .card, .container {
+      margin-top: 0 !important;
+    }
+  }
     min-height: 100vh;
   }
   
@@ -3736,41 +3747,43 @@ export default function TeacherDashboard() {
         </Col>
         {/* Mobile Navbar */}
         <div className="d-md-none">
-          <Navbar expand="lg" bg="white" variant="light" className="shadow-sm px-4">
+          <Navbar expand="lg" bg="white" variant="light" className="shadow-sm">
             <Container fluid>
-              <Navbar.Brand className="fw-bold text-primary fs-3">🏫 Teacher</Navbar.Brand>
+              <Navbar.Brand className="fw-bold text-primary fs-4">🏫 Teacher</Navbar.Brand>
               <Navbar.Toggle aria-controls="mobile-nav" />
               <Navbar.Collapse id="mobile-nav">
-                <Nav className="ms-auto align-items-lg-center">
+                <Nav className="w-100">
                   <Nav.Link
                     as={Link}
                     to="/teacher/dashboard"
-                    className="mx-2 text-dark"
+                    className="mobile-nav-link"
                   >
                     Dashboard
                   </Nav.Link>
                   <Nav.Link
                     as={Link}
                     to="/teacher/grades"
-                    className="mx-2 text-dark"
+                    className="mobile-nav-link"
                   >
                     Grades
                   </Nav.Link>
                   <Nav.Link
                     as={Link}
                     to="/teacher/profile"
-                    className="mx-2 text-dark"
+                    className="mobile-nav-link"
                   >
                     Profile
                   </Nav.Link>
-                  <Button
-                    variant="danger"
-                    className="ms-lg-3"
-                    onClick={() => setShowLogoutModal(true)}
-                    size="sm"
-                  >
-                    Logout
-                  </Button>
+                  <div className="text-center my-2">
+                    <Button
+                      variant="danger"
+                      onClick={() => setShowLogoutModal(true)}
+                      size="sm"
+                      className="px-4"
+                    >
+                      Logout
+                    </Button>
+                  </div>
                 </Nav>
               </Navbar.Collapse>
             </Container>
