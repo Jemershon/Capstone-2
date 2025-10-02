@@ -674,6 +674,7 @@ function StudentClassStream() {
   const [selectedExam, setSelectedExam] = useState(null);
   const [examAnswers, setExamAnswers] = useState({});
   const [examSubmitted, setExamSubmitted] = useState(false);
+  const [submissionSuccess, setSubmissionSuccess] = useState(false);
   const [useCreditPoints, setUseCreditPoints] = useState(false);
   const [userCreditPoints, setUserCreditPoints] = useState(0);
   const [submittedExams, setSubmittedExams] = useState([]);
@@ -1080,6 +1081,9 @@ function StudentClassStream() {
       setSubmittedExams(prev => [...prev, selectedExam._id]);
       setExamSubmitted(true);
       
+      // Show visual success feedback
+      setSubmissionSuccess(true);
+      
       // Force refresh of submitted exams list from server
       await fetchSubmittedExams(getAuthToken());
       
@@ -1108,10 +1112,16 @@ function StudentClassStream() {
         }
       }
       
-      // Close the modal after a short delay to show success message
+      // Display success message and close the modal after a delay
       setTimeout(() => {
-        setShowExamModal(false);
-        setExamSubmitted(false); // Reset for next exam
+        // First fade out success message
+        setSubmissionSuccess(false);
+        
+        // Then close modal after another delay
+        setTimeout(() => {
+          setShowExamModal(false);
+          setExamSubmitted(false); // Reset for next exam
+        }, 500);
       }, 2000);
       
       // Refresh exam grades to show the new submission
@@ -1329,12 +1339,13 @@ function StudentClassStream() {
                             </div>
                             {submittedExams.includes(exam._id) ? (
                               <Button 
-                                variant="secondary" 
+                                variant="success" 
                                 size="sm"
                                 disabled
+                                className="d-flex align-items-center"
                                 title="This exam has already been submitted"
                               >
-                                Already Submitted
+                                <i className="bi bi-check-circle-fill me-1"></i> Submitted
                               </Button>
                             ) : (
                               <Button 
@@ -1625,7 +1636,20 @@ function StudentClassStream() {
         <Modal.Body style={{ maxHeight: '70vh', overflowY: 'auto' }}>
           {selectedExam ? (
             <div>
-              {!examSubmitted ? (
+              {examSubmitted ? (
+                <div className="text-center py-4">
+                  <div className="animate__animated animate__fadeIn">
+                    <div className="d-flex justify-content-center mb-3">
+                      <div className="bg-success text-white rounded-circle p-3" style={{ width: '80px', height: '80px' }}>
+                        <i className="bi bi-check-lg" style={{ fontSize: '3rem' }}></i>
+                      </div>
+                    </div>
+                    <h4 className="text-success mb-4">Exam Submitted Successfully!</h4>
+                    <p className="lead">Your answers have been recorded.</p>
+                    <p>You can now close this window.</p>
+                  </div>
+                </div>
+              ) : (
                 <>
                   <div className="mb-3">
                     <p><strong>Description:</strong> {selectedExam.description}</p>
@@ -1671,13 +1695,7 @@ function StudentClassStream() {
                     </div>
                   ))}
                 </>
-              ) : (
-                <div className="text-center">
-                  <div className="display-4 text-success mb-3">✓</div>
-                  <h5>Exam Submitted Successfully!</h5>
-                  <p>Your answers have been recorded. You can close this window.</p>
-                </div>
-              )}
+
             </div>
           ) : (
             <p>Loading exam...</p>
