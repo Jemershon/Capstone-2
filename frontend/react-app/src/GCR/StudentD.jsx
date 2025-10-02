@@ -1067,6 +1067,10 @@ function StudentClassStream() {
       setSubmittedExams(prev => [...prev, selectedExam._id]);
       
       const { score, creditsUsed, creditPointsRemaining } = response.data;
+      
+      // Update user credit points after submission
+      setUserCreditPoints(creditPointsRemaining || 0);
+      
       let message = `Exam submitted successfully! Your score: ${score}%`;
       
       if (useCreditPoints && creditsUsed > 0) {
@@ -1076,7 +1080,22 @@ function StudentClassStream() {
         message += `\n✨ No credit points were needed - great job!`;
       }
       
+      // Add info about timing bonus if applicable
+      if (selectedExam.due) {
+        const now = new Date();
+        const dueDate = new Date(selectedExam.due);
+        if (now < dueDate) {
+          message += `\n⚡ Early submission bonus: +1 credit point!`;
+        } else if (now > dueDate) {
+          message += `\n⏰ Late submission penalty: -2 credit points`;
+        }
+      }
+      
       alert(message);
+      
+      // Refresh exam grades to show the new submission
+      await fetchSubmittedExams(getAuthToken());
+      
     } catch (err) {
       console.error("Error submitting exam:", err);
       console.error("Error response:", err.response?.data);
