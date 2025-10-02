@@ -1703,6 +1703,17 @@ app.post("/api/exam-submissions", authenticateToken, async (req, res) => {
     await submission.save();
     console.log("Submission saved successfully");
 
+    // Emit exam submission event to the class for real-time updates
+    if (req.app.io) {
+      console.log(`Emitting exam-submitted to class:${exam.className}`);
+      req.app.io.to(`class:${exam.className}`).emit('exam-submitted', {
+        examId,
+        student,
+        score: finalScorePercentage,
+        submittedAt: new Date()
+      });
+    }
+
     // Create grade entry with detailed feedback
     const feedbackText = creditsUsed > 0 
       ? `Exam: ${exam.title} (raw ${rawScore}/${totalQuestions}, +${creditsUsed} credits used, final ${finalScore}/${totalQuestions})`

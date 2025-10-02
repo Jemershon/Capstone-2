@@ -5,6 +5,7 @@ import { Container, Row, Col, Nav, Navbar, Card, Button, Table, Modal, Form, Tab
 import { getAuthToken, getUsername, getUserRole, checkAuth, clearAuthData, API_BASE_URL } from "../api";
 import NotificationsDropdown from "./components/NotificationsDropdown";
 import Comments from "./components/Comments";
+import { io } from "socket.io-client";
 
 // Add custom styles for responsive design
 const customStyles = `
@@ -734,6 +735,30 @@ function StudentClassStream() {
     }
   }, [exams]);
 
+  // Socket listener for real-time grade updates
+  useEffect(() => {
+    const socket = io(API_BASE_URL);
+    
+    // Join the class room
+    if (className) {
+      socket.emit('join-class', className);
+    }
+    
+    // Listen for exam submissions (including our own)
+    socket.on('exam-submitted', (data) => {
+      console.log('Exam submitted event received, refreshing grades:', data);
+      // Refresh exam grades when any exam is submitted
+      const token = getAuthToken();
+      if (token && exams.length > 0) {
+        fetchSubmittedExams(token);
+      }
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [className, exams]);
+
   const fetchClassData = async () => {
     setLoading(true);
     try {
@@ -1276,45 +1301,7 @@ function StudentClassStream() {
               </div>
 
               <Row>
-                <Col md={6}>
-                  <h5 className="mb-3">📝 Assignments</h5>
-                  {assignments.length === 0 ? (
-                    <Card className="text-center p-4">
-                      <p className="text-muted">No assignments yet</p>
-                    </Card>
-                  ) : (
-                    assignments.map((assignment) => (
-                      <Card key={assignment._id} className="mb-3">
-                        <Card.Body>
-                          <div className="d-flex justify-content-between align-items-start">
-                            <div>
-                              <h6 className="fw-bold">{assignment.title}</h6>
-                              <p className="text-muted small mb-2">{assignment.description}</p>
-                              {assignment.dueDate && (
-                                <Badge bg="warning" className="me-2">
-                                  Due: {new Date(assignment.dueDate).toLocaleDateString()}
-                                </Badge>
-                              )}
-                              <Badge bg="secondary">{assignment.points} points</Badge>
-                            </div>
-                            <Button 
-                              variant="outline-primary" 
-                              size="sm"
-                              onClick={() => {
-                                setSelectedAssignment(assignment);
-                                setShowSubmissionModal(true);
-                              }}
-                            >
-                              Submit
-                            </Button>
-                          </div>
-                        </Card.Body>
-                      </Card>
-                    ))
-                  )}
-                </Col>
-
-                <Col md={6}>
+                <Col md={12}>
                   <h5 className="mb-3">📊 Exams</h5>
                   {exams.length === 0 ? (
                     <Card className="text-center p-4">
@@ -1360,13 +1347,6 @@ function StudentClassStream() {
                               </Button>
                             )}
                           </div>
-                          
-                          {/* Comments and Reactions Section for Exams */}
-                          <Comments 
-                            referenceType="exam"
-                            referenceId={exam._id}
-                            className={className}
-                          />
                         </Card.Body>
                       </Card>
                     ))

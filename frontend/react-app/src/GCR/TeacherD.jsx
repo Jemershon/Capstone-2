@@ -2912,6 +2912,22 @@ function Grades() {
     };
   }, [fetchLeaderboardData]);
 
+  // Socket listener for real-time grade updates
+  useEffect(() => {
+    const socket = io(API_BASE_URL);
+    
+    // Listen for exam submissions from all classes
+    socket.on('exam-submitted', (data) => {
+      console.log('Exam submitted, refreshing leaderboard:', data);
+      // Refresh leaderboard data when any student submits an exam
+      fetchLeaderboardData();
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [fetchLeaderboardData]);
+
   // Get current data based on view mode
   const getCurrentData = () => {
     if (!leaderboardData) return [];
