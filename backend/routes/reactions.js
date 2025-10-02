@@ -1,6 +1,7 @@
 import express from "express";
 import Reaction from "../models/Reaction.js";
 import { authenticateToken } from "../middlewares/auth.js";
+import Notification from "../models/Notification.js";
 
 const router = express.Router();
 
@@ -92,6 +93,48 @@ router.post("/reactions", authenticateToken, async (req, res) => {
       });
       
       await reaction.save();
+      
+      // Notify the original post creator about the reaction
+      try {
+        let postCreator = null;
+        
+        if (referenceType === 'exam') {
+          const Exam = req.app.models.Exam;
+          const exam = await Exam.findById(referenceId);
+          if (exam) postCreator = exam.createdBy;
+        } else if (referenceType === 'announcement') {
+          const Announcement = req.app.models.Announcement;
+          const announcement = await Announcement.findById(referenceId);
+          if (announcement) postCreator = announcement.createdBy;
+        } else if (referenceType === 'material') {
+          const Material = req.app.models.Material;
+          const material = await Material.findById(referenceId);
+          if (material) postCreator = material.createdBy;
+        }
+        
+        // Only notify if the reactor is not the post creator
+        if (postCreator && postCreator !== req.user.username) {
+          const reactionEmoji = reactionType === 'heart' ? '❤️' : reactionType === 'like' ? '👍' : '😮';
+          const notification = new Notification({
+            recipient: postCreator,
+            sender: req.user.username,
+            type: 'comment', // Using 'comment' type as it's the closest match
+            message: `${req.user.username} reacted ${reactionEmoji} to your ${referenceType}`,
+            referenceId: referenceId,
+            class: className
+          });
+          await notification.save();
+          
+          // Send real-time notification
+          if (req.app.io) {
+            req.app.io.to(`user:${postCreator}`).emit('new-notification', notification);
+          }
+          console.log(`✅ Notified ${postCreator} about reaction from ${req.user.username}`);
+        }
+      } catch (notifError) {
+        console.log("Reaction notification failed, but continuing:", notifError.message);
+      }
+      
       res.status(201).json({ 
         message: "Reaction added", 
         action: "added",

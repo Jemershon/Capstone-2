@@ -1841,6 +1841,27 @@ app.post("/api/exam-submissions", authenticateToken, async (req, res) => {
       console.log("Notification creation failed, but continuing:", notificationError.message);
     }
 
+    // Notify teacher about student submission
+    try {
+      const teacherNotification = new Notification({
+        recipient: exam.createdBy,
+        sender: student,
+        type: 'assignment',
+        message: `${student} submitted exam: "${exam.title}" - Score: ${finalScorePercentage}%`,
+        referenceId: examId,
+        class: exam.className
+      });
+      await teacherNotification.save();
+      
+      // Send real-time notification to teacher
+      if (req.app.io) {
+        req.app.io.to(`user:${exam.createdBy}`).emit('new-notification', teacherNotification);
+      }
+      console.log(`✅ Teacher ${exam.createdBy} notified about submission from ${student}`);
+    } catch (teacherNotifError) {
+      console.log("Teacher notification failed, but continuing:", teacherNotifError.message);
+    }
+
     // Create grade entry with detailed feedback
     const feedbackText = creditsUsed > 0 
       ? `Exam: ${exam.title} (raw ${rawScore}/${totalQuestions}, +${creditsUsed} credits used, final ${finalScore}/${totalQuestions})`

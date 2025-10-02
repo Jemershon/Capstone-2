@@ -1,6 +1,7 @@
 import express from "express";
 import Comment from "../models/Comment.js";
 import { authenticateToken } from "../middlewares/auth.js";
+import Notification from "../models/Notification.js";
 
 const router = express.Router();
 
@@ -47,6 +48,48 @@ router.post("/comments", authenticateToken, async (req, res) => {
     });
     
     await comment.save();
+    
+    // Notify the original post creator about the comment
+    try {
+      // Import the appropriate model based on referenceType
+      let postCreator = null;
+      
+      if (referenceType === 'exam') {
+        const Exam = req.app.models.Exam;
+        const exam = await Exam.findById(referenceId);
+        if (exam) postCreator = exam.createdBy;
+      } else if (referenceType === 'announcement') {
+        const Announcement = req.app.models.Announcement;
+        const announcement = await Announcement.findById(referenceId);
+        if (announcement) postCreator = announcement.createdBy;
+      } else if (referenceType === 'material') {
+        const Material = req.app.models.Material;
+        const material = await Material.findById(referenceId);
+        if (material) postCreator = material.createdBy;
+      }
+      
+      // Only notify if the commenter is not the post creator (don't notify yourself)
+      if (postCreator && postCreator !== req.user.username) {
+        const notification = new Notification({
+          recipient: postCreator,
+          sender: req.user.username,
+          type: 'comment',
+          message: `${req.user.username} commented on your ${referenceType}: "${content.substring(0, 50)}${content.length > 50 ? '...' : ''}"`,
+          referenceId: referenceId,
+          class: className
+        });
+        await notification.save();
+        
+        // Send real-time notification
+        if (req.app.io) {
+          req.app.io.to(`user:${postCreator}`).emit('new-notification', notification);
+        }
+        console.log(`✅ Notified ${postCreator} about comment from ${req.user.username}`);
+      }
+    } catch (notifError) {
+      console.log("Comment notification failed, but continuing:", notifError.message);
+    }
+    
     res.status(201).json({ message: "Comment added successfully", comment });
   } catch (err) {
     console.error("Add comment error:", err);

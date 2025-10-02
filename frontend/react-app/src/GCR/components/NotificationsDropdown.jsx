@@ -206,28 +206,7 @@ function NotificationsDropdown() {
     }
   };
   
-  // Test notification function
-  const sendTestNotification = async () => {
-    try {
-      const token = getAuthToken();
-      if (!token) {
-        console.error('No auth token available');
-        return;
-      }
-      
-      await axios.post(`${API_BASE_URL}/api/test-notification`, {
-        message: `Test notification sent at ${new Date().toLocaleTimeString()}`
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      
-      console.log('Test notification sent');
-      // Refresh notifications to show the new one
-      fetchNotifications();
-    } catch (err) {
-      console.error('Send test notification error:', err.response?.data || err.message);
-    }
-  };
+
   
   const getNotificationIcon = (type) => {
     switch(type) {
@@ -263,29 +242,19 @@ function NotificationsDropdown() {
           )}
         </Dropdown.Toggle>
         
-        <Dropdown.Menu align="end" style={{ width: '300px', maxHeight: '400px', overflowY: 'auto' }}>
+        <Dropdown.Menu align="end" style={{ width: '350px', maxHeight: '400px', overflowY: 'auto', overflowX: 'hidden' }}>
           <div className="d-flex justify-content-between align-items-center px-3 py-2">
             <h6 className="mb-0">Notifications</h6>
-            <div className="d-flex gap-2">
+            {unreadCount > 0 && (
               <Button
-                variant="outline-primary"
+                variant="link"
                 size="sm"
-                onClick={sendTestNotification}
-                title="Send test notification"
+                className="p-0 text-primary"
+                onClick={handleMarkAllAsRead}
               >
-                Test
+                Mark all as read
               </Button>
-              {unreadCount > 0 && (
-                <Button
-                  variant="link"
-                  size="sm"
-                  className="p-0 text-primary"
-                  onClick={handleMarkAllAsRead}
-                >
-                  Mark all as read
-                </Button>
-              )}
-            </div>
+            )}
           </div>
           
           <Dropdown.Divider className="my-1" />
@@ -304,6 +273,7 @@ function NotificationsDropdown() {
                   key={notification._id}
                   className={`px-3 py-2 ${!notification.read ? 'bg-light' : ''}`}
                   onClick={() => handleMarkAsRead(notification._id)}
+                  style={{ cursor: 'pointer' }}
                 >
                   <div className="d-flex">
                     <div className="me-2">
@@ -311,22 +281,23 @@ function NotificationsDropdown() {
                         {getNotificationIcon(notification.type)}
                       </span>
                     </div>
-                    <div className="flex-grow-1" style={{ fontSize: '0.9rem' }}>
-                      <div>{notification.message}</div>
+                    <div className="flex-grow-1" style={{ fontSize: '0.9rem', wordWrap: 'break-word', overflowWrap: 'break-word', minWidth: 0 }}>
+                      <div style={{ wordBreak: 'break-word' }}>{notification.message}</div>
                       <div className="text-muted" style={{ fontSize: '0.75rem' }}>
                         {new Date(notification.createdAt).toLocaleString()}
                       </div>
                     </div>
                     <Button
                       variant="link"
-                      size="sm"
-                      className="p-0 text-danger"
+                      className="p-1 text-danger ms-2"
                       onClick={(e) => {
                         e.stopPropagation();
                         handleDeleteNotification(notification._id);
                       }}
+                      style={{ fontSize: '1.2rem', lineHeight: 1, minWidth: '28px' }}
+                      title="Delete notification"
                     >
-                      <i className="bi bi-x"></i>
+                      <i className="bi bi-x-circle-fill"></i>
                     </Button>
                   </div>
                 </Dropdown.Item>
@@ -377,8 +348,8 @@ function NotificationsDropdown() {
                       {getNotificationIcon(notification.type)}
                     </span>
                   </div>
-                  <div className="flex-grow-1">
-                    <div>{notification.message}</div>
+                  <div className="flex-grow-1" style={{ wordWrap: 'break-word', overflowWrap: 'break-word', minWidth: 0 }}>
+                    <div style={{ wordBreak: 'break-word' }}>{notification.message}</div>
                     <div className="text-muted" style={{ fontSize: '0.8rem' }}>
                       {new Date(notification.createdAt).toLocaleString()}
                     </div>
