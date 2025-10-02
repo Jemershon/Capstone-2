@@ -688,25 +688,14 @@ function StudentClassStream() {
     fetchClassData();
   }, [className]);
 
-  // Load submitted exams from localStorage on component mount
+  // Load submitted exams whenever className changes
   useEffect(() => {
-    // Check if we have any exams in the URL
     if (className) {
-      const savedSubmissions = localStorage.getItem('submittedExams');
-      if (savedSubmissions) {
-        try {
-          const submittedIds = JSON.parse(savedSubmissions);
-          setSubmittedExams(submittedIds);
-        } catch (err) {
-          console.error('Error parsing saved submissions:', err);
-        }
-      }
-      
-      // Always try to get the latest from the server too
+      // Always get the latest from the server
       const token = getAuthToken();
       if (token) {
         fetchSubmittedExams(token).catch(err => 
-          console.error('Error fetching submissions on mount:', err)
+          console.error('Error fetching submissions on className change:', err)
         );
       }
     }
@@ -947,17 +936,18 @@ function StudentClassStream() {
 
   const fetchSubmittedExams = async (token) => {
     try {
+      console.log('Fetching submitted exams for student');
       const response = await axios.get(`${API_BASE_URL}/api/exam-submissions/student`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
+      console.log('Submitted exams response:', response.data);
+      
       // Get exam IDs that have been submitted
       const submittedIds = response.data.map(submission => submission.examId);
+      console.log('Submitted exam IDs:', submittedIds);
       
-      // Store in localStorage for persistence across refreshes
-      localStorage.setItem('submittedExams', JSON.stringify(submittedIds));
-      
-      // Set submitted exam IDs for checking purposes
+      // Update the submitted exams state
       setSubmittedExams(submittedIds);
       
       // Filter submissions for current class and set exam grades
@@ -1021,8 +1011,18 @@ function StudentClassStream() {
   };
 
   const handleTakeExam = async (exam) => {
-    // Simply open the exam modal without any checks
-    setExamLoading(exam._id);
+    // Simple check - if already submitted, don't allow
+    if (submittedExams.includes(exam._id)) {
+      alert("You have already submitted this exam.");
+      return;
+    }
+    
+    // Open exam modal
+    setSelectedExam(exam);
+    setExamAnswers({});
+    setExamSubmitted(false);
+    setUseCreditPoints(false);
+    setShowExamModal(true);
     
     try {
       
@@ -1099,6 +1099,15 @@ function StudentClassStream() {
       // Show visual success feedback
       setSubmissionSuccess(true);
       
+      // Tell the server to notify all clients about the submission
+      try {
+        const socket = io(API_BASE_URL);
+        socket.emit('exam-submitted', { examId: selectedExam._id, className });
+        socket.disconnect();
+      } catch (socketErr) {
+        console.error("Error with socket notification:", socketErr);
+      }
+      
       const { score, creditsUsed, creditPointsRemaining } = response.data;
       
       // Update user credit points after submission
@@ -1124,10 +1133,17 @@ function StudentClassStream() {
         }
       }
       
-      // Display success message and close the modal after a delay
+      // Display success message for a moment
       setTimeout(() => {
+        // First close the modal
         setShowExamModal(false);
         setExamSubmitted(false); // Reset for next exam
+        
+        // Then force a complete reload of class data with a small delay
+        setTimeout(() => {
+          console.log("Reloading class data after exam submission");
+          fetchClassData();
+        }, 500);
       }, 2000);
       
       // Create a forced render to immediately update all buttons
