@@ -512,11 +512,11 @@ function TeacherClassStream() {
       if (err.response?.status === 401) {
         setError("Your session has expired. Please log in again.");
       } else if (err.response?.status === 404) {
-        setError("Could not find assignments for this class.");
+        setError("Could not find exams for this class.");
       } else if (err.response?.data?.error) {
         setError(`Error: ${err.response.data.error}`);
       } else {
-        setError(`Failed to load assignments: ${err.message}`);
+        setError(`Failed to load exams: ${err.message}`);
       }
     } finally {
       setLoading(false);
@@ -1244,7 +1244,7 @@ function TeacherClassStream() {
           </div>
           
           <div className="d-flex justify-content-between align-items-center mb-4">
-            <h5 className="mb-0">Assignments & Exams</h5>
+            <h5 className="mb-0">Exams</h5>
           </div>
           
           {loading ? (
@@ -1252,29 +1252,14 @@ function TeacherClassStream() {
               <div className="spinner-border text-primary" role="status">
                 <span className="visually-hidden">Loading...</span>
               </div>
-              <p className="mt-2">Loading assignments...</p>
+              <p className="mt-2">Loading exams...</p>
             </div>
-          ) : error ? (
-            <Alert variant="danger">
-              <Alert.Heading>Error loading assignments</Alert.Heading>
-              <p>{error}</p>
-              <div className="d-flex justify-content-end">
-                <Button variant="outline-danger" onClick={fetchExams}>Retry</Button>
-              </div>
-            </Alert>
           ) : (
             <div className="mb-4">
               {exams && exams.length > 0 ? (
                 <Card>
                   <Card.Header>
-                    <Nav variant="tabs" defaultActiveKey="active">
-                      <Nav.Item>
-                        <Nav.Link eventKey="active">Active Assignments</Nav.Link>
-                      </Nav.Item>
-                      <Nav.Item>
-                        <Nav.Link eventKey="graded">Past Assignments</Nav.Link>
-                      </Nav.Item>
-                    </Nav>
+                    <h6 className="mb-0 py-2">Active Exams</h6>
                   </Card.Header>
                   <Card.Body>
                     <ListGroup>
@@ -1284,7 +1269,7 @@ function TeacherClassStream() {
                           className="d-flex justify-content-between align-items-center"
                         >
                           <div>
-                            <h6 className="mb-1">{exam.title || "Untitled Assignment"}</h6>
+                            <h6 className="mb-1">{exam.title || "Untitled Exam"}</h6>
                             <small className="text-muted">
                               {exam.createdBy && `Posted by ${exam.createdBy}`} 
                               {exam.description && ` • ${exam.description}`}
@@ -1315,7 +1300,7 @@ function TeacherClassStream() {
                                 setSelectedExam(exam);
                                 setShowViewExamModal(true);
                               }}
-                              title="View assignment details"
+                              title="View exam details"
                             >
                               <i className="bi bi-eye me-1"></i> View
                             </Button>
@@ -1334,7 +1319,7 @@ function TeacherClassStream() {
                                 });
                                 setShowEditExamModal(true);
                               }}
-                              title="Edit this assignment"
+                              title="Edit this exam"
                             >
                               <i className="bi bi-pencil-square me-1"></i> Edit
                             </Button>
@@ -1347,7 +1332,7 @@ function TeacherClassStream() {
                                 setSelectedExam(exam);
                                 setShowDeleteExamModal(true);
                               }}
-                              title="Delete this assignment"
+                              title="Delete this exam"
                             >
                               <i className="bi bi-trash me-1"></i> Delete
                             </Button>
@@ -1359,8 +1344,8 @@ function TeacherClassStream() {
                 </Card>
               ) : (
                 <Alert variant="info" className="text-center">
-                  <p className="mb-0">No assignments created yet for this class.</p>
-                  <p className="mb-0">Click "Create Assignment" to add your first assignment.</p>
+                  <p className="mb-0">No exams created yet for this class.</p>
+                  <p className="mb-0">Click "Create Exam" to add your first exam.</p>
                 </Alert>
               )}
             </div>
@@ -1369,7 +1354,7 @@ function TeacherClassStream() {
           {/* Exam Creation Modal */}
           <Modal show={showExamModal} onHide={() => setShowExamModal(false)} size="lg">
             <Modal.Header closeButton>
-              <Modal.Title>Create New Assignment</Modal.Title>
+              <Modal.Title>Create New Exam</Modal.Title>
             </Modal.Header>
             <Modal.Body>
               <ExamCreator 
@@ -1387,7 +1372,7 @@ function TeacherClassStream() {
           {/* View Exam Modal */}
           <Modal show={showViewExamModal} onHide={() => setShowViewExamModal(false)} size="lg">
             <Modal.Header closeButton>
-              <Modal.Title>{selectedExam?.title || "Assignment Details"}</Modal.Title>
+              <Modal.Title>{selectedExam?.title || "Exam Details"}</Modal.Title>
             </Modal.Header>
             <Modal.Body>
               {selectedExam ? (
@@ -1443,7 +1428,7 @@ function TeacherClassStream() {
                   </div>
                 </div>
               ) : (
-                <Alert variant="warning">No assignment details available</Alert>
+                <Alert variant="warning">No exam details available</Alert>
               )}
             </Modal.Body>
             <Modal.Footer>
@@ -1481,7 +1466,7 @@ function TeacherClassStream() {
           {/* Edit Exam Modal */}
           <Modal show={showEditExamModal} onHide={() => setShowEditExamModal(false)} size="lg">
             <Modal.Header closeButton>
-              <Modal.Title>Edit Assignment</Modal.Title>
+              <Modal.Title>Edit Exam</Modal.Title>
             </Modal.Header>
             <Modal.Body>
               {selectedExam ? (
@@ -1626,7 +1611,7 @@ function TeacherClassStream() {
                   </div>
                 </Form>
               ) : (
-                <Alert variant="warning">No assignment selected for editing</Alert>
+                <Alert variant="warning">No exam selected for editing</Alert>
               )}
             </Modal.Body>
             <Modal.Footer>
@@ -1641,7 +1626,7 @@ function TeacherClassStream() {
                     
                     // Ensure we have the required data
                     if (!examData.title) {
-                      setError("Assignment title is required");
+                      setError("Exam title is required");
                       setShowToast(true);
                       setPosting(false);
                       return;
@@ -1686,11 +1671,11 @@ function TeacherClassStream() {
                     fetchExams(); // Refresh exams list
                     
                     // Show success message
-                    setSuccessMessage("Assignment updated successfully");
+                    setSuccessMessage("Exam updated successfully");
                     setShowToast(true);
                   } catch (err) {
                     console.error("Error updating exam:", err.response?.data || err.message);
-                    setError(err.response?.data?.error || "Failed to update assignment");
+                    setError(err.response?.data?.error || "Failed to update exam");
                     setShowToast(true);
                   } finally {
                     setPosting(false);
@@ -1724,7 +1709,7 @@ function TeacherClassStream() {
                       <i className="bi bi-trash3"></i>
                     </div>
                   </div>
-                  <p>Are you sure you want to delete this assignment?</p>
+                  <p>Are you sure you want to delete this exam?</p>
                   <h5 className="fw-bold mb-3">{selectedExam.title}</h5>
                   <div className="alert alert-warning">
                     <small>
