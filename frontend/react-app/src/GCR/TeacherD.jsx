@@ -3032,44 +3032,6 @@ function Grades() {
         </Toast>
       )}
 
-      {/* Summary Cards */}
-      {leaderboardData?.summary && (
-        <Row className="mb-4">
-          <Col md={3} sm={6} className="mb-3">
-            <Card className="h-100 border-primary">
-              <Card.Body className="text-center">
-                <h4 className="text-primary">{leaderboardData.summary.totalSubmissions}</h4>
-                <small className="text-muted">Total Submissions</small>
-              </Card.Body>
-            </Card>
-          </Col>
-          <Col md={3} sm={6} className="mb-3">
-            <Card className="h-100 border-success">
-              <Card.Body className="text-center">
-                <h4 className="text-success">{leaderboardData.summary.totalStudents}</h4>
-                <small className="text-muted">Active Students</small>
-              </Card.Body>
-            </Card>
-          </Col>
-          <Col md={3} sm={6} className="mb-3">
-            <Card className="h-100 border-info">
-              <Card.Body className="text-center">
-                <h4 className="text-info">{availableClasses.length}</h4>
-                <small className="text-muted">Classes</small>
-              </Card.Body>
-            </Card>
-          </Col>
-          <Col md={3} sm={6} className="mb-3">
-            <Card className="h-100 border-warning">
-              <Card.Body className="text-center">
-                <h4 className="text-warning">{availableSections.length}</h4>
-                <small className="text-muted">Sections</small>
-              </Card.Body>
-            </Card>
-          </Col>
-        </Row>
-      )}
-
       {/* Controls */}
       <Card className="mb-4">
         <Card.Body>

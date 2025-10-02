@@ -1517,6 +1517,13 @@ app.post("/api/exam-submissions", authenticateToken, async (req, res) => {
     const { examId, answers, useCreditPoints = false } = req.body;
     const student = req.user.username;
 
+    // Check if student has already submitted this exam
+    const existingSubmission = await ExamSubmission.findOne({ examId, student });
+    if (existingSubmission) {
+      console.log(`Student ${student} already submitted exam ${examId}`);
+      return res.status(400).json({ error: "You have already submitted this exam" });
+    }
+
     if (!examId || !answers) {
       console.log("Missing examId or answers");
       return res.status(400).json({ error: "Exam ID and answers are required" });

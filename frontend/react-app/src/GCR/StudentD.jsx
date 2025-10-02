@@ -701,7 +701,6 @@ function StudentClassStream() {
   const [showFilePreview, setShowFilePreview] = useState(false);
   const [previewFile, setPreviewFile] = useState(null);
   const [teacher, setTeacher] = useState("");
-  const [grades, setGrades] = useState([]);
   const [activeTab, setActiveTab] = useState("stream");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -770,8 +769,7 @@ function StudentClassStream() {
         fetchAssignments(token),
         fetchExams(token),
         fetchMaterials(token),
-        fetchClassmates(token),
-        fetchGrades(token, username)
+        fetchClassmates(token)
       ]);
     } catch (err) {
       console.error("Error fetching class data:", err);
@@ -987,16 +985,7 @@ function StudentClassStream() {
     }
   };
 
-  const fetchGrades = async (token, username) => {
-    try {
-      const response = await axios.get(`${API_BASE_URL}/api/grades?class=${encodeURIComponent(className)}&student=${username}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setGrades(response.data);
-    } catch (err) {
-      console.error("Error fetching grades:", err);
-    }
-  };
+
 
   const handleSubmitAssignment = async () => {
     try {
@@ -1034,6 +1023,13 @@ function StudentClassStream() {
 
   const handleTakeExam = async (exam) => {
     console.log("Take Exam clicked:", exam);
+    
+    // Check if student has already submitted this exam
+    if (submittedExams.includes(exam._id)) {
+      alert("You have already submitted this exam and cannot retake it.");
+      return;
+    }
+    
     setSelectedExam(exam);
     setExamAnswers({});
     setExamSubmitted(false);
@@ -1316,7 +1312,7 @@ function StudentClassStream() {
                               <h6 className="fw-bold">{exam.title}</h6>
                               <p className="text-muted small mb-2">{exam.description}</p>
                               <Badge bg="info" className="me-2">
-                                {exam.questions?.length || 0} questions
+                                {exam.questions?.length || 0} {(exam.questions?.length || 0) === 1 ? 'question' : 'questions'}
                               </Badge>
                               {exam.dueDate && (
                                 <Badge bg="warning">
@@ -1464,115 +1460,7 @@ function StudentClassStream() {
               )}
             </Tab>
 
-            {/* Grades Tab */}
-            <Tab eventKey="grades" title="Grades">
-              <Card>
-                <Card.Header>
-                  <div className="d-flex justify-content-between align-items-center">
-                    <h5 className="mb-0">📊 Your Exam Scores</h5>
-                    <small className="text-muted">{className}</small>
-                  </div>
-                </Card.Header>
-                <Card.Body>
-                  {examGrades.length === 0 ? (
-                    <div className="text-center py-4">
-                      <div className="text-muted">
-                        <h6>No exam submissions yet</h6>
-                        <p>Your exam scores will appear here after you submit exams.</p>
-                      </div>
-                    </div>
-                  ) : (
-                    <Table striped bordered hover responsive>
-                      <thead>
-                        <tr>
-                          <th>Exam</th>
-                          <th>Raw Score</th>
-                          <th>Final Score</th>
-                          <th>Credits Used</th>
-                          <th>Status</th>
-                          <th>Submitted</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {examGrades.map((examGrade, index) => (
-                          <tr key={index}>
-                            <td className="fw-bold">{examGrade.examTitle}</td>
-                            <td className="text-center">{examGrade.rawScore || 0}</td>
-                            <td className="text-center">
-                              <Badge 
-                                bg={examGrade.finalScore >= 90 ? 'success' : 
-                                    examGrade.finalScore >= 80 ? 'info' :
-                                    examGrade.finalScore >= 70 ? 'warning' : 'danger'}
-                              >
-                                {examGrade.finalScore || 0}
-                                {examGrade.creditsUsed > 0 && (
-                                  <span className="small"> (+{examGrade.creditsUsed})</span>
-                                )}
-                              </Badge>
-                            </td>
-                            <td className="text-center">
-                              {examGrade.creditsUsed > 0 ? (
-                                <Badge bg="warning">{examGrade.creditsUsed}</Badge>
-                              ) : (
-                                <span className="text-muted">-</span>
-                              )}
-                            </td>
-                            <td>
-                              {examGrade.isLate ? (
-                                <Badge bg="danger">⏰ Late</Badge>
-                              ) : examGrade.examDue ? (
-                                <Badge bg="success">✅ On Time</Badge>
-                              ) : (
-                                <Badge bg="info">📝 No Due Date</Badge>
-                              )}
-                            </td>
-                            <td className="small">
-                              {new Date(examGrade.submittedAt).toLocaleDateString("en-US", {
-                                month: "short",
-                                day: "numeric",
-                                hour: "2-digit",
-                                minute: "2-digit"
-                              })}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </Table>
-                  )}
-                  
-                  {examGrades.length > 0 && (
-                    <div className="mt-3 p-3 bg-light rounded">
-                      <Row className="text-center">
-                        <Col md={3}>
-                          <div className="fw-bold text-primary">
-                            {examGrades.length}
-                          </div>
-                          <small className="text-muted">Total Exams</small>
-                        </Col>
-                        <Col md={3}>
-                          <div className="fw-bold text-success">
-                            {(examGrades.reduce((sum, grade) => sum + (grade.finalScore || 0), 0) / examGrades.length).toFixed(1)}
-                          </div>
-                          <small className="text-muted">Average Score</small>
-                        </Col>
-                        <Col md={3}>
-                          <div className="fw-bold text-warning">
-                            {examGrades.reduce((sum, grade) => sum + (grade.creditsUsed || 0), 0)}
-                          </div>
-                          <small className="text-muted">Total Credits Used</small>
-                        </Col>
-                        <Col md={3}>
-                          <div className="fw-bold text-info">
-                            {Math.max(...examGrades.map(grade => grade.finalScore || 0))}
-                          </div>
-                          <small className="text-muted">Highest Score</small>
-                        </Col>
-                      </Row>
-                    </div>
-                  )}
-                </Card.Body>
-              </Card>
-            </Tab>
+
           </Tabs>
         </Col>
       </Row>
@@ -1733,7 +1621,7 @@ function StudentClassStream() {
                 <>
                   <div className="mb-3">
                     <p><strong>Description:</strong> {selectedExam.description}</p>
-                    <p><strong>Total Questions:</strong> {selectedExam.questions?.length || 0}</p>
+                    <p><strong>Total Questions:</strong> {selectedExam.questions?.length || 0} {(selectedExam.questions?.length || 0) === 1 ? 'question' : 'questions'}</p>
                     <hr />
                   </div>
                   
