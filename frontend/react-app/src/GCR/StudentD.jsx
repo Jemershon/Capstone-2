@@ -688,6 +688,30 @@ function StudentClassStream() {
     fetchClassData();
   }, [className]);
 
+  // Load submitted exams from localStorage on component mount
+  useEffect(() => {
+    // Check if we have any exams in the URL
+    if (className) {
+      const savedSubmissions = localStorage.getItem('submittedExams');
+      if (savedSubmissions) {
+        try {
+          const submittedIds = JSON.parse(savedSubmissions);
+          setSubmittedExams(submittedIds);
+        } catch (err) {
+          console.error('Error parsing saved submissions:', err);
+        }
+      }
+      
+      // Always try to get the latest from the server too
+      const token = getAuthToken();
+      if (token) {
+        fetchSubmittedExams(token).catch(err => 
+          console.error('Error fetching submissions on mount:', err)
+        );
+      }
+    }
+  }, [className]);
+
   // Fetch exam grades when exams are loaded
   useEffect(() => {
     if (exams.length > 0) {
@@ -927,8 +951,14 @@ function StudentClassStream() {
         headers: { Authorization: `Bearer ${token}` }
       });
       
+      // Get exam IDs that have been submitted
+      const submittedIds = response.data.map(submission => submission.examId);
+      
+      // Store in localStorage for persistence across refreshes
+      localStorage.setItem('submittedExams', JSON.stringify(submittedIds));
+      
       // Set submitted exam IDs for checking purposes
-      setSubmittedExams(response.data.map(submission => submission.examId));
+      setSubmittedExams(submittedIds);
       
       // Filter submissions for current class and set exam grades
       const classSubmissions = response.data.filter(submission => 
@@ -991,29 +1021,10 @@ function StudentClassStream() {
   };
 
   const handleTakeExam = async (exam) => {
-    // Simple check - if already submitted, don't allow
-    if (submittedExams.includes(exam._id)) {
-      alert("You have already submitted this exam.");
-      return;
-    }
-    
-    // Add loading state to prevent multiple clicks
+    // Simply open the exam modal without any checks
     setExamLoading(exam._id);
     
     try {
-      // Double check with backend to make sure student hasn't submitted this exam
-      const token = getAuthToken();
-      const response = await axios.get(`${API_BASE_URL}/api/exam-submissions/check/${exam._id}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      
-      if (response.data.hasSubmitted) {
-        alert("You have already submitted this exam.");
-        // Update local state to match backend
-        setSubmittedExams(prev => [...prev, exam._id]);
-        setExamLoading(null);
-        return;
-      }
       
       // Open exam modal
       setSelectedExam(exam);
@@ -1038,8 +1049,8 @@ function StudentClassStream() {
     console.log("Modal should show now");
     setExamLoading(null); // Clear loading state
     } catch (err) {
-      console.error("Error checking exam status:", err);
-      alert("Error checking exam status. Please try again.");
+      console.error("Error opening exam:", err);
+      alert("Error opening the exam. Please try again.");
       setExamLoading(null); // Clear loading state
     }
   };
@@ -1078,14 +1089,15 @@ function StudentClassStream() {
       console.log("Submission successful:", response.data);
       
       // Add exam to submitted list so button becomes disabled
-      setSubmittedExams(prev => [...prev, selectedExam._id]);
+      const updatedSubmissions = [...submittedExams, selectedExam._id];
+      setSubmittedExams(updatedSubmissions);
       setExamSubmitted(true);
+      
+      // Store in localStorage for persistence
+      localStorage.setItem('submittedExams', JSON.stringify(updatedSubmissions));
       
       // Show visual success feedback
       setSubmissionSuccess(true);
-      
-      // Force refresh of submitted exams list from server
-      await fetchSubmittedExams(getAuthToken());
       
       const { score, creditsUsed, creditPointsRemaining } = response.data;
       
@@ -1114,15 +1126,15 @@ function StudentClassStream() {
       
       // Display success message and close the modal after a delay
       setTimeout(() => {
-        // First fade out success message
-        setSubmissionSuccess(false);
-        
-        // Then close modal after another delay
-        setTimeout(() => {
-          setShowExamModal(false);
-          setExamSubmitted(false); // Reset for next exam
-        }, 500);
+        setShowExamModal(false);
+        setExamSubmitted(false); // Reset for next exam
       }, 2000);
+      
+      // Create a forced render to immediately update all buttons
+      setTimeout(() => {
+        // Force the component to re-render by updating the state
+        setSubmittedExams([...updatedSubmissions]);
+      }, 0);
       
       // Refresh exam grades to show the new submission
       await fetchSubmittedExams(getAuthToken());
@@ -1344,15 +1356,19 @@ function StudentClassStream() {
                                 disabled
                                 className="d-flex align-items-center"
                                 title="This exam has already been submitted"
+                                data-exam-id={exam._id}
+                                data-status="submitted"
                               >
                                 <i className="bi bi-check-circle-fill me-1"></i> Submitted
                               </Button>
                             ) : (
                               <Button 
-                                variant="success" 
+                                variant="primary" 
                                 size="sm"
                                 onClick={() => handleTakeExam(exam)}
-                                disabled={submittedExams.includes(exam._id) || examLoading === exam._id}
+                                disabled={examLoading === exam._id}
+                                data-exam-id={exam._id}
+                                data-status="not-submitted"
                               >
                                 {examLoading === exam._id ? (
                                   <><span className="spinner-border spinner-border-sm me-1" /> Checking...</>
@@ -1695,7 +1711,7 @@ function StudentClassStream() {
                     </div>
                   ))}
                 </>
-
+              )}
             </div>
           ) : (
             <p>Loading exam...</p>
