@@ -445,6 +445,7 @@ function TeacherClassStream() {
   const [examData, setExamData] = useState({ 
     title: "", 
     description: "", 
+    due: "",
     questions: [{ text: "", type: "short", options: [], correctAnswer: "" }] 
   });
   const [activeTab, setActiveTab] = useState("stream");
@@ -915,7 +916,7 @@ function TeacherClassStream() {
       console.log("Announcement creation response:", announceRes.data);
       
       setShowExamModal(false);
-      setExamData({ title: "", description: "", questions: [{ text: "", type: "short", options: [], correctAnswer: "" }] });
+      setExamData({ title: "", description: "", due: "", questions: [{ text: "", type: "short", options: [], correctAnswer: "" }] });
       
       // Refresh both announcements and exams to show the new exam
       await Promise.all([
@@ -1923,6 +1924,18 @@ function TeacherClassStream() {
                 onChange={(e) => setExamData({ ...examData, description: e.target.value })}
                 placeholder="Exam instructions or description"
               />
+            </Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Label>Due Date</Form.Label>
+              <Form.Control
+                type="datetime-local"
+                value={examData.due}
+                onChange={(e) => setExamData({ ...examData, due: e.target.value })}
+                placeholder="Select due date and time"
+              />
+              <Form.Text className="text-muted">
+                Students will earn +1 credit point for early submission, -2 for late submission
+              </Form.Text>
             </Form.Group>
 
             <div className="mt-4 mb-3">

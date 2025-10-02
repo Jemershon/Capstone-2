@@ -989,11 +989,26 @@ function StudentClassStream() {
     }
   };
 
-  const handleTakeExam = (exam) => {
+  const handleTakeExam = async (exam) => {
     console.log("Take Exam clicked:", exam);
     setSelectedExam(exam);
     setExamAnswers({});
     setExamSubmitted(false);
+    setUseCreditPoints(false);
+    
+    // Fetch user's current credit points
+    try {
+      const token = getAuthToken();
+      const response = await axios.get(`${API_BASE_URL}/api/profile`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setUserCreditPoints(response.data.creditPoints || 0);
+      console.log("User credit points:", response.data.creditPoints || 0);
+    } catch (err) {
+      console.error("Error fetching credit points:", err);
+      setUserCreditPoints(0);
+    }
+    
     setShowExamModal(true);
     console.log("Modal should show now");
   };
