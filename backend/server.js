@@ -1650,11 +1650,11 @@ app.post("/api/exam-submissions", authenticateToken, async (req, res) => {
       // Only apply timing bonus/penalty if due date is valid
       if (!isNaN(dueDate.getTime())) {
         if (now < dueDate) {
-          creditDelta = 2; // +2 for early submission
-          console.log("✅ Early submission: +2 credit point bonus");
+          creditDelta = 1; // +1 for early submission
+          console.log("✅ Early submission: +1 credit point bonus");
         } else {
-          creditDelta = -1; // -1 for late submission (less harsh)
-          console.log("❌ Late submission: -1 credit point penalty");
+          creditDelta = -2; // -2 for late submission
+          console.log("❌ Late submission: -2 credit points penalty");
         }
       } else {
         console.log("⚠️ Invalid due date format - giving +1 completion bonus instead");

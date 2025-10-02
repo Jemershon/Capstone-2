@@ -150,7 +150,7 @@ const ExamCreator = ({ className, onExamCreated }) => {
             />
             <Form.Text className="text-muted">
               Set a due date to enable early/late submission credit point bonuses/penalties. 
-              Early: +1 credit point, Late: -2 credit points.
+              Early: +1 credit point, Late: -1 credit point.
             </Form.Text>
           </Form.Group>
 

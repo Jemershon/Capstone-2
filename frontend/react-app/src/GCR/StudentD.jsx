@@ -1091,8 +1091,6 @@ function StudentClassStream() {
         }
       }
       
-      alert(message);
-      
       // Refresh exam grades to show the new submission
       await fetchSubmittedExams(getAuthToken());
       
@@ -1100,7 +1098,6 @@ function StudentClassStream() {
       console.error("Error submitting exam:", err);
       console.error("Error response:", err.response?.data);
       console.error("Error status:", err.response?.status);
-      alert(`Error submitting exam: ${err.response?.data?.error || err.message}`);
     }
   };
 
@@ -1124,8 +1121,10 @@ function StudentClassStream() {
   }
 
   return (
-    <div className="dashboard-content">
-      <div className="d-flex justify-content-between align-items-center mb-4">
+    <Container fluid className="p-4">
+      <Row>
+        <Col>
+          <div className="d-flex justify-content-between align-items-center mb-4">
             <h2 className="fw-bold text-primary">{className}</h2>
             <div className="d-flex align-items-center gap-3">
               <NotificationsDropdown />
@@ -2078,7 +2077,7 @@ function StudentGrades() {
               </Card>
             </Col>
           ))}
-        </div>
+        </Row>
       )}
     </div>
   );
