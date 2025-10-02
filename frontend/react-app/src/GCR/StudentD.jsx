@@ -677,6 +677,7 @@ function StudentClassStream() {
   const [useCreditPoints, setUseCreditPoints] = useState(false);
   const [userCreditPoints, setUserCreditPoints] = useState(0);
   const [submittedExams, setSubmittedExams] = useState([]);
+  const [examLoading, setExamLoading] = useState(null);
   const [examGrades, setExamGrades] = useState([]);
   const [currentClass, setCurrentClass] = useState(null);
   const [showLeaveModal, setShowLeaveModal] = useState(false);
@@ -995,13 +996,30 @@ function StudentClassStream() {
       return;
     }
     
-    // Open exam modal
-    setSelectedExam(exam);
-    setExamAnswers({});
-    setExamSubmitted(false);
-    setUseCreditPoints(false);
-    setShowExamModal(true);
-    setUseCreditPoints(false);
+    // Add loading state to prevent multiple clicks
+    setExamLoading(exam._id);
+    
+    try {
+      // Double check with backend to make sure student hasn't submitted this exam
+      const token = getAuthToken();
+      const response = await axios.get(`${API_BASE_URL}/api/exam-submissions/check/${exam._id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      if (response.data.hasSubmitted) {
+        alert("You have already submitted this exam.");
+        // Update local state to match backend
+        setSubmittedExams(prev => [...prev, exam._id]);
+        setExamLoading(null);
+        return;
+      }
+      
+      // Open exam modal
+      setSelectedExam(exam);
+      setExamAnswers({});
+      setExamSubmitted(false);
+      setUseCreditPoints(false);
+      setShowExamModal(true);
     
     // Fetch user's current credit points
     try {
@@ -1016,8 +1034,13 @@ function StudentClassStream() {
       setUserCreditPoints(0);
     }
     
-    setShowExamModal(true);
     console.log("Modal should show now");
+    setExamLoading(null); // Clear loading state
+    } catch (err) {
+      console.error("Error checking exam status:", err);
+      alert("Error checking exam status. Please try again.");
+      setExamLoading(null); // Clear loading state
+    }
   };
 
   const handleAnswerChange = (questionIndex, answer) => {
@@ -1056,6 +1079,9 @@ function StudentClassStream() {
       // Add exam to submitted list so button becomes disabled
       setSubmittedExams(prev => [...prev, selectedExam._id]);
       setExamSubmitted(true);
+      
+      // Force refresh of submitted exams list from server
+      await fetchSubmittedExams(getAuthToken());
       
       const { score, creditsUsed, creditPointsRemaining } = response.data;
       
@@ -1315,8 +1341,13 @@ function StudentClassStream() {
                                 variant="success" 
                                 size="sm"
                                 onClick={() => handleTakeExam(exam)}
+                                disabled={submittedExams.includes(exam._id) || examLoading === exam._id}
                               >
-                                Take Exam
+                                {examLoading === exam._id ? (
+                                  <><span className="spinner-border spinner-border-sm me-1" /> Checking...</>
+                                ) : (
+                                  "Take Exam"
+                                )}
                               </Button>
                             )}
                           </div>

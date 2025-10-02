@@ -1511,6 +1511,27 @@ app.use("/api", reactionsRoutes);
 app.use("/api/exams", examsRoutes);
 
 // Student: Submit exam answers
+// Check if student has already submitted an exam
+app.get("/api/exam-submissions/check/:examId", authenticateToken, async (req, res) => {
+  try {
+    const examId = req.params.examId;
+    const student = req.user.username;
+    
+    console.log(`Checking if student ${student} has already submitted exam ${examId}`);
+    
+    // Check if submission exists
+    const existingSubmission = await ExamSubmission.findOne({ examId, student });
+    
+    return res.status(200).json({ 
+      hasSubmitted: !!existingSubmission,
+      message: existingSubmission ? "Student has already submitted this exam" : "Student has not submitted this exam yet"
+    });
+  } catch (err) {
+    console.error("Error checking exam submission:", err);
+    return res.status(500).json({ error: "Failed to check exam submission" });
+  }
+});
+
 app.post("/api/exam-submissions", authenticateToken, async (req, res) => {
   try {
     console.log("Exam submission request received");
