@@ -194,7 +194,7 @@ const UserSchema = new mongoose.Schema({
   email: { type: String, unique: true },
   password: String,
   role: { type: String, enum: ["Student", "Teacher", "Admin"], default: "Student" },
-  creditPoints: { type: Number, default: 5, min: 0, max: 10 }, // Max 10 credit points
+  creditPoints: { type: Number, default: 0, min: 0, max: 10 }, // Max 10 credit points
 });
 
 const ClassSchema = new mongoose.Schema({
@@ -1641,8 +1641,8 @@ app.post("/api/exam-submissions", authenticateToken, async (req, res) => {
     
     // Validate user credit points - ensure it's a valid number and initialize if needed
     if (typeof user.creditPoints !== 'number' || isNaN(user.creditPoints) || user.creditPoints === undefined) {
-      console.log(`⚠️ Invalid/missing credit points for user ${student}, initializing to 5`);
-      user.creditPoints = 5; // Initialize new users with 5 credit points
+      console.log(`⚠️ Invalid/missing credit points for user ${student}, initializing to 0`);
+      user.creditPoints = 0; // Initialize new users with 0 credit points
     }
     
     console.log(`Student ${student} has ${originalCreditPoints} credit points available`);
