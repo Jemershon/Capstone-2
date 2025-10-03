@@ -4,6 +4,12 @@ builder = "NIXPACKS"
 [build.nixpacksConfig]
 providers = ["node"]
 
+[build.nixpacksConfig.phases.install]
+cmds = ["cd backend && npm ci --only=production"]
+
+[build.nixpacksConfig.phases.setup]
+aptPkgs = []
+
 [deploy]
 startCommand = "cd backend && node server.js"
 healthcheckPath = "/api/test"

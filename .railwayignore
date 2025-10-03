@@ -1,0 +1,27 @@
+# Frontend (not needed for backend deployment)
+frontend/
+
+# Large files
+*.pdf
+*.pptx
+*.jpg
+*.png
+backend/uploads/materials/*
+backend/uploads/profiles/*
+backend/uploads/assignments/*
+
+# Development
+.git/
+.vscode/
+.idea/
+*.md
+debug.js
+debug-teacher.js
+deploy.sh
+deploy.bat
+deploy-helper.bat
+
+# Node modules (will be installed during build)
+node_modules/
+*/node_modules/
+**/node_modules/

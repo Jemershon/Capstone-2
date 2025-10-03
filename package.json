@@ -2,21 +2,13 @@
   "name": "capstone-2-monorepo",
   "version": "1.0.0",
   "description": "Capstone 2 - Classroom Management System",
-  "main": "backend/server.js",
+  "private": true,
+  "workspaces": ["backend"],
   "scripts": {
-    "start": "cd backend && npm start",
-    "install-deps": "cd backend && npm install",
-    "postinstall": "cd backend && npm install"
+    "start": "cd backend && node server.js"
   },
   "engines": {
     "node": ">=18.0.0",
-    "npm": ">=8.0.0"
-  },
-  "dependencies": {
-    "bcryptjs": "^3.0.2",
-    "cors": "^2.8.5",
-    "express": "^5.1.0",
-    "jsonwebtoken": "^9.0.2",
-    "mongoose": "^8.18.1"
+    "npm": ">=9.0.0"
   }
 }
