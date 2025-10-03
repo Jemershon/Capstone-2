@@ -653,14 +653,26 @@ export default function LandingPage() {
       <Navbar expand="lg" className="modern-navbar px-4">
         <Container fluid>
           <Navbar.Brand className="fw-bold fs-3">🎓 Remora</Navbar.Brand>
-          <Navbar.Toggle aria-controls="main-nav" style={{ borderColor: 'rgba(255,255,255,0.3)' }}>
-            <span style={{ color: 'white' }}>☰</span>
-          </Navbar.Toggle>
+          <div className="d-flex align-items-center gap-2">
+            {/* Get Started button visible on mobile */}
+            <Button
+              className="btn-login d-lg-none"
+              onClick={handleShowModal}
+              aria-label="Get started"
+              style={{ padding: '8px 20px', fontSize: '0.9rem' }}
+            >
+              Get Started
+            </Button>
+            <Navbar.Toggle aria-controls="main-nav" style={{ borderColor: 'rgba(255,255,255,0.3)' }}>
+              <span style={{ color: 'white' }}>☰</span>
+            </Navbar.Toggle>
+          </div>
           <Navbar.Collapse id="main-nav">
             <Nav className="ms-auto align-items-lg-center">
               <Nav.Link href="#features" className="mx-2" style={{ color: 'white', fontWeight: 500 }}>Features</Nav.Link>
+              {/* Get Started button visible on desktop */}
               <Button
-                className="btn-login ms-lg-3"
+                className="btn-login ms-lg-3 d-none d-lg-block"
                 onClick={handleShowModal}
                 aria-label="Get started"
               >
