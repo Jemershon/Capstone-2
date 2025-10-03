@@ -5,11 +5,11 @@ node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+package-lock.json
+*/package-lock.json
 
-# Frontend build (not needed for backend deployment)
-frontend/react-app/dist/
-frontend/react-app/build/
-frontend/react-app/.vite/
+# Frontend (completely exclude - not needed for backend)
+frontend/
 
 # Development files
 .git/
@@ -31,13 +31,9 @@ EASY-DEPLOYMENT-GUIDE.md
 .DS_Store
 Thumbs.db
 
-# Large upload files (create on Railway instead)
-backend/uploads/materials/*.pdf
-backend/uploads/materials/*.pptx
-backend/uploads/materials/*.jpg
-backend/uploads/materials/*.png
-backend/uploads/profiles/*
-backend/uploads/assignments/*
+# All upload files (create on Railway instead)
+backend/uploads/
+uploads/
 
 # Debug files
 debug.js
@@ -47,3 +43,14 @@ debug-teacher.js
 deploy.sh
 deploy.bat
 deploy-helper.bat
+
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Tests
+**/*.test.js
+**/*.spec.js
+**/tests/
+**/test/

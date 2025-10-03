@@ -1,0 +1,17 @@
+frontend/
+node_modules/
+.git/
+*.md
+.vscode/
+.idea/
+backend/uploads/
+uploads/
+debug.js
+debug-teacher.js
+deploy.sh
+deploy.bat
+deploy-helper.bat
+package-lock.json
+*/package-lock.json
+**/*.test.js
+**/*.spec.js
