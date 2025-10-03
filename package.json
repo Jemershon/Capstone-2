@@ -3,7 +3,6 @@
   "version": "1.0.0",
   "description": "Capstone 2 - Classroom Management System",
   "private": true,
-  "workspaces": ["backend"],
   "scripts": {
     "start": "cd backend && node server.js"
   },

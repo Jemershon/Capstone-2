@@ -2,7 +2,7 @@
 nixPkgs = ['nodejs_22', 'npm-9_x']
 
 [phases.install]
-cmds = ['cd backend && npm ci --only=production --prefer-offline']
+cmds = ['cd backend && npm install --production']
 
 [phases.build]
 cmds = []
