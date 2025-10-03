@@ -1388,8 +1388,8 @@ app.get("/api/leaderboard", authenticateToken, requireTeacherOrAdmin, async (req
     const classNames = classes.map(cls => cls.name);
     
     // Get all exams for these classes
-    const exams = await Exam.find({ className: { $in: classNames } })
-      .select("title className due");
+    const exams = await Exam.find({ class: { $in: classNames } })
+      .select("title class due");
     
     // Get all exam submissions for these exams
     const examIds = exams.map(exam => exam._id);
@@ -1416,7 +1416,7 @@ app.get("/api/leaderboard", authenticateToken, requireTeacherOrAdmin, async (req
       section: userMap[submission.student]?.section || 'No Section',
       creditPoints: userMap[submission.student]?.creditPoints || 0,
       examTitle: submission.examId?.title || 'Unknown Exam',
-      className: submission.examId?.className || 'Unknown Class',
+      className: submission.examId?.class || 'Unknown Class',
       rawScore: submission.rawScore || 0,
       finalScore: submission.finalScore || 0,
       creditsUsed: submission.creditsUsed || 0,
@@ -1663,22 +1663,22 @@ app.post("/api/exam-submissions", authenticateToken, async (req, res) => {
     }
 
     console.log("Found exam:", exam.title);
-    console.log("Exam className:", exam.className);
+    console.log("Exam class:", exam.class);
     console.log("Exam full object:", JSON.stringify(exam, null, 2));
 
     // Try multiple ways to find the class
-    let cls = await Class.findOne({ name: exam.className });
+    let cls = await Class.findOne({ name: exam.class });
     
-    if (!cls && exam.className) {
+    if (!cls && exam.class) {
       // Try finding by decoded class name in case of URL encoding issues
-      const decodedClassName = decodeURIComponent(exam.className);
+      const decodedClassName = decodeURIComponent(exam.class);
       cls = await Class.findOne({ name: decodedClassName });
       console.log("Tried decoded class name:", decodedClassName);
     }
     
     if (!cls) {
       // Try case-insensitive search
-      cls = await Class.findOne({ name: { $regex: new RegExp(`^${exam.className}$`, 'i') } });
+      cls = await Class.findOne({ name: { $regex: new RegExp(`^${exam.class}$`, 'i') } });
       console.log("Tried case-insensitive search");
     }
     
@@ -1833,8 +1833,8 @@ app.post("/api/exam-submissions", authenticateToken, async (req, res) => {
 
     // Emit exam submission event to the class for real-time updates
     if (req.app.io) {
-      console.log(`Emitting exam-submitted to class:${exam.className}`);
-      req.app.io.to(`class:${exam.className}`).emit('exam-submitted', {
+      console.log(`Emitting exam-submitted to class:${exam.class}`);
+      req.app.io.to(`class:${exam.class}`).emit('exam-submitted', {
         examId,
         student,
         score: finalScorePercentage,
@@ -1849,7 +1849,7 @@ app.post("/api/exam-submissions", authenticateToken, async (req, res) => {
         sender: 'System',
         type: 'grade',
         message: `Exam "${exam.title}" submitted successfully! Score: ${finalScorePercentage}%`,
-        class: exam.className
+        class: exam.class
       });
       await notification.save();
       
@@ -1869,7 +1869,7 @@ app.post("/api/exam-submissions", authenticateToken, async (req, res) => {
         type: 'assignment',
         message: `${student} submitted exam: "${exam.title}" - Score: ${finalScorePercentage}%`,
         referenceId: examId,
-        class: exam.className
+        class: exam.class
       });
       await teacherNotification.save();
       
@@ -1889,7 +1889,7 @@ app.post("/api/exam-submissions", authenticateToken, async (req, res) => {
 
     try {
       const gradeEntry = new Grade({
-        class: exam.className,
+        class: exam.class,
         student: student,
         grade: `${finalScore}/${totalQuestions}`,
         feedback: feedbackText,
