@@ -1,3 +1,7 @@
+# Frontend (completely exclude)
+frontend/
+react-app/
+
 # Dependencies
 node_modules/
 */node_modules/
@@ -7,50 +11,80 @@ yarn-debug.log*
 yarn-error.log*
 package-lock.json
 */package-lock.json
+**/package-lock.json
 
-# Frontend (completely exclude - not needed for backend)
-frontend/
+# Git
+.git/
+.github/
+.gitignore
+.gitattributes
+
+# All uploads and media
+backend/uploads/**
+uploads/**
+*.pdf
+*.pptx
+*.ppt
+*.doc
+*.docx
+*.jpg
+*.jpeg
+*.png
+*.gif
+*.mp4
+*.mp3
 
 # Development files
-.git/
-.gitignore
-.env.local
-.env.development
 *.md
 README.md
 DEPLOYMENT.md
 EASY-DEPLOYMENT-GUIDE.md
+.env.local
+.env.development
+.env.test
 
 # IDE
 .vscode/
 .idea/
 *.swp
 *.swo
+*.sublime*
 
 # OS files
 .DS_Store
 Thumbs.db
+desktop.ini
 
-# All upload files (create on Railway instead)
-backend/uploads/
-uploads/
-
-# Debug files
+# Debug and test files
 debug.js
 debug-teacher.js
+**/*.test.js
+**/*.spec.js
+**/tests/
+**/test/
+__tests__/
 
 # Deployment helpers
 deploy.sh
 deploy.bat
 deploy-helper.bat
+.deployment
 
-# Git
-.git
-.gitignore
-.gitattributes
+# Build artifacts
+dist/
+build/
+.next/
+.vite/
+.cache/
 
-# Tests
-**/*.test.js
-**/*.spec.js
-**/tests/
-**/test/
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# Lock files (will be regenerated)
+yarn.lock
+pnpm-lock.yaml
