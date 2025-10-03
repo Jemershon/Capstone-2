@@ -227,6 +227,35 @@ function NotificationsDropdown() {
   
   return (
     <>
+      <style>
+        {`
+          /* Responsive dropdown for mobile */
+          @media (max-width: 576px) {
+            .notifications-dropdown-menu {
+              width: 95vw !important;
+              max-width: 400px !important;
+              left: 50% !important;
+              right: auto !important;
+              transform: translateX(-50%) !important;
+            }
+          }
+          
+          @media (min-width: 577px) {
+            .notifications-dropdown-menu {
+              width: 400px !important;
+            }
+          }
+          
+          /* Ensure text wraps properly */
+          .notification-message {
+            word-wrap: break-word !important;
+            overflow-wrap: break-word !important;
+            word-break: break-word !important;
+            white-space: normal !important;
+            max-width: 100% !important;
+          }
+        `}
+      </style>
       <Dropdown>
         <Dropdown.Toggle variant="light" id="dropdown-notifications" className="position-relative">
           <i className="bi bi-bell"></i>
@@ -242,7 +271,11 @@ function NotificationsDropdown() {
           )}
         </Dropdown.Toggle>
         
-        <Dropdown.Menu align="end" style={{ width: '350px', maxHeight: '400px', overflowY: 'auto', overflowX: 'hidden' }}>
+        <Dropdown.Menu 
+          align="end" 
+          className="notifications-dropdown-menu"
+          style={{ maxHeight: '80vh', overflowY: 'auto', overflowX: 'hidden' }}
+        >
           <div className="d-flex justify-content-between align-items-center px-3 py-2">
             <h6 className="mb-0">Notifications</h6>
             {unreadCount > 0 && (
@@ -251,8 +284,9 @@ function NotificationsDropdown() {
                 size="sm"
                 className="p-0 text-primary"
                 onClick={handleMarkAllAsRead}
+                style={{ whiteSpace: 'nowrap' }}
               >
-                Mark all as read
+                Mark all read
               </Button>
             )}
           </div>
@@ -271,25 +305,25 @@ function NotificationsDropdown() {
               {notifications.slice(0, 5).map(notification => (
                 <Dropdown.Item 
                   key={notification._id}
-                  className={`px-3 py-2 ${!notification.read ? 'bg-light' : ''}`}
+                  className={`px-2 py-2 ${!notification.read ? 'bg-light' : ''}`}
                   onClick={() => handleMarkAsRead(notification._id)}
-                  style={{ cursor: 'pointer' }}
+                  style={{ cursor: 'pointer', whiteSpace: 'normal' }}
                 >
-                  <div className="d-flex">
-                    <div className="me-2">
-                      <span role="img" aria-label={notification.type}>
+                  <div className="d-flex align-items-start">
+                    <div className="me-2 flex-shrink-0">
+                      <span role="img" aria-label={notification.type} style={{ fontSize: '1.2rem' }}>
                         {getNotificationIcon(notification.type)}
                       </span>
                     </div>
-                    <div className="flex-grow-1" style={{ fontSize: '0.9rem', wordWrap: 'break-word', overflowWrap: 'break-word', minWidth: 0 }}>
-                      <div style={{ wordBreak: 'break-word' }}>{notification.message}</div>
-                      <div className="text-muted" style={{ fontSize: '0.75rem' }}>
+                    <div className="flex-grow-1 notification-message" style={{ fontSize: '0.9rem', minWidth: 0 }}>
+                      <div className="mb-1">{notification.message}</div>
+                      <div className="text-muted" style={{ fontSize: '0.7rem' }}>
                         {new Date(notification.createdAt).toLocaleString()}
                       </div>
                     </div>
                     <Button
                       variant="link"
-                      className="p-1 text-danger ms-2"
+                      className="p-1 text-danger ms-1 flex-shrink-0"
                       onClick={(e) => {
                         e.stopPropagation();
                         handleDeleteNotification(notification._id);
@@ -324,11 +358,13 @@ function NotificationsDropdown() {
         onHide={() => setShowAllNotifications(false)}
         centered
         scrollable
+        size="lg"
+        fullscreen="sm-down"
       >
         <Modal.Header closeButton>
           <Modal.Title>All Notifications</Modal.Title>
         </Modal.Header>
-        <Modal.Body>
+        <Modal.Body style={{ maxHeight: '70vh', overflowY: 'auto' }}>
           {loading ? (
             <div className="text-center py-3">
               <Spinner animation="border" />
@@ -343,14 +379,14 @@ function NotificationsDropdown() {
                   key={notification._id}
                   className={`d-flex py-3 ${!notification.read ? 'bg-light' : ''}`}
                 >
-                  <div className="me-2">
-                    <span role="img" aria-label={notification.type}>
+                  <div className="me-2 flex-shrink-0">
+                    <span role="img" aria-label={notification.type} style={{ fontSize: '1.5rem' }}>
                       {getNotificationIcon(notification.type)}
                     </span>
                   </div>
-                  <div className="flex-grow-1" style={{ wordWrap: 'break-word', overflowWrap: 'break-word', minWidth: 0 }}>
-                    <div style={{ wordBreak: 'break-word' }}>{notification.message}</div>
-                    <div className="text-muted" style={{ fontSize: '0.8rem' }}>
+                  <div className="flex-grow-1 notification-message" style={{ minWidth: 0 }}>
+                    <div className="mb-1">{notification.message}</div>
+                    <div className="text-muted" style={{ fontSize: '0.85rem' }}>
                       {new Date(notification.createdAt).toLocaleString()}
                     </div>
                     <div className="mt-2">
@@ -384,7 +420,7 @@ function NotificationsDropdown() {
           </Button>
           {unreadCount > 0 && (
             <Button variant="primary" onClick={handleMarkAllAsRead}>
-              Mark all as read
+              Mark all read
             </Button>
           )}
         </Modal.Footer>

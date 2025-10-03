@@ -2959,6 +2959,51 @@ function Grades() {
     }
   }, [selectedClass]);
 
+  // Delete a single submission
+  const handleDeleteSubmission = async (submissionId) => {
+    if (!window.confirm("Are you sure you want to delete this submission?")) {
+      return;
+    }
+
+    try {
+      const headers = { Authorization: `Bearer ${localStorage.getItem("token")}` };
+      await axios.delete(`${API_BASE_URL}/api/exam-submissions/${submissionId}`, { headers });
+      
+      // Refresh leaderboard data
+      await fetchLeaderboardData();
+      
+      setError("");
+      setShowToast(false);
+    } catch (err) {
+      console.error("Delete submission error:", err.response?.data || err.message);
+      setError(err.response?.data?.error || "Failed to delete submission");
+      setShowToast(true);
+    }
+  };
+
+  // Clear all submissions
+  const handleClearAllSubmissions = async () => {
+    if (!window.confirm("Are you sure you want to delete ALL submissions? This action cannot be undone!")) {
+      return;
+    }
+
+    try {
+      const headers = { Authorization: `Bearer ${localStorage.getItem("token")}` };
+      const response = await axios.delete(`${API_BASE_URL}/api/exam-submissions`, { headers });
+      
+      // Refresh leaderboard data
+      await fetchLeaderboardData();
+      
+      alert(`Successfully deleted ${response.data.deletedCount} submissions`);
+      setError("");
+      setShowToast(false);
+    } catch (err) {
+      console.error("Clear all submissions error:", err.response?.data || err.message);
+      setError(err.response?.data?.error || "Failed to clear submissions");
+      setShowToast(true);
+    }
+  };
+
   useEffect(() => {
     let cancelled = false;
     if (!cancelled) fetchLeaderboardData();
@@ -3069,11 +3114,22 @@ function Grades() {
       <div className="d-flex justify-content-between align-items-center mb-4">
         <h2 className="fw-bold mb-0">🏆 Student Leaderboard</h2>
         <div className="d-flex gap-2">
+          <Button variant="outline-danger" size="sm" onClick={handleClearAllSubmissions}>
+            🗑️ Clear All
+          </Button>
           <Button variant="outline-secondary" size="sm" onClick={fetchLeaderboardData}>
             🔄 Refresh
           </Button>
         </div>
       </div>
+
+      {/* Auto-cleanup notice */}
+      <Alert variant="info" className="mb-3">
+        <small>
+          ℹ️ <strong>Note:</strong> Submissions are automatically removed after 24 hours. 
+          You can also manually delete individual submissions or clear all at once.
+        </small>
+      </Alert>
 
       {error && (
         <Toast
@@ -3211,6 +3267,7 @@ function Grades() {
                   <th>Credit Points</th>
                   <th>Submitted</th>
                   <th>Status</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -3266,52 +3323,21 @@ function Grades() {
                         <Badge bg="secondary" className="small">📝 No Due Date</Badge>
                       )}
                     </td>
+                    <td className="text-center">
+                      <Button
+                        variant="outline-danger"
+                        size="sm"
+                        onClick={() => handleDeleteSubmission(submission._id)}
+                        title="Delete this submission"
+                      >
+                        🗑️
+                      </Button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </Table>
           </div>
-        </Card>
-      )}
-
-      {/* Top Performers Section */}
-      {leaderboardData?.summary?.topPerformers?.length > 0 && viewMode === "all" && (
-        <Card className="mt-4">
-          <Card.Header className="bg-warning text-dark">
-            <h5 className="mb-0">🌟 Top 10 Performers (All Time)</h5>
-          </Card.Header>
-          <Card.Body>
-            <Row>
-              {leaderboardData.summary.topPerformers.slice(0, 10).map((performer, index) => (
-                <Col key={performer._id} md={6} lg={4} xl={3} className="mb-3">
-                  <Card className={`h-100 ${index < 3 ? 'border-warning' : 'border-light'}`}>
-                    <Card.Body className="text-center p-3">
-                      <div className="mb-2">
-                        {index === 0 && <span style={{ fontSize: '2rem' }}>🥇</span>}
-                        {index === 1 && <span style={{ fontSize: '2rem' }}>🥈</span>}
-                        {index === 2 && <span style={{ fontSize: '2rem' }}>🥉</span>}
-                        {index >= 3 && (
-                          <Badge bg="secondary" style={{ fontSize: '1rem' }}>
-                            #{index + 1}
-                          </Badge>
-                        )}
-                      </div>
-                      <div className="fw-bold">{performer.student}</div>
-                      <div className="small text-muted">{performer.section}</div>
-                      <div className="mt-1">
-                        <Badge bg={getScoreColor(performer.finalScore)} className="fs-6">
-                          {performer.finalScore}
-                        </Badge>
-                      </div>
-                      <div className="small text-muted mt-1">
-                        {performer.examTitle}
-                      </div>
-                    </Card.Body>
-                  </Card>
-                </Col>
-              ))}
-            </Row>
-          </Card.Body>
         </Card>
       )}
     </div>

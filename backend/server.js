@@ -1468,8 +1468,7 @@ app.get("/api/leaderboard", authenticateToken, requireTeacherOrAdmin, async (req
       summary: {
         totalSubmissions: leaderboardData.length,
         totalStudents: studentUsernames.length,
-        classes: classNames,
-        topPerformers: leaderboardData.slice(0, 10)
+        classes: classNames
       }
     };
     
@@ -1499,6 +1498,84 @@ app.get("/api/leaderboard", authenticateToken, requireTeacherOrAdmin, async (req
     res.status(500).json({ error: "Failed to fetch leaderboard data" });
   }
 });
+
+// Teacher: Delete a single exam submission from leaderboard
+app.delete("/api/exam-submissions/:submissionId", authenticateToken, requireTeacherOrAdmin, async (req, res) => {
+  try {
+    const { submissionId } = req.params;
+    
+    // Find the submission
+    const submission = await ExamSubmission.findById(submissionId).populate('examId', 'class createdBy');
+    
+    if (!submission) {
+      return res.status(404).json({ error: "Submission not found" });
+    }
+    
+    // Verify teacher owns the class this exam belongs to
+    const exam = submission.examId;
+    if (exam && exam.createdBy !== req.user.username && req.user.role !== 'admin') {
+      return res.status(403).json({ error: "You can only delete submissions from your own classes" });
+    }
+    
+    await ExamSubmission.findByIdAndDelete(submissionId);
+    console.log(`Deleted submission ${submissionId} by ${req.user.username}`);
+    
+    res.json({ message: "Submission deleted successfully" });
+    
+  } catch (err) {
+    console.error("Delete submission error:", err);
+    res.status(500).json({ error: "Failed to delete submission" });
+  }
+});
+
+// Teacher: Delete all exam submissions for their classes
+app.delete("/api/exam-submissions", authenticateToken, requireTeacherOrAdmin, async (req, res) => {
+  try {
+    // Get all classes taught by this teacher
+    const classes = await Class.find({ teacher: req.user.username }).select("name");
+    const classNames = classes.map(cls => cls.name);
+    
+    // Get all exams for these classes
+    const exams = await Exam.find({ class: { $in: classNames } }).select("_id");
+    const examIds = exams.map(exam => exam._id);
+    
+    // Delete all submissions for these exams
+    const result = await ExamSubmission.deleteMany({ examId: { $in: examIds } });
+    
+    console.log(`Deleted ${result.deletedCount} submissions by teacher ${req.user.username}`);
+    
+    res.json({ 
+      message: "All submissions deleted successfully", 
+      deletedCount: result.deletedCount 
+    });
+    
+  } catch (err) {
+    console.error("Delete all submissions error:", err);
+    res.status(500).json({ error: "Failed to delete submissions" });
+  }
+});
+
+// Auto-cleanup: Delete exam submissions older than 24 hours (run periodically)
+async function cleanupOldSubmissions() {
+  try {
+    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const result = await ExamSubmission.deleteMany({ 
+      submittedAt: { $lt: twentyFourHoursAgo } 
+    });
+    
+    if (result.deletedCount > 0) {
+      console.log(`🗑️ Auto-cleanup: Deleted ${result.deletedCount} submissions older than 24 hours`);
+    }
+  } catch (err) {
+    console.error("Auto-cleanup error:", err);
+  }
+}
+
+// Run cleanup every hour
+setInterval(cleanupOldSubmissions, 60 * 60 * 1000);
+
+// Run cleanup on server start
+cleanupOldSubmissions();
 
 // Student: Get classes
 app.get("/api/student/classes", authenticateToken, requireStudent, async (req, res) => {
