@@ -389,6 +389,9 @@ function StudentMainDashboard() {
   const [showJoinModal, setShowJoinModal] = useState(false);
   const [showUnenrollModal, setShowUnenrollModal] = useState(false);
   const [selectedClassToUnenroll, setSelectedClassToUnenroll] = useState(null);
+  const [showStatsModal, setShowStatsModal] = useState(false);
+  const [statsModalType, setStatsModalType] = useState('');
+  const [statsModalTitle, setStatsModalTitle] = useState('');
   
   const [refreshKey, setRefreshKey] = useState(0); // Used to force re-fetch of classes
 
@@ -549,21 +552,54 @@ function StudentMainDashboard() {
       {/* Statistics Cards */}
       <Row className="mb-4">
         <Col md={4}>
-          <Card className="p-3 bg-primary text-white">
+          <Card 
+            className="p-3 bg-primary text-white"
+            style={{ cursor: 'pointer', transition: 'transform 0.2s' }}
+            onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.02)'}
+            onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+            onClick={() => {
+              setStatsModalType('classes');
+              setStatsModalTitle('Enrolled Classes');
+              setShowStatsModal(true);
+            }}
+          >
             <h5>Enrolled Classes</h5>
             <h3>{classes.length}</h3>
+            <small style={{ opacity: 0.9 }}>Click to view details</small>
           </Card>
         </Col>
         <Col md={4}>
-          <Card className="p-3 bg-success text-white">
+          <Card 
+            className="p-3 bg-success text-white"
+            style={{ cursor: 'pointer', transition: 'transform 0.2s' }}
+            onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.02)'}
+            onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+            onClick={() => {
+              setStatsModalType('assignments');
+              setStatsModalTitle('Total Assignments');
+              setShowStatsModal(true);
+            }}
+          >
             <h5>Total Assignments</h5>
             <h3>{classes.reduce((acc, cls) => acc + (cls.assignments?.length || 0), 0)}</h3>
+            <small style={{ opacity: 0.9 }}>Click to view details</small>
           </Card>
         </Col>
         <Col md={4}>
-          <Card className="p-3 bg-info text-white">
+          <Card 
+            className="p-3 bg-info text-white"
+            style={{ cursor: 'pointer', transition: 'transform 0.2s' }}
+            onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.02)'}
+            onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+            onClick={() => {
+              setStatsModalType('exams');
+              setStatsModalTitle('Active Exams');
+              setShowStatsModal(true);
+            }}
+          >
             <h5>Active Exams</h5>
             <h3>{classes.reduce((acc, cls) => acc + (cls.exams?.length || 0), 0)}</h3>
+            <small style={{ opacity: 0.9 }}>Click to view details</small>
           </Card>
         </Col>
       </Row>
@@ -740,6 +776,122 @@ function StudentMainDashboard() {
               <small>Force remove from my classes</small>
             </Button>
           </div>
+        </Modal.Footer>
+      </Modal>
+
+      {/* Stats Detail Modal */}
+      <Modal show={showStatsModal} onHide={() => setShowStatsModal(false)} size="lg">
+        <Modal.Header closeButton>
+          <Modal.Title>{statsModalTitle}</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {statsModalType === 'classes' && (
+            <Table striped bordered hover responsive>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Class Name</th>
+                  <th>Section</th>
+                  <th>Teacher</th>
+                </tr>
+              </thead>
+              <tbody>
+                {classes.length === 0 ? (
+                  <tr>
+                    <td colSpan="4" className="text-center text-muted">No classes found</td>
+                  </tr>
+                ) : (
+                  classes.map((cls, index) => (
+                    <tr key={cls._id || cls.id}>
+                      <td>{index + 1}</td>
+                      <td>{cls.name}</td>
+                      <td>{cls.section}</td>
+                      <td>{cls.teacher}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </Table>
+          )}
+
+          {statsModalType === 'assignments' && (
+            <Table striped bordered hover responsive>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Title</th>
+                  <th>Class</th>
+                  <th>Due Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                {classes.flatMap(cls => 
+                  (cls.assignments || []).map(assignment => ({ ...assignment, className: `${cls.name} - ${cls.section}` }))
+                ).length === 0 ? (
+                  <tr>
+                    <td colSpan="4" className="text-center text-muted">No assignments found</td>
+                  </tr>
+                ) : (
+                  classes.flatMap(cls => 
+                    (cls.assignments || []).map(assignment => ({
+                      ...assignment,
+                      className: `${cls.name} - ${cls.section}`
+                    }))
+                  ).map((assignment, index) => (
+                    <tr key={assignment._id || `assignment-${index}`}>
+                      <td>{index + 1}</td>
+                      <td>{assignment.title}</td>
+                      <td>{assignment.className}</td>
+                      <td>{assignment.dueDate ? new Date(assignment.dueDate).toLocaleDateString() : 'N/A'}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </Table>
+          )}
+
+          {statsModalType === 'exams' && (
+            <Table striped bordered hover responsive>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Exam Title</th>
+                  <th>Class</th>
+                  <th>Duration</th>
+                  <th>Questions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {classes.flatMap(cls => 
+                  (cls.exams || []).map(exam => ({ ...exam, className: `${cls.name} - ${cls.section}` }))
+                ).length === 0 ? (
+                  <tr>
+                    <td colSpan="5" className="text-center text-muted">No exams found</td>
+                  </tr>
+                ) : (
+                  classes.flatMap(cls => 
+                    (cls.exams || []).map(exam => ({
+                      ...exam,
+                      className: `${cls.name} - ${cls.section}`
+                    }))
+                  ).map((exam, index) => (
+                    <tr key={exam._id || `exam-${index}`}>
+                      <td>{index + 1}</td>
+                      <td>{exam.title}</td>
+                      <td>{exam.className}</td>
+                      <td>{exam.timeLimit} min</td>
+                      <td>{exam.questions?.length || 0}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </Table>
+          )}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowStatsModal(false)}>
+            Close
+          </Button>
         </Modal.Footer>
       </Modal>
     </div>
