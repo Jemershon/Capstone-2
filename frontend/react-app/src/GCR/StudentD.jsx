@@ -1217,12 +1217,12 @@ function StudentClassStream() {
         console.error("Error with socket notification:", socketErr);
       }
       
-      const { score, creditsUsed, creditPointsRemaining } = response.data;
+      const { score, totalQuestions, creditsUsed, creditPointsRemaining } = response.data;
       
       // Update user credit points after submission
       setUserCreditPoints(creditPointsRemaining || 0);
       
-      let message = `Exam submitted successfully! Your score: ${score}%`;
+      let message = `Exam submitted successfully! Your score: ${score}/${totalQuestions}`;
       
       if (useCreditPoints && creditsUsed > 0) {
         message += `\n🌟 Used ${creditsUsed} credit points to improve your score!`;

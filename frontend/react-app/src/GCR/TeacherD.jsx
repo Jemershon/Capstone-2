@@ -3033,8 +3033,9 @@ function Grades() {
     return data;
   };
 
-  const getScoreColor = (finalScore, rawScore) => {
-    const percentage = (finalScore / 100) * 100; // Assuming scores are out of 100
+  const getScoreColor = (finalScore, totalQuestions) => {
+    if (!totalQuestions || totalQuestions === 0) return "secondary";
+    const percentage = (finalScore / totalQuestions) * 100;
     if (percentage >= 90) return "success";
     if (percentage >= 80) return "info";
     if (percentage >= 70) return "warning";
@@ -3231,10 +3232,10 @@ function Grades() {
                     </td>
                     <td className="small">{submission.className}</td>
                     <td className="small">{submission.examTitle}</td>
-                    <td className="text-center">{submission.rawScore}</td>
+                    <td className="text-center">{submission.rawScore}/{submission.totalQuestions || '?'}</td>
                     <td className="text-center">
-                      <Badge bg={getScoreColor(submission.finalScore, submission.rawScore)}>
-                        {submission.finalScore}
+                      <Badge bg={getScoreColor(submission.finalScore, submission.totalQuestions)}>
+                        {submission.finalScore}/{submission.totalQuestions || '?'}
                         {submission.creditsUsed > 0 && (
                           <span className="small"> (+{submission.creditsUsed})</span>
                         )}

@@ -289,6 +289,7 @@ const ExamSubmissionSchema = new mongoose.Schema(
     ],
     rawScore: Number,
     finalScore: Number,
+    totalQuestions: { type: Number, default: 0 },
     creditsUsed: { type: Number, default: 0 },
     submittedAt: { type: Date, default: Date.now },
   },
@@ -1384,7 +1385,7 @@ app.post("/api/grades", authenticateToken, requireTeacherOrAdmin, async (req, re
 app.get("/api/leaderboard", authenticateToken, requireTeacherOrAdmin, async (req, res) => {
   try {
     // Get all classes taught by this teacher
-    const classes = await Class.find({ teacher: req.user.username }).select("name");
+    const classes = await Class.find({ teacher: req.user.username }).select("name section students");
     const classNames = classes.map(cls => cls.name);
     
     // Get all exams for these classes
@@ -1394,7 +1395,7 @@ app.get("/api/leaderboard", authenticateToken, requireTeacherOrAdmin, async (req
     // Get all exam submissions for these exams
     const examIds = exams.map(exam => exam._id);
     const submissions = await ExamSubmission.find({ examId: { $in: examIds } })
-      .populate('examId', 'title className due')
+      .populate('examId', 'title class due')
       .sort({ finalScore: -1, submittedAt: 1 });
     
     // Get user data for student names and sections
@@ -1408,23 +1409,56 @@ app.get("/api/leaderboard", authenticateToken, requireTeacherOrAdmin, async (req
       userMap[user.username] = user;
     });
     
+    // Create a map of student to their enrolled class(es)
+    const studentClassMap = {};
+    classes.forEach(cls => {
+      cls.students.forEach(studentUsername => {
+        if (!studentClassMap[studentUsername]) {
+          studentClassMap[studentUsername] = [];
+        }
+        studentClassMap[studentUsername].push({
+          className: cls.name,
+          section: cls.section || 'No Section'
+        });
+      });
+    });
+    
     // Transform submissions data for leaderboard
-    const leaderboardData = submissions.map(submission => ({
-      _id: submission._id,
-      student: submission.student,
-      studentEmail: userMap[submission.student]?.email || '',
-      section: userMap[submission.student]?.section || 'No Section',
-      creditPoints: userMap[submission.student]?.creditPoints || 0,
-      examTitle: submission.examId?.title || 'Unknown Exam',
-      className: submission.examId?.class || 'Unknown Class',
-      rawScore: submission.rawScore || 0,
-      finalScore: submission.finalScore || 0,
-      creditsUsed: submission.creditsUsed || 0,
-      submittedAt: submission.submittedAt,
-      examDue: submission.examId?.due || null,
-      isEarly: submission.examId?.due ? new Date(submission.submittedAt) < new Date(submission.examId.due) : null,
-      isLate: submission.examId?.due ? new Date(submission.submittedAt) > new Date(submission.examId.due) : null
-    }));
+    const leaderboardData = submissions.map(submission => {
+      const examClassName = submission.examId?.class || 'Unknown Class';
+      const studentUsername = submission.student;
+      
+      // Find the student's enrolled class that matches the exam's class
+      let studentClass = { className: examClassName, section: 'No Section' };
+      const studentClasses = studentClassMap[studentUsername] || [];
+      
+      // Try to find the exact class the exam belongs to
+      const matchingClass = studentClasses.find(sc => sc.className === examClassName);
+      if (matchingClass) {
+        studentClass = matchingClass;
+      } else if (studentClasses.length > 0) {
+        // If no exact match, use the first enrolled class
+        studentClass = studentClasses[0];
+      }
+      
+      return {
+        _id: submission._id,
+        student: studentUsername,
+        studentEmail: userMap[studentUsername]?.email || '',
+        section: studentClass.section,
+        creditPoints: userMap[studentUsername]?.creditPoints || 0,
+        examTitle: submission.examId?.title || 'Unknown Exam',
+        className: studentClass.className,
+        rawScore: submission.rawScore || 0,
+        finalScore: submission.finalScore || 0,
+        totalQuestions: submission.totalQuestions || 0,
+        creditsUsed: submission.creditsUsed || 0,
+        submittedAt: submission.submittedAt,
+        examDue: submission.examId?.due || null,
+        isEarly: submission.examId?.due ? new Date(submission.submittedAt) < new Date(submission.examId.due) : null,
+        isLate: submission.examId?.due ? new Date(submission.submittedAt) > new Date(submission.examId.due) : null
+      };
+    });
     
     // Group by class and section for organized display
     const groupedData = {
@@ -1456,6 +1490,8 @@ app.get("/api/leaderboard", authenticateToken, requireTeacherOrAdmin, async (req
     });
     
     console.log(`Leaderboard data: ${leaderboardData.length} submissions from ${studentUsernames.length} students`);
+    console.log(`Classes found: ${classNames.join(', ')}`);
+    console.log(`Sections found: ${Object.keys(groupedData.bySection).join(', ')}`);
     res.json(groupedData);
     
   } catch (err) {
@@ -1722,14 +1758,47 @@ app.post("/api/exam-submissions", authenticateToken, async (req, res) => {
     let correctAnswers = 0;
     const totalQuestions = exam.questions.length;
 
+    console.log("========== SCORING DETAILS ==========");
+    console.log("Total questions:", totalQuestions);
+    console.log("Answers submitted:", answers.length);
+    console.log("Exam questions:", JSON.stringify(exam.questions, null, 2));
+    
     answers.forEach(answer => {
       const question = exam.questions[answer.questionIndex];
-      if (question && question.correctAnswer === answer.answer) {
-        correctAnswers++;
+      if (question) {
+        let isCorrect = false;
+        
+        // Handle different question types
+        if (question.type === 'multiple') {
+          // For multiple choice, exact match
+          isCorrect = question.correctAnswer === answer.answer;
+        } else if (question.type === 'short') {
+          // For short answer, case-insensitive trimmed match
+          const correctAns = (question.correctAnswer || '').trim().toLowerCase();
+          const studentAns = (answer.answer || '').trim().toLowerCase();
+          isCorrect = correctAns === studentAns;
+        } else {
+          // Default: exact match
+          isCorrect = question.correctAnswer === answer.answer;
+        }
+        
+        console.log(`Question ${answer.questionIndex} (${question.type || 'unknown'}):`);
+        console.log(`  Question: "${question.text}"`);
+        console.log(`  Correct Answer: "${question.correctAnswer}" (type: ${typeof question.correctAnswer})`);
+        console.log(`  Student Answer: "${answer.answer}" (type: ${typeof answer.answer})`);
+        console.log(`  Match: ${isCorrect ? "✓ CORRECT" : "✗ WRONG"}`);
+        
+        if (isCorrect) {
+          correctAnswers++;
+        }
+      } else {
+        console.log(`Question ${answer.questionIndex}: NOT FOUND`);
       }
     });
 
     const rawScore = correctAnswers;
+    console.log("Raw Score:", rawScore, "/", totalQuestions);
+    console.log("====================================");
     
     // Get user for credit points management
     const user = await User.findOne({ username: student });
@@ -1812,10 +1881,8 @@ app.post("/api/exam-submissions", authenticateToken, async (req, res) => {
       throw saveError;
     }
 
-    // Convert to percentage
-    const finalScorePercentage = totalQuestions > 0 ? Math.round((finalScore / totalQuestions) * 100) : 0;
-
-    console.log("Score calculated:", finalScorePercentage);
+    // Store actual score (not percentage)
+    console.log("Score calculated:", finalScore, "/", totalQuestions);
 
     // Create submission
     const submission = new ExamSubmission({
@@ -1823,7 +1890,8 @@ app.post("/api/exam-submissions", authenticateToken, async (req, res) => {
       student,
       answers,
       rawScore,
-      finalScore: finalScorePercentage,
+      finalScore: finalScore,
+      totalQuestions: totalQuestions,
       creditsUsed,
       submittedAt: new Date()
     });
@@ -1837,7 +1905,8 @@ app.post("/api/exam-submissions", authenticateToken, async (req, res) => {
       req.app.io.to(`class:${exam.class}`).emit('exam-submitted', {
         examId,
         student,
-        score: finalScorePercentage,
+        score: finalScore,
+        totalQuestions: totalQuestions,
         submittedAt: new Date()
       });
     }
@@ -1848,7 +1917,7 @@ app.post("/api/exam-submissions", authenticateToken, async (req, res) => {
         recipient: student,
         sender: 'System',
         type: 'grade',
-        message: `Exam "${exam.title}" submitted successfully! Score: ${finalScorePercentage}%`,
+        message: `Exam "${exam.title}" submitted successfully! Score: ${finalScore}/${totalQuestions}`,
         class: exam.class
       });
       await notification.save();
@@ -1867,7 +1936,7 @@ app.post("/api/exam-submissions", authenticateToken, async (req, res) => {
         recipient: exam.createdBy,
         sender: student,
         type: 'assignment',
-        message: `${student} submitted exam: "${exam.title}" - Score: ${finalScorePercentage}%`,
+        message: `${student} submitted exam: "${exam.title}" - Score: ${finalScore}/${totalQuestions}`,
         referenceId: examId,
         class: exam.class
       });
@@ -1902,9 +1971,9 @@ app.post("/api/exam-submissions", authenticateToken, async (req, res) => {
 
     res.status(201).json({
       message: "Exam submitted successfully",
-      score: finalScorePercentage,
-      correctAnswers: finalScore,
+      score: finalScore,
       totalQuestions,
+      rawScore,
       creditsUsed,
       creditPointsRemaining: user.creditPoints
     });
