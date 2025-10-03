@@ -208,6 +208,10 @@ function DashboardHome() {
   const [showCreateClassModal, setShowCreateClassModal] = useState(false);
   const [userData, setUserData] = useState({ name: "", username: "", email: "", password: "", role: "student" });
   const [classData, setClassData] = useState({ name: "", section: "", code: "", teacher: "" });
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [selectedClass, setSelectedClass] = useState(null);
+  const [showUserDetailModal, setShowUserDetailModal] = useState(false);
+  const [showClassDetailModal, setShowClassDetailModal] = useState(false);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -350,7 +354,7 @@ function DashboardHome() {
         <Col md={6}>
           <Card className="mb-4 shadow-sm">
             <Card.Header className="fw-bold d-flex justify-content-between align-items-center">
-              All Classes
+              All Classes ({classes.length})
               <Button
                 variant="outline-primary"
                 size="sm"
@@ -360,54 +364,80 @@ function DashboardHome() {
                 + Create Class
               </Button>
             </Card.Header>
-            <div style={{ overflowX: "auto" }}>
-              <Table striped bordered hover responsive style={{ minWidth: "700px", tableLayout: "auto" }}>
-                <thead>
-                  <tr>
-                    <th style={{ minWidth: "120px" }}>Name</th>
-                    <th style={{ minWidth: "100px" }}>Section</th>
-                    <th style={{ minWidth: "100px" }}>Code</th>
-                    <th style={{ minWidth: "120px" }}>Teacher</th>
-                    <th style={{ minWidth: "80px" }}>Students</th>
-                    <th style={{ minWidth: "100px" }}>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {classes.length === 0 && (
-                    <tr>
-                      <td colSpan={6} className="text-center text-muted">
-                        No classes found. Create a class to get started!
-                      </td>
-                    </tr>
-                  )}
+            <Card.Body style={{ maxHeight: "500px", overflowY: "auto" }}>
+              {classes.length === 0 ? (
+                <div className="text-center text-muted py-4">
+                  <i className="bi bi-folder-x fs-1 d-block mb-2"></i>
+                  <p>No classes found. Create a class to get started!</p>
+                </div>
+              ) : (
+                <Row>
                   {classes.map((cls) => (
-                    <tr key={cls._id || cls.id}>
-                      <td style={{ wordBreak: "break-word" }}>{cls.name}</td>
-                      <td style={{ wordBreak: "break-word" }}>{cls.section}</td>
-                      <td><code>{cls.code}</code></td>
-                      <td style={{ wordBreak: "break-word" }}>{cls.teacher}</td>
-                      <td>{cls.students?.length || 0}</td>
-                      <td>
-                        <Button
-                          variant="outline-danger"
-                          size="sm"
-                          onClick={() => handleDeleteClass(cls._id || cls.id)}
-                          aria-label={`Delete class ${cls.name}`}
-                        >
-                          Delete
-                        </Button>
-                      </td>
-                    </tr>
+                    <Col key={cls._id || cls.id} xs={12} sm={6} lg={4} className="mb-3">
+                      <Card 
+                        className="h-100 shadow-sm"
+                        style={{ 
+                          cursor: "pointer",
+                          transition: "transform 0.2s, box-shadow 0.2s"
+                        }}
+                        onClick={() => {
+                          setSelectedClass(cls);
+                          setShowClassDetailModal(true);
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.transform = "translateY(-4px)";
+                          e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.15)";
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.transform = "translateY(0)";
+                          e.currentTarget.style.boxShadow = "";
+                        }}
+                      >
+                        <Card.Body>
+                          <div className="d-flex align-items-start mb-2">
+                            <div className="bg-primary text-white rounded-circle p-2 me-2" style={{ width: "40px", height: "40px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                              <i className="bi bi-book"></i>
+                            </div>
+                            <div className="flex-grow-1">
+                              <h6 className="mb-0 fw-bold">{cls.name}</h6>
+                              <small className="text-muted">{cls.section}</small>
+                            </div>
+                            <Button
+                              variant="outline-danger"
+                              size="sm"
+                              className="ms-2"
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                if (window.confirm(`Are you sure you want to delete class "${cls.name}"?`)) {
+                                  await handleDeleteClass(cls._id || cls.id);
+                                }
+                              }}
+                              aria-label={`Delete class ${cls.name}`}
+                            >
+                              <i className="bi bi-trash"></i>
+                            </Button>
+                          </div>
+                          <div className="mt-2">
+                            <small className="text-muted d-block">
+                              <i className="bi bi-person me-1"></i>{cls.teacher}
+                            </small>
+                            <small className="text-muted d-block">
+                              <i className="bi bi-people me-1"></i>{cls.students?.length || 0} students
+                            </small>
+                          </div>
+                        </Card.Body>
+                      </Card>
+                    </Col>
                   ))}
-                </tbody>
-              </Table>
-            </div>
+                </Row>
+              )}
+            </Card.Body>
           </Card>
         </Col>
         <Col md={6}>
           <Card className="mb-4 shadow-sm">
             <Card.Header className="fw-bold d-flex justify-content-between align-items-center">
-              All Users
+              All Users ({users.length})
               <Button
                 variant="outline-primary"
                 size="sm"
@@ -417,53 +447,250 @@ function DashboardHome() {
                 + Create User
               </Button>
             </Card.Header>
-            <div style={{ overflowX: "auto" }}>
-              <Table striped bordered hover responsive style={{ minWidth: "800px", tableLayout: "auto" }}>
-                <thead>
-                  <tr>
-                    <th style={{ minWidth: "120px" }}>Name</th>
-                    <th style={{ minWidth: "150px" }}>Email</th>
-                    <th style={{ minWidth: "100px" }}>Username</th>
-                    <th style={{ minWidth: "120px" }}>Password</th>
-                    <th style={{ minWidth: "80px" }}>Role</th>
-                    <th style={{ minWidth: "100px" }}>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {users.length === 0 && (
-                    <tr>
-                      <td colSpan={6} className="text-center text-muted">
-                        No users found. Create a user to get started!
-                      </td>
-                    </tr>
-                  )}
+            <Card.Body style={{ maxHeight: "500px", overflowY: "auto" }}>
+              {users.length === 0 ? (
+                <div className="text-center text-muted py-4">
+                  <i className="bi bi-person-x fs-1 d-block mb-2"></i>
+                  <p>No users found. Create a user to get started!</p>
+                </div>
+              ) : (
+                <Row>
                   {users.map((user) => (
-                    <tr key={user._id || user.id}>
-                      <td style={{ wordBreak: "break-word" }}>{user.name}</td>
-                      <td style={{ wordBreak: "break-word" }}>{user.email}</td>
-                      <td style={{ wordBreak: "break-word" }}>{user.username}</td>
-                      <td style={{ wordBreak: "break-word" }}>
-                        <code style={{ fontSize: "0.85rem" }}>{user.password || 'N/A'}</code>
-                      </td>
-                      <td>{user.role}</td>
-                      <td>
-                        <Button
-                          variant="outline-danger"
-                          size="sm"
-                          onClick={() => handleDeleteUser(user._id || user.id)}
-                          aria-label={`Delete user ${user.username}`}
-                        >
-                          Delete
-                        </Button>
-                      </td>
-                    </tr>
+                    <Col key={user._id || user.id} xs={12} sm={6} lg={4} className="mb-3">
+                      <Card 
+                        className="h-100 shadow-sm"
+                        style={{ 
+                          cursor: "pointer",
+                          transition: "transform 0.2s, box-shadow 0.2s"
+                        }}
+                        onClick={() => {
+                          setSelectedUser(user);
+                          setShowUserDetailModal(true);
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.transform = "translateY(-4px)";
+                          e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.15)";
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.transform = "translateY(0)";
+                          e.currentTarget.style.boxShadow = "";
+                        }}
+                      >
+                        <Card.Body>
+                          <div className="d-flex align-items-start mb-2">
+                            <div className={`${user.role === 'teacher' ? 'bg-success' : user.role === 'admin' ? 'bg-danger' : 'bg-info'} text-white rounded-circle p-2 me-2`} style={{ width: "40px", height: "40px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                              <i className="bi bi-person-fill"></i>
+                            </div>
+                            <div className="flex-grow-1">
+                              <h6 className="mb-0 fw-bold">{user.username}</h6>
+                              <small className={`badge ${user.role === 'teacher' ? 'bg-success' : user.role === 'admin' ? 'bg-danger' : 'bg-info'}`}>
+                                {user.role}
+                              </small>
+                            </div>
+                            <Button
+                              variant="outline-danger"
+                              size="sm"
+                              className="ms-2"
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                if (window.confirm(`Are you sure you want to delete user "${user.username}"?`)) {
+                                  await handleDeleteUser(user._id || user.id);
+                                }
+                              }}
+                              aria-label={`Delete user ${user.username}`}
+                            >
+                              <i className="bi bi-trash"></i>
+                            </Button>
+                          </div>
+                          <div className="mt-2">
+                            <small className="text-muted d-block text-truncate">
+                              <i className="bi bi-envelope me-1"></i>{user.email}
+                            </small>
+                          </div>
+                        </Card.Body>
+                      </Card>
+                    </Col>
                   ))}
-                </tbody>
-              </Table>
-            </div>
+                </Row>
+              )}
+            </Card.Body>
           </Card>
         </Col>
       </Row>
+      
+      {/* User Detail Modal */}
+      <Modal
+        show={showUserDetailModal}
+        onHide={() => {
+          setShowUserDetailModal(false);
+          setSelectedUser(null);
+        }}
+        centered
+        size="lg"
+      >
+        <Modal.Header closeButton>
+          <Modal.Title>User Details</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {selectedUser && (
+            <div>
+              <Row className="mb-3">
+                <Col xs={12} className="text-center mb-3">
+                  <div className={`${selectedUser.role === 'teacher' ? 'bg-success' : selectedUser.role === 'admin' ? 'bg-danger' : 'bg-info'} text-white rounded-circle p-3 d-inline-flex align-items-center justify-content-center`} style={{ width: "80px", height: "80px" }}>
+                    <i className="bi bi-person-fill fs-1"></i>
+                  </div>
+                </Col>
+              </Row>
+              <Row>
+                <Col md={6} className="mb-3">
+                  <strong className="text-muted d-block mb-1">Full Name</strong>
+                  <p className="mb-0">{selectedUser.name}</p>
+                </Col>
+                <Col md={6} className="mb-3">
+                  <strong className="text-muted d-block mb-1">Username</strong>
+                  <p className="mb-0">{selectedUser.username}</p>
+                </Col>
+                <Col md={6} className="mb-3">
+                  <strong className="text-muted d-block mb-1">Email</strong>
+                  <p className="mb-0">{selectedUser.email}</p>
+                </Col>
+                <Col md={6} className="mb-3">
+                  <strong className="text-muted d-block mb-1">Password</strong>
+                  <code className="d-block p-2 bg-light rounded" style={{ fontSize: "0.85rem", wordBreak: "break-all" }}>
+                    {selectedUser.password || 'N/A'}
+                  </code>
+                </Col>
+                <Col md={6} className="mb-3">
+                  <strong className="text-muted d-block mb-1">Role</strong>
+                  <span className={`badge ${selectedUser.role === 'teacher' ? 'bg-success' : selectedUser.role === 'admin' ? 'bg-danger' : 'bg-info'}`}>
+                    {selectedUser.role}
+                  </span>
+                </Col>
+                <Col md={6} className="mb-3">
+                  <strong className="text-muted d-block mb-1">User ID</strong>
+                  <code className="d-block p-2 bg-light rounded" style={{ fontSize: "0.75rem", wordBreak: "break-all" }}>
+                    {selectedUser._id || selectedUser.id}
+                  </code>
+                </Col>
+              </Row>
+            </div>
+          )}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button 
+            variant="outline-secondary" 
+            onClick={() => {
+              setShowUserDetailModal(false);
+              setSelectedUser(null);
+            }}
+          >
+            Close
+          </Button>
+          <Button 
+            variant="danger"
+            onClick={async () => {
+              if (window.confirm(`Are you sure you want to delete user "${selectedUser.username}"?`)) {
+                await handleDeleteUser(selectedUser._id || selectedUser.id);
+                setShowUserDetailModal(false);
+                setSelectedUser(null);
+              }
+            }}
+          >
+            Delete User
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* Class Detail Modal */}
+      <Modal
+        show={showClassDetailModal}
+        onHide={() => {
+          setShowClassDetailModal(false);
+          setSelectedClass(null);
+        }}
+        centered
+        size="lg"
+      >
+        <Modal.Header closeButton>
+          <Modal.Title>Class Details</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {selectedClass && (
+            <div>
+              <Row className="mb-3">
+                <Col xs={12} className="text-center mb-3">
+                  <div className="bg-primary text-white rounded-circle p-3 d-inline-flex align-items-center justify-content-center" style={{ width: "80px", height: "80px" }}>
+                    <i className="bi bi-book fs-1"></i>
+                  </div>
+                </Col>
+              </Row>
+              <Row>
+                <Col md={6} className="mb-3">
+                  <strong className="text-muted d-block mb-1">Class Name</strong>
+                  <p className="mb-0">{selectedClass.name}</p>
+                </Col>
+                <Col md={6} className="mb-3">
+                  <strong className="text-muted d-block mb-1">Section</strong>
+                  <p className="mb-0">{selectedClass.section}</p>
+                </Col>
+                <Col md={6} className="mb-3">
+                  <strong className="text-muted d-block mb-1">Class Code</strong>
+                  <code className="d-block p-2 bg-light rounded">{selectedClass.code}</code>
+                </Col>
+                <Col md={6} className="mb-3">
+                  <strong className="text-muted d-block mb-1">Teacher</strong>
+                  <p className="mb-0">{selectedClass.teacher}</p>
+                </Col>
+                <Col md={6} className="mb-3">
+                  <strong className="text-muted d-block mb-1">Number of Students</strong>
+                  <p className="mb-0">{selectedClass.students?.length || 0}</p>
+                </Col>
+                <Col md={6} className="mb-3">
+                  <strong className="text-muted d-block mb-1">Class ID</strong>
+                  <code className="d-block p-2 bg-light rounded" style={{ fontSize: "0.75rem", wordBreak: "break-all" }}>
+                    {selectedClass._id || selectedClass.id}
+                  </code>
+                </Col>
+                {selectedClass.students && selectedClass.students.length > 0 && (
+                  <Col xs={12} className="mb-3">
+                    <strong className="text-muted d-block mb-2">Enrolled Students</strong>
+                    <div className="p-2 bg-light rounded" style={{ maxHeight: "150px", overflowY: "auto" }}>
+                      {selectedClass.students.map((student, index) => (
+                        <span key={index} className="badge bg-secondary me-1 mb-1">
+                          {student}
+                        </span>
+                      ))}
+                    </div>
+                  </Col>
+                )}
+              </Row>
+            </div>
+          )}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button 
+            variant="outline-secondary" 
+            onClick={() => {
+              setShowClassDetailModal(false);
+              setSelectedClass(null);
+            }}
+          >
+            Close
+          </Button>
+          <Button 
+            variant="danger"
+            onClick={async () => {
+              if (window.confirm(`Are you sure you want to delete class "${selectedClass.name}"?`)) {
+                await handleDeleteClass(selectedClass._id || selectedClass.id);
+                setShowClassDetailModal(false);
+                setSelectedClass(null);
+              }
+            }}
+          >
+            Delete Class
+          </Button>
+        </Modal.Footer>
+      </Modal>
       {/* Create User Modal */}
       <Modal
         show={showCreateUserModal}
