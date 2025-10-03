@@ -1893,16 +1893,23 @@ app.post("/api/exam-submissions", authenticateToken, async (req, res) => {
     }
     
     console.log(`Student ${student} has ${originalCreditPoints} credit points available`);
+    console.log(`Student wants to use: ${useCreditPoints} credit points`);
     
-    // Apply credit points if student chose to use them (from ORIGINAL amount)
+    // Apply credit points if student chose to use them
     let creditsUsed = 0;
     let finalScore = rawScore;
     
-    if (useCreditPoints && originalCreditPoints > 0) {
+    // useCreditPoints is now a number (how many points student wants to use)
+    const requestedCredits = parseInt(useCreditPoints) || 0;
+    
+    if (requestedCredits > 0 && originalCreditPoints > 0) {
       const missing = Math.max(0, totalQuestions - rawScore);
-      creditsUsed = Math.min(originalCreditPoints, missing);
+      // Use the minimum of: requested credits, available credits, and missing points
+      creditsUsed = Math.min(requestedCredits, originalCreditPoints, missing);
       finalScore = rawScore + creditsUsed;
-      console.log(`Used ${creditsUsed} credit points from original ${originalCreditPoints}. Final score: ${finalScore}/${totalQuestions}`);
+      console.log(`Student requested ${requestedCredits}, using ${creditsUsed} credit points from available ${originalCreditPoints}. Final score: ${finalScore}/${totalQuestions}`);
+    } else {
+      console.log(`No credit points requested or available`);
     }
 
     // Determine early/late submission timing bonus/penalty

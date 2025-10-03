@@ -232,17 +232,18 @@ function NotificationsDropdown() {
           /* Responsive dropdown for mobile */
           @media (max-width: 576px) {
             .notifications-dropdown-menu {
-              width: 95vw !important;
-              max-width: 400px !important;
-              left: 50% !important;
-              right: auto !important;
-              transform: translateX(-50%) !important;
+              width: 90vw !important;
+              max-width: 350px !important;
+              position: fixed !important;
+              right: 10px !important;
+              left: auto !important;
+              transform: none !important;
             }
           }
           
           @media (min-width: 577px) {
             .notifications-dropdown-menu {
-              width: 400px !important;
+              width: 380px !important;
             }
           }
           
@@ -253,6 +254,16 @@ function NotificationsDropdown() {
             word-break: break-word !important;
             white-space: normal !important;
             max-width: 100% !important;
+          }
+          
+          /* Prevent horizontal scroll */
+          .notifications-dropdown-menu {
+            overflow-x: hidden !important;
+          }
+          
+          .notification-item-content {
+            max-width: 100%;
+            overflow: hidden;
           }
         `}
       </style>
@@ -274,24 +285,22 @@ function NotificationsDropdown() {
         <Dropdown.Menu 
           align="end" 
           className="notifications-dropdown-menu"
-          style={{ maxHeight: '80vh', overflowY: 'auto', overflowX: 'hidden' }}
+          style={{ maxHeight: '70vh', overflowY: 'auto', overflowX: 'hidden' }}
         >
-          <div className="d-flex justify-content-between align-items-center px-3 py-2">
+          <div className="d-flex justify-content-between align-items-center px-3 py-2 border-bottom">
             <h6 className="mb-0">Notifications</h6>
             {unreadCount > 0 && (
               <Button
                 variant="link"
                 size="sm"
-                className="p-0 text-primary"
+                className="p-0 text-primary text-decoration-none"
                 onClick={handleMarkAllAsRead}
-                style={{ whiteSpace: 'nowrap' }}
+                style={{ whiteSpace: 'nowrap', fontSize: '0.85rem' }}
               >
                 Mark all read
               </Button>
             )}
           </div>
-          
-          <Dropdown.Divider className="my-1" />
           
           {loading ? (
             <div className="text-center py-3">
@@ -305,30 +314,32 @@ function NotificationsDropdown() {
               {notifications.slice(0, 5).map(notification => (
                 <Dropdown.Item 
                   key={notification._id}
-                  className={`px-2 py-2 ${!notification.read ? 'bg-light' : ''}`}
+                  className={`px-3 py-2 border-bottom ${!notification.read ? 'bg-light' : ''}`}
                   onClick={() => handleMarkAsRead(notification._id)}
                   style={{ cursor: 'pointer', whiteSpace: 'normal' }}
                 >
-                  <div className="d-flex align-items-start">
-                    <div className="me-2 flex-shrink-0">
+                  <div className="d-flex align-items-start gap-2">
+                    <div className="flex-shrink-0">
                       <span role="img" aria-label={notification.type} style={{ fontSize: '1.2rem' }}>
                         {getNotificationIcon(notification.type)}
                       </span>
                     </div>
-                    <div className="flex-grow-1 notification-message" style={{ fontSize: '0.9rem', minWidth: 0 }}>
-                      <div className="mb-1">{notification.message}</div>
-                      <div className="text-muted" style={{ fontSize: '0.7rem' }}>
+                    <div className="flex-grow-1 notification-item-content">
+                      <div className="notification-message" style={{ fontSize: '0.9rem', lineHeight: '1.4' }}>
+                        {notification.message}
+                      </div>
+                      <div className="text-muted mt-1" style={{ fontSize: '0.75rem' }}>
                         {new Date(notification.createdAt).toLocaleString()}
                       </div>
                     </div>
                     <Button
                       variant="link"
-                      className="p-1 text-danger ms-1 flex-shrink-0"
+                      className="p-0 text-danger flex-shrink-0"
                       onClick={(e) => {
                         e.stopPropagation();
                         handleDeleteNotification(notification._id);
                       }}
-                      style={{ fontSize: '1.2rem', lineHeight: 1, minWidth: '28px' }}
+                      style={{ fontSize: '1rem', lineHeight: 1 }}
                       title="Delete notification"
                     >
                       <i className="bi bi-x-circle-fill"></i>

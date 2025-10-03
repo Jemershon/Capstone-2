@@ -770,7 +770,7 @@ function StudentClassStream() {
   const [examAnswers, setExamAnswers] = useState({});
   const [examSubmitted, setExamSubmitted] = useState(false);
   const [submissionSuccess, setSubmissionSuccess] = useState(false);
-  const [useCreditPoints, setUseCreditPoints] = useState(false);
+  const [useCreditPoints, setUseCreditPoints] = useState(0); // Changed to number
   const [userCreditPoints, setUserCreditPoints] = useState(0);
   const [submittedExams, setSubmittedExams] = useState([]);
   const [examLoading, setExamLoading] = useState(null);
@@ -1129,7 +1129,7 @@ function StudentClassStream() {
     setSelectedExam(exam);
     setExamAnswers({});
     setExamSubmitted(false);
-    setUseCreditPoints(false);
+    setUseCreditPoints(0); // Reset to 0
     setShowExamModal(true);
     
     try {
@@ -1138,7 +1138,7 @@ function StudentClassStream() {
       setSelectedExam(exam);
       setExamAnswers({});
       setExamSubmitted(false);
-      setUseCreditPoints(false);
+      setUseCreditPoints(0); // Reset to 0
       setShowExamModal(true);
     
     // Fetch user's current credit points
@@ -1224,11 +1224,11 @@ function StudentClassStream() {
       
       let message = `Exam submitted successfully! Your score: ${score}/${totalQuestions}`;
       
-      if (useCreditPoints && creditsUsed > 0) {
+      if (useCreditPoints > 0 && creditsUsed > 0) {
         message += `\n🌟 Used ${creditsUsed} credit points to improve your score!`;
         message += `\n⭐ Remaining credit points: ${creditPointsRemaining}`;
-      } else if (useCreditPoints && creditsUsed === 0) {
-        message += `\n✨ No credit points were needed - great job!`;
+      } else if (useCreditPoints > 0 && creditsUsed === 0) {
+        message += `\n✨ No credit points were needed - you got them all correct!`;
       }
       
       // Add info about timing bonus if applicable
@@ -1844,16 +1844,26 @@ function StudentClassStream() {
         <Modal.Footer>
           {!examSubmitted ? (
             <>
-              <div className="d-flex align-items-center me-auto">
-                <Form.Check
-                  type="checkbox"
-                  id="useCreditPoints"
-                  label={`Use credit points to improve score (Available: ${userCreditPoints} ⭐)`}
-                  checked={useCreditPoints}
-                  onChange={(e) => setUseCreditPoints(e.target.checked)}
+              <div className="d-flex align-items-center me-auto gap-2">
+                <Form.Label className="mb-0 fw-bold">
+                  Credit Points (Available: {userCreditPoints} ⭐)
+                </Form.Label>
+                <Form.Control
+                  type="number"
+                  min="0"
+                  max={userCreditPoints}
+                  value={useCreditPoints}
+                  onChange={(e) => {
+                    const value = parseInt(e.target.value) || 0;
+                    setUseCreditPoints(Math.min(Math.max(value, 0), userCreditPoints));
+                  }}
+                  placeholder="0"
                   disabled={userCreditPoints === 0}
-                  className="text-warning"
+                  style={{ width: '100px' }}
                 />
+                <small className="text-muted">
+                  {useCreditPoints > 0 ? `Using ${useCreditPoints} point${useCreditPoints !== 1 ? 's' : ''}` : 'Enter points to use'}
+                </small>
               </div>
               <Button variant="secondary" onClick={() => setShowExamModal(false)}>
                 Cancel
