@@ -3528,8 +3528,7 @@ function Profile() {
   const [stats, setStats] = useState({
     totalClasses: 0,
     totalStudents: 0,
-    totalExams: 0,
-    totalAssignments: 0
+    totalExams: 0
   });
 
   const navigate = useNavigate();
@@ -3557,11 +3556,11 @@ function Profile() {
         // Calculate statistics
         const classes = classesRes.data || [];
         const totalStudents = classes.reduce((sum, cls) => sum + (cls.students?.length || 0), 0);
+        const totalExams = classes.reduce((sum, cls) => sum + (cls.exams?.length || 0), 0);
         setStats({
           totalClasses: classes.length,
           totalStudents: totalStudents,
-          totalExams: 0, // You can add exam counting logic here
-          totalAssignments: 0 // You can add assignment counting logic here
+          totalExams: totalExams
         });
       } catch (statsErr) {
         console.warn("Failed to load teacher stats, but profile loaded successfully:", statsErr);
@@ -3569,8 +3568,7 @@ function Profile() {
         setStats({
           totalClasses: 0,
           totalStudents: 0,
-          totalExams: 0,
-          totalAssignments: 0
+          totalExams: 0
         });
       }
       
@@ -3738,18 +3736,11 @@ function Profile() {
                     <small className="text-muted">Students</small>
                   </div>
                 </div>
-                <div className="col-6">
+                <div className="col-12">
                   <div className="text-center p-3 bg-warning bg-opacity-10 rounded">
                     <i className="bi bi-clipboard-check-fill text-warning fs-3"></i>
                     <h3 className="fw-bold text-warning mb-0">{stats.totalExams}</h3>
-                    <small className="text-muted">Exams</small>
-                  </div>
-                </div>
-                <div className="col-6">
-                  <div className="text-center p-3 bg-info bg-opacity-10 rounded">
-                    <i className="bi bi-file-earmark-text-fill text-info fs-3"></i>
-                    <h3 className="fw-bold text-info mb-0">{stats.totalAssignments}</h3>
-                    <small className="text-muted">Assignments</small>
+                    <small className="text-muted">Exams Created</small>
                   </div>
                 </div>
               </div>

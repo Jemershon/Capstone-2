@@ -725,7 +725,6 @@ app.get("/api/admin/users", authenticateToken, requireAdmin, async (req, res) =>
   try {
     const { page = 1, limit = 100 } = req.query;
     const users = await User.find()
-      .select("-password")
       .skip((page - 1) * limit)
       .limit(parseInt(limit));
     res.json(users);

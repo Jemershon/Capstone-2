@@ -2304,8 +2304,7 @@ function StudentProfile() {
   });
   const [stats, setStats] = useState({
     totalClasses: 0,
-    totalAssignments: 0,
-    averageGrade: 0,
+    totalMaterials: 0,
     totalExams: 0
   });
 
@@ -2336,23 +2335,28 @@ function StudentProfile() {
   const fetchStats = async () => {
     try {
       const token = getAuthToken();
-      // For now, set default stats since the endpoint doesn't exist yet
-      // TODO: Implement /api/student/stats endpoint in backend
-      setStats({
-        totalClasses: 0,
-        totalAssignments: 0,
-        averageGrade: 0,
-        totalExams: 0
+      const username = getUsername();
+      
+      // Fetch student's enrolled classes
+      const response = await axios.get(`${API_BASE_URL}/api/student-classes/${username}`, {
+        headers: { Authorization: `Bearer ${token}` }
       });
       
-      console.warn("Student stats endpoint not implemented yet - using default values");
+      const classes = response.data || [];
+      const totalMaterials = classes.reduce((sum, cls) => sum + (cls.materials?.length || 0), 0);
+      const totalExams = classes.reduce((sum, cls) => sum + (cls.exams?.length || 0), 0);
+      
+      setStats({
+        totalClasses: classes.length,
+        totalMaterials: totalMaterials,
+        totalExams: totalExams
+      });
     } catch (err) {
       console.error("Error fetching stats:", err);
       // Set default stats on error
       setStats({
         totalClasses: 0,
-        totalAssignments: 0,
-        averageGrade: 0,
+        totalMaterials: 0,
         totalExams: 0
       });
     }
@@ -2498,28 +2502,21 @@ function StudentProfile() {
                   <div className="text-center p-3 bg-primary bg-opacity-10 rounded">
                     <i className="bi bi-journal-bookmark-fill text-primary fs-3"></i>
                     <h3 className="fw-bold text-primary mb-0">{stats.totalClasses}</h3>
-                    <small className="text-muted">Classes</small>
+                    <small className="text-muted">Enrolled Classes</small>
                   </div>
                 </div>
                 <div className="col-6">
                   <div className="text-center p-3 bg-success bg-opacity-10 rounded">
-                    <i className="bi bi-clipboard-check-fill text-success fs-3"></i>
-                    <h3 className="fw-bold text-success mb-0">{stats.totalAssignments}</h3>
-                    <small className="text-muted">Assignments</small>
+                    <i className="bi bi-book-fill text-success fs-3"></i>
+                    <h3 className="fw-bold text-success mb-0">{stats.totalMaterials}</h3>
+                    <small className="text-muted">Materials</small>
                   </div>
                 </div>
-                <div className="col-6">
-                  <div className="text-center p-3 bg-warning bg-opacity-10 rounded">
-                    <i className="bi bi-star-fill text-warning fs-3"></i>
-                    <h3 className="fw-bold text-warning mb-0">{stats.averageGrade}%</h3>
-                    <small className="text-muted">Avg Grade</small>
-                  </div>
-                </div>
-                <div className="col-6">
+                <div className="col-12">
                   <div className="text-center p-3 bg-info bg-opacity-10 rounded">
-                    <i className="bi bi-file-earmark-text-fill text-info fs-3"></i>
+                    <i className="bi bi-clipboard-check-fill text-info fs-3"></i>
                     <h3 className="fw-bold text-info mb-0">{stats.totalExams}</h3>
-                    <small className="text-muted">Exams</small>
+                    <small className="text-muted">Available Exams</small>
                   </div>
                 </div>
               </div>
