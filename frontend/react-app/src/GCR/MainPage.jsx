@@ -9,7 +9,7 @@ const mobileStyles = `
   @media (max-width: 767px) {
     /* Center all content on mobile */
     .landing-hero-section {
-      padding: 20px 15px !important;
+      padding: 40px 15px !important;
       text-align: center !important;
     }
     
@@ -21,7 +21,7 @@ const mobileStyles = `
     }
     
     .landing-hero-section h1 {
-      font-size: 2rem !important;
+      font-size: 2.5rem !important;
       text-align: center !important;
       margin-bottom: 1rem !important;
     }
@@ -37,7 +37,7 @@ const mobileStyles = `
       display: flex !important;
       flex-direction: column !important;
       align-items: center !important;
-      gap: 10px !important;
+      gap: 15px !important;
       width: 100% !important;
       padding: 0 15px !important;
     }
@@ -54,33 +54,29 @@ const mobileStyles = `
       padding: 0 30px !important;
     }
     
-    .landing-hero-image img {
-      max-width: 250px !important;
-      height: auto !important;
+    .landing-hero-image .hero-icon {
+      width: 200px !important;
+      height: 200px !important;
     }
     
     /* Features section on mobile */
     .features-section {
-      padding: 30px 15px !important;
+      padding: 40px 15px !important;
     }
     
     .features-section .row {
-      gap: 15px !important;
+      gap: 20px !important;
     }
     
     .features-section .col-md-4 {
       width: 100% !important;
       padding: 0 !important;
-      margin-bottom: 15px !important;
-    }
-    
-    .features-section .card {
-      margin: 0 !important;
+      margin-bottom: 20px !important;
     }
     
     /* Navbar optimization */
-    .navbar {
-      padding: 10px 15px !important;
+    .modern-navbar {
+      padding: 15px 20px !important;
     }
     
     .navbar-brand {
@@ -98,7 +94,318 @@ const mobileStyles = `
       margin: 10px auto 0 !important;
     }
   }
+  
+  /* Modern Gradient Background */
+  .modern-gradient-bg {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .modern-gradient-bg::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: 
+      radial-gradient(circle at 20% 50%, rgba(120, 119, 198, 0.3), transparent 50%),
+      radial-gradient(circle at 80% 80%, rgba(255, 77, 109, 0.3), transparent 50%),
+      radial-gradient(circle at 40% 80%, rgba(120, 119, 198, 0.2), transparent 50%);
+    animation: gradientMove 15s ease infinite;
+  }
+  
+  @keyframes gradientMove {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.8; }
+  }
+  
+  /* Glassmorphism Navbar */
+  .modern-navbar {
+    background: rgba(255, 255, 255, 0.1) !important;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
+  }
+  
+  .modern-navbar .navbar-brand {
+    color: white !important;
+    font-weight: 700;
+    font-size: 1.8rem;
+    text-shadow: 0 2px 10px rgba(0,0,0,0.2);
+  }
+  
+  .modern-navbar .btn-login {
+    background: rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(10px);
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    color: white;
+    padding: 8px 24px;
+    border-radius: 50px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+  }
+  
+  .modern-navbar .btn-login:hover {
+    background: rgba(255, 255, 255, 0.3);
+    border-color: rgba(255, 255, 255, 0.5);
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+  }
+  
+  /* Hero Section Modern Styles */
+  .landing-hero-section {
+    position: relative;
+    z-index: 1;
+  }
+  
+  .landing-hero-section h1 {
+    color: white;
+    font-weight: 800;
+    font-size: 3.5rem;
+    margin-bottom: 1.5rem;
+    text-shadow: 0 4px 20px rgba(0,0,0,0.2);
+    animation: fadeInUp 0.8s ease-out;
+  }
+  
+  .landing-hero-section p.lead {
+    color: rgba(255, 255, 255, 0.95);
+    font-size: 1.3rem;
+    font-weight: 400;
+    margin-bottom: 2rem;
+    text-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    animation: fadeInUp 1s ease-out;
+  }
+  
+  @keyframes fadeInUp {
+    from {
+      opacity: 0;
+      transform: translateY(30px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  /* Modern Buttons */
+  .btn-modern-primary {
+    background: white;
+    color: #667eea;
+    border: none;
+    padding: 14px 36px;
+    border-radius: 50px;
+    font-weight: 700;
+    font-size: 1.1rem;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    transition: all 0.3s ease;
+    animation: fadeInUp 1.2s ease-out;
+  }
+  
+  .btn-modern-primary:hover {
+    background: rgba(255, 255, 255, 0.95);
+    color: #667eea;
+    transform: translateY(-3px);
+    box-shadow: 0 15px 40px rgba(0,0,0,0.3);
+  }
+  
+  .btn-modern-secondary {
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(10px);
+    color: white;
+    border: 2px solid rgba(255, 255, 255, 0.4);
+    padding: 14px 36px;
+    border-radius: 50px;
+    font-weight: 700;
+    font-size: 1.1rem;
+    transition: all 0.3s ease;
+    animation: fadeInUp 1.4s ease-out;
+  }
+  
+  .btn-modern-secondary:hover {
+    background: rgba(255, 255, 255, 0.25);
+    border-color: rgba(255, 255, 255, 0.6);
+    color: white;
+    transform: translateY(-3px);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+  }
+  
+  /* Hero Icon Animation */
+  .hero-icon {
+    width: 300px;
+    height: 300px;
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(10px);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 8rem;
+    color: white;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+    animation: float 3s ease-in-out infinite;
+    margin: 0 auto;
+  }
+  
+  @keyframes float {
+    0%, 100% {
+      transform: translateY(0px);
+    }
+    50% {
+      transform: translateY(-20px);
+    }
+  }
+  
+  /* Modern Feature Cards */
+  .feature-card-modern {
+    background: white;
+    border: none;
+    border-radius: 20px;
+    padding: 40px 30px;
+    transition: all 0.3s ease;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+    height: 100%;
+  }
+  
+  .feature-card-modern:hover {
+    transform: translateY(-10px);
+    box-shadow: 0 20px 40px rgba(0,0,0,0.12);
+  }
+  
+  .feature-icon {
+    width: 80px;
+    height: 80px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 20px;
+    font-size: 2.5rem;
+    color: white;
+    box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+  }
+  
+  .feature-card-modern h5 {
+    color: #2d3748;
+    font-weight: 700;
+    font-size: 1.3rem;
+    margin-bottom: 15px;
+  }
+  
+  .feature-card-modern p {
+    color: #718096;
+    font-size: 1rem;
+    line-height: 1.6;
+  }
+  
+  /* Footer Modern */
+  .modern-footer {
+    background: linear-gradient(to right, #667eea 0%, #764ba2 100%);
+    color: rgba(255, 255, 255, 0.9);
+    padding: 30px 0;
+    border-top: none;
+  }
+  
+  /* Modal Enhancements */
+  .modal-content {
+    border-radius: 20px;
+    border: none;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+  }
+  
+  .modal-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 20px 20px 0 0 !important;
+    padding: 20px 30px;
+    border: none;
+  }
+  
+  .modal-header .btn-close {
+    filter: brightness(0) invert(1);
+  }
+  
+  .modal-title {
+    font-weight: 700;
+    font-size: 1.5rem;
+  }
+  
+  .modal-body {
+    padding: 30px;
+  }
+  
+  .form-floating > .form-control {
+    border-radius: 12px;
+    border: 2px solid #e2e8f0;
+    padding: 1rem 0.75rem;
+    transition: all 0.3s ease;
+  }
+  
+  .form-floating > .form-control:focus {
+    border-color: #667eea;
+    box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.15);
+  }
+  
+  .form-select {
+    border-radius: 12px;
+    border: 2px solid #e2e8f0;
+    padding: 1rem 0.75rem;
+    transition: all 0.3s ease;
+  }
+  
+  .form-select:focus {
+    border-color: #667eea;
+    box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.15);
+  }
+  
+  .modal-body .btn-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: none;
+    border-radius: 12px;
+    padding: 12px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+  }
+  
+  .modal-body .btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+  }
+  
+  /* Particle Effect (optional decorative element) */
+  .particle {
+    position: absolute;
+    background: rgba(255, 255, 255, 0.5);
+    border-radius: 50%;
+    pointer-events: none;
+  }
 `;
+
+// Add animation keyframes
+const animationStyles = `
+  @keyframes pulse {
+    0%, 100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.5;
+    }
+  }
+  
+  .pulse {
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+`;
+
+// Inject styles into the document
+if (typeof document !== 'undefined') {
+  const styleElement = document.createElement('style');
+  styleElement.textContent = mobileStyles + animationStyles;
+  document.head.appendChild(styleElement);
+}
 
 // Retry function for API calls
 const retry = async (fn, retries = 3, delay = 1000) => {
@@ -342,16 +649,18 @@ export default function LandingPage() {
   };
 
   return (
-    <div className="d-flex flex-column min-vh-100 bg-light">
-      <Navbar expand="lg" bg="white" variant="light" className="shadow-sm px-4">
+    <div className="d-flex flex-column min-vh-100 modern-gradient-bg">
+      <Navbar expand="lg" className="modern-navbar px-4">
         <Container fluid>
-          <Navbar.Brand className="fw-bold text-primary fs-3">Remora</Navbar.Brand>
-          <Navbar.Toggle aria-controls="main-nav" />
+          <Navbar.Brand className="fw-bold fs-3">🎓 Remora</Navbar.Brand>
+          <Navbar.Toggle aria-controls="main-nav" style={{ borderColor: 'rgba(255,255,255,0.3)' }}>
+            <span style={{ color: 'white' }}>☰</span>
+          </Navbar.Toggle>
           <Navbar.Collapse id="main-nav">
             <Nav className="ms-auto align-items-lg-center">
-              <Nav.Link href="#features" className="mx-2 text-dark">Features</Nav.Link>
+              <Nav.Link href="#features" className="mx-2" style={{ color: 'white', fontWeight: 500 }}>Features</Nav.Link>
               <Button
-                className="ms-lg-3"
+                className="btn-login ms-lg-3"
                 onClick={handleShowModal}
                 aria-label="Get started"
               >
@@ -364,22 +673,22 @@ export default function LandingPage() {
 
       <section className="container flex-grow-1 d-flex flex-column flex-md-row align-items-center justify-content-between py-5 landing-hero-section">
         <div className="col-md-6">
-          <h1 className="display-4 fw-bold text-dark">
+          <h1 className="display-4 fw-bold">
             A Smarter Way to Learn
           </h1>
-          <p className="lead text-muted mt-3">
-            Connect teachers and students in one simple platform.
+          <p className="lead mt-3">
+            Connect teachers and students in one simple platform. Transform your classroom experience with modern tools.
           </p>
-          <div className="mt-4 landing-hero-buttons">
+          <div className="mt-4 d-flex gap-3 landing-hero-buttons">
             <button
-              className="btn btn-primary btn-lg me-3"
+              className="btn btn-modern-primary"
               onClick={() => openModalWithRole("Student")}
               aria-label="Join as Student"
             >
               Join as Student
             </button>
             <button
-              className="btn btn-outline-secondary btn-lg"
+              className="btn btn-modern-secondary"
               onClick={() => openModalWithRole("Teacher")}
               aria-label="Join as Teacher"
             >
@@ -388,57 +697,62 @@ export default function LandingPage() {
           </div>
         </div>
         <div className="col-md-5 text-center mt-5 mt-md-0 landing-hero-image">
-          <img
-            src="https://cdn-icons-png.flaticon.com/512/3135/3135755.png"
-            alt="Classroom Illustration"
-            className="img-fluid"
-          />
+          <div className="hero-icon">
+            <i className="bi bi-mortarboard-fill"></i>
+          </div>
         </div>
       </section>
 
       <section id="features" className="py-5 bg-white features-section">
         <div className="container text-center">
-          <h2 className="fw-bold mb-5">Features</h2>
+          <h2 className="fw-bold mb-5" style={{ fontSize: '2.5rem', color: '#2d3748' }}>Why Choose Remora?</h2>
           <div className="row g-4">
             <div className="col-md-4">
-              <div className="card shadow-sm h-100">
-                <div className="card-body">
-                  <h5 className="card-title">Easy Classroom Management</h5>
-                  <p className="text-muted">
-                    Create, manage, and join classes with just a few clicks.
-                  </p>
+              <div className="feature-card-modern">
+                <div className="feature-icon">
+                  <i className="bi bi-grid-3x3-gap-fill"></i>
                 </div>
+                <h5>Easy Classroom Management</h5>
+                <p>
+                  Create, manage, and join classes with just a few clicks. Everything you need in one place.
+                </p>
               </div>
             </div>
             <div className="col-md-4">
-              <div className="card shadow-sm h-100">
-                <div className="card-body">
-                  <h5 className="card-title">Assignments & Quizzes</h5>
-                  <p className="text-muted">
-                    Post assignments and quizzes, and track student progress
-                    easily.
-                  </p>
+              <div className="feature-card-modern">
+                <div className="feature-icon">
+                  <i className="bi bi-file-earmark-check-fill"></i>
                 </div>
+                <h5>Exams & Materials</h5>
+                <p>
+                  Post exams and share materials easily. Track student progress and grade submissions efficiently.
+                </p>
               </div>
             </div>
             <div className="col-md-4">
-              <div className="card shadow-sm h-100">
-                <div className="card-body">
-                  <h5 className="card-title">Collaboration Tools</h5>
-                  <p className="text-muted">
-                    Enable discussions, announcements, and resource sharing.
-                  </p>
+              <div className="feature-card-modern">
+                <div className="feature-icon">
+                  <i className="bi bi-chat-dots-fill"></i>
                 </div>
+                <h5>Real-Time Collaboration</h5>
+                <p>
+                  Enable discussions, announcements, and resource sharing with instant notifications.
+                </p>
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      <footer className="bg-light text-center py-3 mt-auto border-top">
-        <small className="text-muted">
-          © {new Date().getFullYear()} Remora. All rights reserved.
-        </small>
+      <footer className="modern-footer text-center py-4 mt-auto">
+        <div className="container">
+          <p className="mb-2" style={{ fontSize: '1.1rem', fontWeight: 500 }}>
+            © {new Date().getFullYear()} Remora. All rights reserved.
+          </p>
+          <small style={{ opacity: 0.9 }}>
+            Empowering education through technology
+          </small>
+        </div>
       </footer>
 
       {/* Modal for Login/Register */}
