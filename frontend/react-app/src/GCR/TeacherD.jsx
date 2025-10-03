@@ -29,12 +29,19 @@ import Materials from "./components/Materials";
 import Comments from "./components/Comments";
 import ExamCreator from "./components/ExamCreator";
 
-// Add custom styles for responsive design
+// Add custom styles for responsive design and modern UI
 const customStyles = `
+  /* Modern Gradient Background */
+  .dashboard-modern-bg {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+  }
+  
   .main-content-responsive {
     margin-left: 0;
     padding: 0;
     min-height: 100vh;
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%);
   }
   
   @media (min-width: 768px) {
@@ -44,27 +51,44 @@ const customStyles = `
     }
   }
   
+  /* Glassmorphism Sidebar */
+  .modern-sidebar {
+    background: linear-gradient(180deg, #667eea 0%, #764ba2 100%) !important;
+    box-shadow: 4px 0 20px rgba(0, 0, 0, 0.1);
+    border-right: 1px solid rgba(255, 255, 255, 0.1);
+  }
+  
+  .modern-sidebar h4 {
+    color: white;
+    text-shadow: 0 2px 10px rgba(0,0,0,0.2);
+    font-weight: 700;
+    padding: 20px;
+    margin: 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  }
+  
   /* Mobile navbar styles */
   @media (max-width: 991px) {
     .mobile-nav-link {
       text-align: center !important;
       padding: 12px 20px !important;
       transition: all 0.3s ease;
-      border-radius: 8px;
+      border-radius: 12px;
       margin: 5px 10px;
-      color: #212529 !important;
+      color: white !important;
+      background: rgba(255, 255, 255, 0.1);
     }
     
     .mobile-nav-link:hover {
-      background-color: #f0f0f0 !important;
+      background-color: rgba(255, 255, 255, 0.2) !important;
       transform: translateX(5px);
-      color: #212529 !important;
+      color: white !important;
     }
     
     .mobile-nav-link.active,
     .nav-link.mobile-nav-link.active {
-      background-color: #e3f2fd !important;
-      color: #1976d2 !important;
+      background-color: rgba(255, 255, 255, 0.3) !important;
+      color: white !important;
       font-weight: 600;
     }
     
@@ -75,23 +99,247 @@ const customStyles = `
     .navbar-nav {
       width: 100%;
     }
+    
+    .modern-mobile-navbar {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    }
+    
+    .modern-mobile-navbar .navbar-brand {
+      color: white !important;
+      font-weight: 700;
+    }
   }
   
   .nav-link-custom {
-    border-radius: 4px;
-    margin-bottom: 5px;
-    transition: background-color 0.2s;
-    color: #fff !important;
+    border-radius: 12px;
+    margin: 8px 15px;
+    padding: 12px 20px !important;
+    transition: all 0.3s ease;
+    color: rgba(255, 255, 255, 0.9) !important;
     text-decoration: none;
+    font-weight: 500;
   }
   
   .nav-link-custom:hover {
-    background-color: rgba(255, 255, 255, 0.1);
+    background-color: rgba(255, 255, 255, 0.15);
     color: #fff !important;
+    transform: translateX(5px);
   }
   
   .nav-link-custom.active {
-    background-color: rgba(255, 255, 255, 0.2);
+    background-color: rgba(255, 255, 255, 0.25);
+    color: white !important;
+    font-weight: 600;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+  }
+  
+  /* Modern Cards */
+  .modern-card {
+    border-radius: 20px;
+    border: none;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+    transition: all 0.3s ease;
+    background: white;
+    overflow: hidden;
+  }
+  
+  .modern-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 15px 40px rgba(0,0,0,0.12);
+  }
+  
+  .modern-card-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 20px 25px;
+    font-weight: 700;
+    font-size: 1.2rem;
+    border: none;
+  }
+  
+  .modern-card-body {
+    padding: 25px;
+  }
+  
+  /* Profile Card Enhancement */
+  .profile-card-modern {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 20px;
+    padding: 30px;
+    color: white;
+    box-shadow: 0 15px 35px rgba(102, 126, 234, 0.3);
+    border: none;
+  }
+  
+  .profile-card-modern h3 {
+    font-weight: 700;
+    margin-bottom: 10px;
+    text-shadow: 0 2px 10px rgba(0,0,0,0.2);
+  }
+  
+  .profile-card-modern p {
+    opacity: 0.95;
+    font-size: 1.1rem;
+  }
+  
+  .profile-stats {
+    display: flex;
+    justify-content: space-around;
+    margin-top: 25px;
+    flex-wrap: wrap;
+    gap: 15px;
+  }
+  
+  .profile-stat-item {
+    text-align: center;
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(10px);
+    padding: 15px 20px;
+    border-radius: 15px;
+    min-width: 120px;
+  }
+  
+  .profile-stat-number {
+    font-size: 2rem;
+    font-weight: 700;
+    display: block;
+    margin-bottom: 5px;
+  }
+  
+  .profile-stat-label {
+    font-size: 0.9rem;
+    opacity: 0.9;
+    font-weight: 500;
+  }
+  
+  /* Class Cards Modern */
+  .class-card-modern {
+    border-radius: 20px;
+    border: none;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+    background: white;
+  }
+  
+  .class-card-modern:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 15px 35px rgba(0,0,0,0.15);
+    cursor: pointer;
+  }
+  
+  .class-card-modern .card-body {
+    padding: 25px;
+  }
+  
+  /* Modern Buttons */
+  .btn-modern-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: none;
+    border-radius: 12px;
+    padding: 12px 24px;
+    font-weight: 600;
+    color: white;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+  }
+  
+  .btn-modern-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+    color: white;
+  }
+  
+  .btn-modern-secondary {
+    background: rgba(102, 126, 234, 0.1);
+    border: 2px solid #667eea;
+    border-radius: 12px;
+    padding: 12px 24px;
+    font-weight: 600;
+    color: #667eea;
+    transition: all 0.3s ease;
+  }
+  
+  .btn-modern-secondary:hover {
+    background: #667eea;
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+  }
+  
+  /* Modal Modern */
+  .modal-content {
+    border-radius: 20px;
+    border: none;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+  }
+  
+  .modal-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 20px 20px 0 0 !important;
+    padding: 20px 30px;
+    border: none;
+  }
+  
+  .modal-header .btn-close {
+    filter: brightness(0) invert(1);
+  }
+  
+  .modal-title {
+    font-weight: 700;
+    font-size: 1.5rem;
+  }
+  
+  .modal-body {
+    padding: 30px;
+  }
+  
+  /* Form Controls Modern */
+  .form-control, .form-select {
+    border-radius: 12px;
+    border: 2px solid #e2e8f0;
+    padding: 12px 16px;
+    transition: all 0.3s ease;
+  }
+  
+  .form-control:focus, .form-select:focus {
+    border-color: #667eea;
+    box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.15);
+  }
+  
+  /* Toast Notifications */
+  .toast {
+    border-radius: 15px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+  }
+  
+  /* Table Modern */
+  .table {
+    border-radius: 15px;
+    overflow: hidden;
+  }
+  
+  .table thead {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+  }
+  
+  .table tbody tr {
+    transition: all 0.2s ease;
+  }
+  
+  .table tbody tr:hover {
+    background-color: rgba(102, 126, 234, 0.05);
+    transform: scale(1.01);
+  }
+  
+  /* Badge Modern */
+  .badge {
+    border-radius: 8px;
+    padding: 6px 12px;
+    font-weight: 600;
   }
   
   /* Fix container gaps */
@@ -99,97 +347,40 @@ const customStyles = `
     padding: 0;
   }
   
-  .row.g-0 {
-    margin: 0;
+  /* Scrollbar styling */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
   }
   
-  /* Ensure full height layout */
-  .teacher-dashboard-container {
-    min-height: 100vh;
+  ::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 10px;
   }
   
-  .dashboard-content {
-    padding: 0;
-    margin: 0;
+  ::-webkit-scrollbar-thumb {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 10px;
   }
   
-  @media (max-width: 767px) {
-    body {
-      margin: 0 !important;
-      padding: 0 !important;
-    }
-    
-    .teacher-dashboard-container {
-      padding: 0 !important;
-      margin: 0 !important;
-    }
-    
-    .row, .row.g-0 {
-      margin: 0 !important;
-      padding: 0 !important;
-    }
-    
-    .col, [class*="col-"] {
-      padding: 0 !important;
-      margin: 0 !important;
-    }
-    
-    /* Add small gaps between stat cards */
-    .row.mb-4 > [class*="col-"] {
-      padding: 0 5px !important;
-      margin-bottom: 10px !important;
-    }
-    
-    .row.mb-4 {
-      margin-left: -5px !important;
-      margin-right: -5px !important;
-    }
-    
-    .container, .container-fluid {
-      padding: 0 !important;
-      margin: 0 !important;
-    }
-    
-    .main-content-responsive {
-      padding: 10px !important;
-      margin: 0 !important;
-    }
-    
-    .dashboard-content {
-      padding: 10px !important;
-      margin: 0 !important;
-    }
-    
-    .dashboard-content > * {
-      margin-top: 10px !important;
-    }
-    
-    .dashboard-content > *:first-child,
-    .dashboard-content > h1:first-child,
-    .dashboard-content > h2:first-child {
-      margin-top: 0 !important;
-    }
-    
-    .card, .container {
-      margin-top: 10px !important;
-    }
-    
-    h1, h2, h3, h4, h5, h6 {
-      margin-top: 0 !important;
-    }
-  }
-    min-height: 100vh;
+  ::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(135deg, #5568d3 0%, #6a3e8f 100%);
   }
   
-  .dashboard-content {
-    padding: 0;
-    margin: 0;
+  /* Animations */
+  @keyframes fadeInUp {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
   
-  @media (max-width: 767px) {
-    .dashboard-content {
-      padding-top: 10px;
-    }
+  .fade-in-up {
+    animation: fadeInUp 0.6s ease-out;
   }
 `;
 
@@ -342,23 +533,8 @@ function DashboardAndClasses() {
         {classes.map((cls) => (
           <Col key={cls._id || cls.id} md={4} className="mb-3">
             <Card
-              className="p-3 h-100"
-              style={{ 
-                backgroundColor: cls.bg || "#FFF0D8", 
-                border: "1px solid #ccc", 
-                borderRadius: "8px",
-                cursor: "pointer",
-                transition: "transform 0.2s, box-shadow 0.2s"
-              }}
+              className="class-card-modern h-100"
               onClick={() => navigate(`/teacher/class/${encodeURIComponent(cls.name)}`)}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = "translateY(-4px)";
-                e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.15)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = "translateY(0)";
-                e.currentTarget.style.boxShadow = "none";
-              }}
             >
               <Card.Body>
                 <Card.Title className="fw-bold">{cls.name}</Card.Title>
@@ -411,7 +587,7 @@ function DashboardAndClasses() {
         }}
         centered
       >
-        <Modal.Header closeButton>
+        <Modal.Header closeButton className="modern-modal-header">
           <Modal.Title>Create Class</Modal.Title>
         </Modal.Header>
         <Modal.Body>
@@ -473,7 +649,7 @@ function DashboardAndClasses() {
             Cancel
           </Button>
           <Button
-            variant="success"
+            className="btn-modern-primary"
             onClick={handleCreateClass}
             disabled={!classData.name || !classData.section || !classData.code}
             aria-label="Create class"
@@ -2080,7 +2256,7 @@ function TeacherClassStream() {
         size="lg"
         centered
       >
-        <Modal.Header closeButton>
+        <Modal.Header closeButton className="modern-modal-header">
           <Modal.Title>Create New Exam</Modal.Title>
         </Modal.Header>
         <Modal.Body>
@@ -2244,7 +2420,7 @@ function TeacherClassStream() {
           <Button variant="secondary" onClick={() => setShowExamModal(false)}>
             Cancel
           </Button>
-          <Button variant="primary" onClick={handleCreateExam}>
+          <Button className="btn-modern-primary" onClick={handleCreateExam}>
             Create Exam
           </Button>
         </Modal.Footer>
@@ -2318,7 +2494,7 @@ function TeacherClassStream() {
         }}
         centered
       >
-        <Modal.Header closeButton>
+        <Modal.Header closeButton className="modern-modal-header">
           <Modal.Title>Remove Student</Modal.Title>
         </Modal.Header>
         <Modal.Body>
@@ -3608,8 +3784,8 @@ function Profile() {
       <Row>
         {/* Profile Information Card */}
         <Col lg={8} className="mb-4">
-          <Card className="h-100 shadow-sm">
-            <Card.Header className="bg-primary text-white">
+          <Card className="h-100 modern-card">
+            <Card.Header className="modern-card-header">
               <h5 className="mb-0">
                 <i className="bi bi-person-circle me-2"></i>Personal Information
               </h5>
@@ -3670,8 +3846,8 @@ function Profile() {
 
         {/* Statistics Card */}
         <Col lg={4} className="mb-4">
-          <Card className="h-100 shadow-sm">
-            <Card.Header className="bg-success text-white">
+          <Card className="h-100 modern-card">
+            <Card.Header className="modern-card-header">
               <h5 className="mb-0">
                 <i className="bi bi-graph-up me-2"></i>Teaching Statistics
               </h5>
@@ -3767,7 +3943,7 @@ function Profile() {
           <Button variant="outline-secondary" onClick={() => setShowEditModal(false)}>
             Cancel
           </Button>
-          <Button variant="primary" onClick={handleSaveProfile}>
+          <Button className="btn-modern-primary" onClick={handleSaveProfile}>
             <i className="bi bi-check-circle me-2"></i>
             Save Changes
           </Button>
@@ -3909,8 +4085,8 @@ export default function TeacherDashboard() {
     <Container fluid className="teacher-dashboard-container">
       <Row className="g-0">
         {/* Sidebar for desktop */}
-        <Col md={2} className="d-none d-md-block bg-dark text-white vh-100 p-3 position-fixed" style={{top: 0, left: 0, zIndex: 1000}}>
-          <h4 className="text-center mb-4">🏫 Teacher Panel</h4>
+        <Col md={2} className="d-none d-md-block modern-sidebar text-white vh-100 p-3 position-fixed" style={{top: 0, left: 0, zIndex: 1000}}>
+          <h4>🏫 Teacher Panel</h4>
           <Nav className="flex-column">
             <Nav.Link
               as={NavLink}
@@ -3949,9 +4125,9 @@ export default function TeacherDashboard() {
         </Col>
         {/* Mobile Navbar */}
         <div className="d-md-none">
-          <Navbar expand="lg" bg="white" variant="light" className="shadow-sm">
+          <Navbar expand="lg" className="modern-mobile-navbar shadow-sm">
             <Container fluid>
-              <Navbar.Brand className="fw-bold text-primary fs-4">🏫 Teacher</Navbar.Brand>
+              <Navbar.Brand className="fw-bold fs-4">🏫 Teacher</Navbar.Brand>
               <Navbar.Toggle aria-controls="mobile-nav" />
               <Navbar.Collapse id="mobile-nav">
                 <Nav className="w-100">

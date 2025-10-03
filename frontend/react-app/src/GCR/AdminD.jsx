@@ -18,12 +18,110 @@ import {
   Alert,
 } from "react-bootstrap";
 
-// Add custom styles for responsive design
+// Add custom styles for responsive design and modern theme
 const customStyles = `
+  /* Modern gradient theme styles */
+  .modern-gradient-bg {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+  }
+
+  .modern-sidebar {
+    background: linear-gradient(180deg, #667eea 0%, #764ba2 100%) !important;
+    box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+  }
+
+  .modern-mobile-navbar {
+    background: linear-gradient(90deg, #667eea 0%, #764ba2 100%) !important;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  }
+
+  .modern-mobile-navbar .navbar-brand {
+    color: white !important;
+    font-weight: 600;
+  }
+
+  .modern-card {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border: none;
+    border-radius: 20px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+  }
+
+  .modern-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 12px 48px rgba(0, 0, 0, 0.15);
+  }
+
+  .modern-card-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    border-radius: 20px 20px 0 0 !important;
+    padding: 1.25rem 1.5rem;
+    font-weight: 600;
+  }
+
+  .admin-user-card {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border: none;
+    border-radius: 20px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    transition: all 0.3s ease;
+    overflow: hidden;
+  }
+
+  .admin-user-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 12px 40px rgba(102, 126, 234, 0.3);
+  }
+
+  .admin-user-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 5px;
+    background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+  }
+
+  .btn-modern-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: none;
+    color: white;
+    padding: 10px 24px;
+    border-radius: 25px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+  }
+
+  .btn-modern-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+    background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+  }
+
+  .modern-modal-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    border-radius: 20px 20px 0 0 !important;
+  }
+
+  .modern-modal-header .btn-close {
+    filter: brightness(0) invert(1);
+  }
+
   .main-content-responsive {
     margin-left: 0;
     padding: 0;
     min-height: 100vh;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   }
   
   @media (min-width: 768px) {
@@ -352,8 +450,8 @@ function DashboardHome() {
       )}
       <Row>
         <Col md={6}>
-          <Card className="mb-4 shadow-sm">
-            <Card.Header className="fw-bold d-flex justify-content-between align-items-center">
+          <Card className="mb-4 modern-card">
+            <Card.Header className="modern-card-header d-flex justify-content-between align-items-center">
               All Classes ({classes.length})
               <Button
                 variant="outline-primary"
@@ -375,22 +473,11 @@ function DashboardHome() {
                   {classes.map((cls) => (
                     <Col key={cls._id || cls.id} xs={12} sm={6} lg={4} className="mb-3">
                       <Card 
-                        className="h-100 shadow-sm"
-                        style={{ 
-                          cursor: "pointer",
-                          transition: "transform 0.2s, box-shadow 0.2s"
-                        }}
+                        className="h-100 admin-user-card"
+                        style={{ cursor: "pointer" }}
                         onClick={() => {
                           setSelectedClass(cls);
                           setShowClassDetailModal(true);
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.transform = "translateY(-4px)";
-                          e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.15)";
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.transform = "translateY(0)";
-                          e.currentTarget.style.boxShadow = "";
                         }}
                       >
                         <Card.Body>
@@ -435,8 +522,8 @@ function DashboardHome() {
           </Card>
         </Col>
         <Col md={6}>
-          <Card className="mb-4 shadow-sm">
-            <Card.Header className="fw-bold d-flex justify-content-between align-items-center">
+          <Card className="mb-4 modern-card">
+            <Card.Header className="modern-card-header d-flex justify-content-between align-items-center">
               All Users ({users.length})
               <Button
                 variant="outline-primary"
@@ -458,22 +545,11 @@ function DashboardHome() {
                   {users.map((user) => (
                     <Col key={user._id || user.id} xs={12} sm={6} lg={4} className="mb-3">
                       <Card 
-                        className="h-100 shadow-sm"
-                        style={{ 
-                          cursor: "pointer",
-                          transition: "transform 0.2s, box-shadow 0.2s"
-                        }}
+                        className="h-100 admin-user-card"
+                        style={{ cursor: "pointer" }}
                         onClick={() => {
                           setSelectedUser(user);
                           setShowUserDetailModal(true);
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.transform = "translateY(-4px)";
-                          e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.15)";
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.transform = "translateY(0)";
-                          e.currentTarget.style.boxShadow = "";
                         }}
                       >
                         <Card.Body>
@@ -528,7 +604,7 @@ function DashboardHome() {
         centered
         size="lg"
       >
-        <Modal.Header closeButton>
+        <Modal.Header closeButton className="modern-modal-header">
           <Modal.Title>User Details</Modal.Title>
         </Modal.Header>
         <Modal.Body>
@@ -611,7 +687,7 @@ function DashboardHome() {
         centered
         size="lg"
       >
-        <Modal.Header closeButton>
+        <Modal.Header closeButton className="modern-modal-header">
           <Modal.Title>Class Details</Modal.Title>
         </Modal.Header>
         <Modal.Body>
@@ -701,7 +777,7 @@ function DashboardHome() {
         }}
         centered
       >
-        <Modal.Header closeButton>
+        <Modal.Header closeButton className="modern-modal-header">
           <Modal.Title>Create User</Modal.Title>
         </Modal.Header>
         <Modal.Body>
@@ -777,7 +853,7 @@ function DashboardHome() {
             Cancel
           </Button>
           <Button
-            variant="success"
+            className="btn-modern-primary"
             onClick={handleCreateUser}
             disabled={!userData.name || !userData.username || !userData.email || !userData.password}
             aria-label="Create user"
@@ -796,7 +872,7 @@ function DashboardHome() {
         }}
         centered
       >
-        <Modal.Header closeButton>
+        <Modal.Header closeButton className="modern-modal-header">
           <Modal.Title>Create Class</Modal.Title>
         </Modal.Header>
         <Modal.Body>
@@ -863,7 +939,7 @@ function DashboardHome() {
             Cancel
           </Button>
           <Button
-            variant="success"
+            className="btn-modern-primary"
             onClick={handleCreateClass}
             disabled={!classData.name || !classData.section || !classData.code || !classData.teacher}
             aria-label="Create class"
@@ -961,7 +1037,7 @@ export default function AdminDashboard() {
     <Container fluid>
       <Row>
         {/* Sidebar */}
-        <Col md={2} className="d-none d-md-block bg-dark text-white vh-100 p-3 position-fixed" style={{top: 0, left: 0, zIndex: 1000}}>
+        <Col md={2} className="d-none d-md-block modern-sidebar text-white vh-100 p-3 position-fixed" style={{top: 0, left: 0, zIndex: 1000}}>
           <h4 className="text-center mb-4">Admin Panel</h4>
           <Nav className="flex-column">
             <Nav.Link
@@ -984,7 +1060,7 @@ export default function AdminDashboard() {
 
         {/* Mobile Navbar */}
         <div className="d-md-none">
-          <Navbar expand="lg" bg="white" variant="light" className="shadow-sm">
+          <Navbar expand="lg" className="modern-mobile-navbar shadow-sm">
             <Container fluid>
               <Navbar.Brand className="fw-bold text-primary fs-4">👑 Admin</Navbar.Brand>
               <Navbar.Toggle aria-controls="mobile-nav" />

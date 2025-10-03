@@ -7,12 +7,141 @@ import NotificationsDropdown from "./components/NotificationsDropdown";
 import Comments from "./components/Comments";
 import { io } from "socket.io-client";
 
-// Add custom styles for responsive design
+// Add custom styles for responsive design and modern theme
 const customStyles = `
+  /* Modern gradient theme styles */
+  .modern-gradient-bg {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+  }
+
+  .modern-sidebar {
+    background: linear-gradient(180deg, #667eea 0%, #764ba2 100%) !important;
+    box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+  }
+
+  .modern-mobile-navbar {
+    background: linear-gradient(90deg, #667eea 0%, #764ba2 100%) !important;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  }
+
+  .modern-mobile-navbar .navbar-brand {
+    color: white !important;
+    font-weight: 600;
+  }
+
+  .modern-card {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border: none;
+    border-radius: 20px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+  }
+
+  .modern-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 12px 48px rgba(0, 0, 0, 0.15);
+  }
+
+  .modern-card-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    border-radius: 20px 20px 0 0 !important;
+    padding: 1.25rem 1.5rem;
+    font-weight: 600;
+  }
+
+  .class-card-modern {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border: none;
+    border-radius: 20px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    transition: all 0.3s ease;
+    cursor: pointer;
+    overflow: hidden;
+  }
+
+  .class-card-modern:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 12px 40px rgba(102, 126, 234, 0.3);
+  }
+
+  .class-card-modern .card-body {
+    position: relative;
+    z-index: 2;
+  }
+
+  .class-card-modern::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 5px;
+    background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+  }
+
+  .btn-modern-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: none;
+    color: white;
+    padding: 10px 24px;
+    border-radius: 25px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+  }
+
+  .btn-modern-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+    background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+  }
+
+  .btn-modern-secondary {
+    background: rgba(255, 255, 255, 0.9);
+    border: 2px solid #667eea;
+    color: #667eea;
+    padding: 10px 24px;
+    border-radius: 25px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+  }
+
+  .btn-modern-secondary:hover {
+    background: #667eea;
+    color: white;
+    transform: translateY(-2px);
+  }
+
+  .modern-modal-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    border-radius: 20px 20px 0 0 !important;
+  }
+
+  .modern-modal-header .btn-close {
+    filter: brightness(0) invert(1);
+  }
+
+  .profile-card-modern {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border: none;
+    border-radius: 20px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    padding: 2rem;
+  }
+
   .main-content-responsive {
     margin-left: 0;
     padding: 0;
     min-height: 100vh;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   }
   
   @media (min-width: 768px) {
@@ -23,17 +152,22 @@ const customStyles = `
   }
   
   .nav-link-custom {
-    border-radius: 4px;
-    margin-bottom: 5px;
-    transition: background-color 0.2s;
+    border-radius: 10px;
+    margin-bottom: 8px;
+    transition: all 0.3s ease;
+    color: rgba(255, 255, 255, 0.9) !important;
   }
   
   .nav-link-custom:hover {
-    background-color: rgba(255, 255, 255, 0.1);
+    background-color: rgba(255, 255, 255, 0.2);
+    transform: translateX(5px);
+    color: white !important;
   }
   
   .nav-link-custom.active {
-    background-color: rgba(255, 255, 255, 0.2);
+    background-color: rgba(255, 255, 255, 0.3);
+    color: white !important;
+    font-weight: 600;
   }
   
   /* Mobile navbar styles */
@@ -257,7 +391,7 @@ function StudentDashboard() {
     <Container fluid className="student-dashboard-container">
       <Row className="g-0">
         {/* Sidebar for desktop */}
-        <Col md={2} className="d-none d-md-block bg-dark text-white vh-100 p-3 position-fixed" style={{top: 0, left: 0, zIndex: 1000}}>
+        <Col md={2} className="d-none d-md-block modern-sidebar text-white vh-100 p-3 position-fixed" style={{top: 0, left: 0, zIndex: 1000}}>
           <h4 className="text-center mb-4">📚 Student Panel</h4>
           <Nav className="flex-column">
             <Nav.Link
@@ -289,7 +423,7 @@ function StudentDashboard() {
         
         {/* Mobile navbar */}
         <div className="d-md-none">
-          <Navbar expand="lg" bg="white" variant="light" className="shadow-sm">
+          <Navbar expand="lg" className="modern-mobile-navbar shadow-sm">
             <Container fluid>
               <Navbar.Brand className="fw-bold text-primary fs-4">📚 Student</Navbar.Brand>
               <Navbar.Toggle aria-controls="mobile-nav" />
@@ -571,23 +705,8 @@ function StudentMainDashboard() {
         {classes.map((cls) => (
           <Col key={cls._id || cls.id} md={4} className="mb-3">
             <Card
-              className="p-3 h-100"
-              style={{ 
-                backgroundColor: cls.bg || "#F8F9FA", 
-                border: "1px solid #ccc", 
-                borderRadius: "8px",
-                cursor: "pointer",
-                transition: "transform 0.2s, box-shadow 0.2s"
-              }}
+              className="class-card-modern h-100"
               onClick={() => window.location.href = `/student/class/${encodeURIComponent(cls.name)}`}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = "translateY(-4px)";
-                e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.15)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = "translateY(0)";
-                e.currentTarget.style.boxShadow = "none";
-              }}
             >
               <Card.Body>
                 <div className="mb-2">
@@ -630,7 +749,7 @@ function StudentMainDashboard() {
 
       {/* Join Class Modal */}
       <Modal show={showJoinModal} onHide={() => setShowJoinModal(false)} centered>
-        <Modal.Header closeButton>
+        <Modal.Header closeButton className="modern-modal-header">
           <Modal.Title>Join a Class</Modal.Title>
         </Modal.Header>
         <Modal.Body>
@@ -654,7 +773,7 @@ function StudentMainDashboard() {
           <Button variant="secondary" onClick={() => setShowJoinModal(false)}>
             Cancel
           </Button>
-          <Button variant="primary" onClick={handleJoinClass} disabled={!joinCode.trim()}>
+          <Button className="btn-modern-primary" onClick={handleJoinClass} disabled={!joinCode.trim()}>
             Join Class
           </Button>
         </Modal.Footer>
@@ -2380,8 +2499,8 @@ function StudentProfile() {
       <Row>
         {/* Profile Information Card */}
         <Col lg={8} className="mb-4">
-          <Card className="h-100 shadow-sm">
-            <Card.Header className="bg-primary text-white">
+          <Card className="h-100 modern-card">
+            <Card.Header className="modern-card-header">
               <h5 className="mb-0">
                 <i className="bi bi-person-circle me-2"></i>Personal Information
               </h5>
@@ -2440,8 +2559,8 @@ function StudentProfile() {
 
         {/* Statistics Card */}
         <Col lg={4} className="mb-4">
-          <Card className="h-100 shadow-sm">
-            <Card.Header className="bg-success text-white">
+          <Card className="h-100 modern-card">
+            <Card.Header className="modern-card-header">
               <h5 className="mb-0">
                 <i className="bi bi-graph-up me-2"></i>Academic Statistics
               </h5>
@@ -2537,7 +2656,7 @@ function StudentProfile() {
           <Button variant="outline-secondary" onClick={() => setShowEditModal(false)}>
             Cancel
           </Button>
-          <Button variant="primary" onClick={handleSaveProfile}>
+          <Button className="btn-modern-primary" onClick={handleSaveProfile}>
             <i className="bi bi-check-circle me-2"></i>
             Save Changes
           </Button>
