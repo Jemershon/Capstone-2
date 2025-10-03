@@ -360,46 +360,48 @@ function DashboardHome() {
                 + Create Class
               </Button>
             </Card.Header>
-            <Table striped bordered hover responsive style={{ tableLayout: "fixed" }}>
-              <thead>
-                <tr>
-                  <th style={{ width: "20%" }}>Name</th>
-                  <th style={{ width: "15%" }}>Section</th>
-                  <th style={{ width: "15%" }}>Code</th>
-                  <th style={{ width: "20%" }}>Teacher</th>
-                  <th style={{ width: "15%" }}>Students</th>
-                  <th style={{ width: "15%" }}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {classes.length === 0 && (
+            <div style={{ overflowX: "auto" }}>
+              <Table striped bordered hover responsive style={{ minWidth: "700px", tableLayout: "auto" }}>
+                <thead>
                   <tr>
-                    <td colSpan={6} className="text-center text-muted">
-                      No classes found. Create a class to get started!
-                    </td>
+                    <th style={{ minWidth: "120px" }}>Name</th>
+                    <th style={{ minWidth: "100px" }}>Section</th>
+                    <th style={{ minWidth: "100px" }}>Code</th>
+                    <th style={{ minWidth: "120px" }}>Teacher</th>
+                    <th style={{ minWidth: "80px" }}>Students</th>
+                    <th style={{ minWidth: "100px" }}>Actions</th>
                   </tr>
-                )}
-                {classes.map((cls) => (
-                  <tr key={cls._id || cls.id}>
-                    <td>{cls.name}</td>
-                    <td>{cls.section}</td>
-                    <td>{cls.code}</td>
-                    <td>{cls.teacher}</td>
-                    <td>{cls.students?.length || 0}</td>
-                    <td>
-                      <Button
-                        variant="outline-danger"
-                        size="sm"
-                        onClick={() => handleDeleteClass(cls._id || cls.id)}
-                        aria-label={`Delete class ${cls.name}`}
-                      >
-                        Delete
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </Table>
+                </thead>
+                <tbody>
+                  {classes.length === 0 && (
+                    <tr>
+                      <td colSpan={6} className="text-center text-muted">
+                        No classes found. Create a class to get started!
+                      </td>
+                    </tr>
+                  )}
+                  {classes.map((cls) => (
+                    <tr key={cls._id || cls.id}>
+                      <td style={{ wordBreak: "break-word" }}>{cls.name}</td>
+                      <td style={{ wordBreak: "break-word" }}>{cls.section}</td>
+                      <td><code>{cls.code}</code></td>
+                      <td style={{ wordBreak: "break-word" }}>{cls.teacher}</td>
+                      <td>{cls.students?.length || 0}</td>
+                      <td>
+                        <Button
+                          variant="outline-danger"
+                          size="sm"
+                          onClick={() => handleDeleteClass(cls._id || cls.id)}
+                          aria-label={`Delete class ${cls.name}`}
+                        >
+                          Delete
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </Table>
+            </div>
           </Card>
         </Col>
         <Col md={6}>
@@ -415,44 +417,50 @@ function DashboardHome() {
                 + Create User
               </Button>
             </Card.Header>
-            <Table striped bordered hover responsive style={{ tableLayout: "fixed" }}>
-              <thead>
-                <tr>
-                  <th style={{ width: "25%" }}>Name</th>
-                  <th style={{ width: "30%" }}>Email</th>
-                  <th style={{ width: "20%" }}>Username</th>
-                  <th style={{ width: "15%" }}>Role</th>
-                  <th style={{ width: "10%" }}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {users.length === 0 && (
+            <div style={{ overflowX: "auto" }}>
+              <Table striped bordered hover responsive style={{ minWidth: "800px", tableLayout: "auto" }}>
+                <thead>
                   <tr>
-                    <td colSpan={5} className="text-center text-muted">
-                      No users found. Create a user to get started!
-                    </td>
+                    <th style={{ minWidth: "120px" }}>Name</th>
+                    <th style={{ minWidth: "150px" }}>Email</th>
+                    <th style={{ minWidth: "100px" }}>Username</th>
+                    <th style={{ minWidth: "120px" }}>Password</th>
+                    <th style={{ minWidth: "80px" }}>Role</th>
+                    <th style={{ minWidth: "100px" }}>Actions</th>
                   </tr>
-                )}
-                {users.map((user) => (
-                  <tr key={user._id || user.id}>
-                    <td>{user.name}</td>
-                    <td>{user.email}</td>
-                    <td>{user.username}</td>
-                    <td>{user.role}</td>
-                    <td>
-                      <Button
-                        variant="outline-danger"
-                        size="sm"
-                        onClick={() => handleDeleteUser(user._id || user.id)}
-                        aria-label={`Delete user ${user.username}`}
-                      >
-                        Delete
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </Table>
+                </thead>
+                <tbody>
+                  {users.length === 0 && (
+                    <tr>
+                      <td colSpan={6} className="text-center text-muted">
+                        No users found. Create a user to get started!
+                      </td>
+                    </tr>
+                  )}
+                  {users.map((user) => (
+                    <tr key={user._id || user.id}>
+                      <td style={{ wordBreak: "break-word" }}>{user.name}</td>
+                      <td style={{ wordBreak: "break-word" }}>{user.email}</td>
+                      <td style={{ wordBreak: "break-word" }}>{user.username}</td>
+                      <td style={{ wordBreak: "break-word" }}>
+                        <code style={{ fontSize: "0.85rem" }}>{user.password || 'N/A'}</code>
+                      </td>
+                      <td>{user.role}</td>
+                      <td>
+                        <Button
+                          variant="outline-danger"
+                          size="sm"
+                          onClick={() => handleDeleteUser(user._id || user.id)}
+                          aria-label={`Delete user ${user.username}`}
+                        >
+                          Delete
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </Table>
+            </div>
           </Card>
         </Col>
       </Row>

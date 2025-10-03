@@ -6,6 +6,8 @@ const userSchema = new mongoose.Schema({
   email: { type: String, unique: true },
   password: String,
   role: { type: String, enum: ["Student", "Teacher", "Admin"], default: "Student" },
+  resetCode: String,
+  resetCodeExpiry: Date,
 }, {
   timestamps: true // This adds createdAt and updatedAt fields automatically
 });

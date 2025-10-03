@@ -575,13 +575,13 @@ function StudentMainDashboard() {
             onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.02)'}
             onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
             onClick={() => {
-              setStatsModalType('assignments');
-              setStatsModalTitle('Total Assignments');
+              setStatsModalType('materials');
+              setStatsModalTitle('Learning Materials');
               setShowStatsModal(true);
             }}
           >
-            <h5>Total Assignments</h5>
-            <h3>{classes.reduce((acc, cls) => acc + (cls.assignments?.length || 0), 0)}</h3>
+            <h5>Learning Materials</h5>
+            <h3>{classes.reduce((acc, cls) => acc + (cls.materials?.length || 0), 0)}</h3>
             <small style={{ opacity: 0.9 }}>Click to view details</small>
           </Card>
         </Col>
@@ -593,11 +593,11 @@ function StudentMainDashboard() {
             onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
             onClick={() => {
               setStatsModalType('exams');
-              setStatsModalTitle('Active Exams');
+              setStatsModalTitle('Total Exams');
               setShowStatsModal(true);
             }}
           >
-            <h5>Active Exams</h5>
+            <h5>Total Exams</h5>
             <h3>{classes.reduce((acc, cls) => acc + (cls.exams?.length || 0), 0)}</h3>
             <small style={{ opacity: 0.9 }}>Click to view details</small>
           </Card>
@@ -814,35 +814,45 @@ function StudentMainDashboard() {
             </Table>
           )}
 
-          {statsModalType === 'assignments' && (
+          {statsModalType === 'materials' && (
             <Table striped bordered hover responsive>
               <thead>
                 <tr>
                   <th>#</th>
                   <th>Title</th>
                   <th>Class</th>
-                  <th>Due Date</th>
+                  <th>Type</th>
+                  <th>Uploaded</th>
                 </tr>
               </thead>
               <tbody>
                 {classes.flatMap(cls => 
-                  (cls.assignments || []).map(assignment => ({ ...assignment, className: `${cls.name} - ${cls.section}` }))
+                  (cls.materials || []).map(material => ({ ...material, className: `${cls.name} - ${cls.section}` }))
                 ).length === 0 ? (
                   <tr>
-                    <td colSpan="4" className="text-center text-muted">No assignments found</td>
+                    <td colSpan="5" className="text-center text-muted">No materials found</td>
                   </tr>
                 ) : (
                   classes.flatMap(cls => 
-                    (cls.assignments || []).map(assignment => ({
-                      ...assignment,
+                    (cls.materials || []).map(material => ({
+                      ...material,
                       className: `${cls.name} - ${cls.section}`
                     }))
-                  ).map((assignment, index) => (
-                    <tr key={assignment._id || `assignment-${index}`}>
+                  ).map((material, index) => (
+                    <tr key={material._id || `material-${index}`}>
                       <td>{index + 1}</td>
-                      <td>{assignment.title}</td>
-                      <td>{assignment.className}</td>
-                      <td>{assignment.dueDate ? new Date(assignment.dueDate).toLocaleDateString() : 'N/A'}</td>
+                      <td>{material.title}</td>
+                      <td>{material.className}</td>
+                      <td>
+                        {material.fileUrl ? (
+                          <span className="badge bg-primary">
+                            {material.fileUrl.split('.').pop().toUpperCase()}
+                          </span>
+                        ) : (
+                          <span className="badge bg-secondary">Text</span>
+                        )}
+                      </td>
+                      <td>{material.createdAt ? new Date(material.createdAt).toLocaleDateString() : 'N/A'}</td>
                     </tr>
                   ))
                 )}

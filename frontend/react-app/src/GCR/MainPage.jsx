@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Button, Modal, Form, Toast, Spinner, Navbar, Nav, Container, InputGroup } from "react-bootstrap";
+import { Button, Modal, Form, Toast, Spinner, Navbar, Nav, Container, InputGroup, Alert } from "react-bootstrap";
 import axios from "axios";
 import { API_BASE_URL } from "../api";
 
@@ -179,6 +179,95 @@ export default function LandingPage() {
     } catch (err) {
       console.error("Register error:", err.response?.data || err.message);
       setError(err.response?.data?.error || "Registration failed. Check inputs.");
+      setShowToast(true);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSendResetCode = async (e) => {
+    e.preventDefault();
+    if (!forgotPasswordEmail) {
+      setError("Please enter your email address");
+      setShowToast(true);
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await axios.post(`${API_BASE_URL}/api/send-reset-code`, {
+        email: forgotPasswordEmail
+      });
+      setResetCode(res.data.resetCode);
+      setError(`Reset code sent! Your code is: ${res.data.resetCode}`);
+      setShowToast(true);
+      setResetStep(2);
+    } catch (err) {
+      console.error("Send reset code error:", err.response?.data || err.message);
+      setError(err.response?.data?.error || "Failed to send reset code. Please try again.");
+      setShowToast(true);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyCode = (e) => {
+    e.preventDefault();
+    if (!enteredCode) {
+      setError("Please enter the reset code");
+      setShowToast(true);
+      return;
+    }
+    if (enteredCode !== resetCode) {
+      setError("Invalid reset code. Please try again.");
+      setShowToast(true);
+      return;
+    }
+    setError("");
+    setResetStep(3);
+  };
+
+  const handleResetPassword = async (e) => {
+    e.preventDefault();
+    if (!newPassword || !confirmPassword) {
+      setError("Please fill in all fields");
+      setShowToast(true);
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setError("Passwords do not match");
+      setShowToast(true);
+      return;
+    }
+    if (newPassword.length < 6) {
+      setError("Password must be at least 6 characters");
+      setShowToast(true);
+      return;
+    }
+    setLoading(true);
+    try {
+      await axios.post(`${API_BASE_URL}/api/reset-password`, {
+        email: forgotPasswordEmail,
+        resetCode: resetCode,
+        newPassword: newPassword
+      });
+      setError("Password changed successfully! You can now login.");
+      setShowToast(true);
+      setTimeout(() => {
+        setShowForgotPassword(false);
+        setShowModal(true);
+        setIsLogin(true);
+        // Reset all forgot password states
+        setForgotPasswordEmail("");
+        setResetCode("");
+        setEnteredCode("");
+        setNewPassword("");
+        setConfirmPassword("");
+        setResetStep(1);
+        setError("");
+      }, 2000);
+    } catch (err) {
+      console.error("Reset password error:", err.response?.data || err.message);
+      setError(err.response?.data?.error || "Failed to reset password. Please try again.");
       setShowToast(true);
     } finally {
       setLoading(false);
@@ -479,6 +568,24 @@ export default function LandingPage() {
               )}
             </Button>
           </Form>
+          {isLogin && (
+            <div className="text-center mt-2">
+              <small>
+                <span
+                  className="text-primary"
+                  style={{ cursor: "pointer", textDecoration: "underline" }}
+                  onClick={() => {
+                    setShowModal(false);
+                    setShowForgotPassword(true);
+                  }}
+                  role="button"
+                  aria-label="Forgot password"
+                >
+                  Forgot Password?
+                </span>
+              </small>
+            </div>
+          )}
           <div className="text-center mt-3">
             <small>
               {isLogin ? (
@@ -514,6 +621,250 @@ export default function LandingPage() {
                   </span>
                 </>
               )}
+            </small>
+          </div>
+        </Modal.Body>
+      </Modal>
+
+      {/* Forgot Password Modal */}
+      <Modal 
+        show={showForgotPassword} 
+        onHide={() => {
+          setShowForgotPassword(false);
+          setForgotPasswordEmail("");
+          setResetCode("");
+          setEnteredCode("");
+          setNewPassword("");
+          setConfirmPassword("");
+          setResetStep(1);
+          setError("");
+        }} 
+        centered
+      >
+        <Modal.Header closeButton>
+          <Modal.Title>
+            {resetStep === 1 && "Forgot Password"}
+            {resetStep === 2 && "Enter Reset Code"}
+            {resetStep === 3 && "Create New Password"}
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {error && (
+            <Alert 
+              variant={
+                error.toLowerCase().includes("success") || 
+                error.toLowerCase().includes("sent") || 
+                error.toLowerCase().includes("changed")
+                  ? "success" 
+                  : "danger"
+              }
+              className="mb-3"
+            >
+              {error.includes("code is:") ? (
+                <div>
+                  <strong>Reset Code Sent!</strong>
+                  <div className="mt-2">
+                    <code style={{ fontSize: "1.3rem", padding: "8px 15px", background: "#f8f9fa", borderRadius: "4px", fontWeight: "bold" }}>
+                      {error.split("code is:")[1].trim()}
+                    </code>
+                  </div>
+                  <small className="text-muted d-block mt-2">Enter this code in the next step</small>
+                </div>
+              ) : (
+                error
+              )}
+            </Alert>
+          )}
+
+          {/* Step 1: Enter Email */}
+          {resetStep === 1 && (
+            <>
+              <p className="text-muted mb-3">
+                Enter your email address and we'll send you a reset code.
+              </p>
+              <Form onSubmit={handleSendResetCode}>
+                <Form.Floating className="mb-3">
+                  <Form.Control
+                    id="forgotPasswordEmail"
+                    type="email"
+                    placeholder="Email"
+                    value={forgotPasswordEmail}
+                    onChange={(e) => setForgotPasswordEmail(e.target.value)}
+                    required
+                    aria-required="true"
+                  />
+                  <label htmlFor="forgotPasswordEmail">Email Address</label>
+                </Form.Floating>
+                <Button
+                  type="submit"
+                  className="w-100"
+                  disabled={loading}
+                  aria-label="Send reset code"
+                >
+                  {loading ? (
+                    <Spinner animation="border" size="sm" aria-label="Processing" />
+                  ) : (
+                    "Send Reset Code"
+                  )}
+                </Button>
+              </Form>
+            </>
+          )}
+
+          {/* Step 2: Enter Reset Code */}
+          {resetStep === 2 && (
+            <>
+              <p className="text-muted mb-3">
+                Enter the 6-digit code sent to <strong>{forgotPasswordEmail}</strong>
+              </p>
+              <Form onSubmit={handleVerifyCode}>
+                <Form.Floating className="mb-3">
+                  <Form.Control
+                    id="resetCode"
+                    type="text"
+                    placeholder="Reset Code"
+                    value={enteredCode}
+                    onChange={(e) => setEnteredCode(e.target.value)}
+                    maxLength={6}
+                    required
+                    aria-required="true"
+                    style={{ textAlign: "center", fontSize: "1.5rem", letterSpacing: "0.3em" }}
+                  />
+                  <label htmlFor="resetCode">6-Digit Code</label>
+                </Form.Floating>
+                <Button
+                  type="submit"
+                  className="w-100"
+                  disabled={loading}
+                  aria-label="Verify code"
+                >
+                  Verify Code
+                </Button>
+                <div className="text-center mt-2">
+                  <small>
+                    <span
+                      className="text-primary"
+                      style={{ cursor: "pointer", textDecoration: "underline" }}
+                      onClick={() => {
+                        setResetStep(1);
+                        setEnteredCode("");
+                        setError("");
+                      }}
+                      role="button"
+                    >
+                      Use different email
+                    </span>
+                  </small>
+                </div>
+              </Form>
+            </>
+          )}
+
+          {/* Step 3: Create New Password */}
+          {resetStep === 3 && (
+            <>
+              <p className="text-muted mb-3">
+                Create a new password for your account.
+              </p>
+              <Form onSubmit={handleResetPassword}>
+                <Form.Floating className="mb-3" style={{ position: 'relative' }}>
+                  <Form.Control
+                    id="newPassword"
+                    type={showNewPassword ? "text" : "password"}
+                    placeholder="New Password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    required
+                    aria-required="true"
+                    style={{ paddingRight: '50px' }}
+                  />
+                  <label htmlFor="newPassword">New Password</label>
+                  <Button
+                    variant="outline-secondary"
+                    onClick={() => setShowNewPassword(!showNewPassword)}
+                    style={{
+                      position: 'absolute',
+                      right: '10px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      zIndex: 3,
+                      background: 'transparent',
+                      border: 'none',
+                      color: '#6c757d'
+                    }}
+                    aria-label={showNewPassword ? "Hide password" : "Show password"}
+                  >
+                    <i className={`bi ${showNewPassword ? 'bi-eye-slash' : 'bi-eye'}`}></i>
+                  </Button>
+                </Form.Floating>
+                <Form.Floating className="mb-3" style={{ position: 'relative' }}>
+                  <Form.Control
+                    id="confirmPassword"
+                    type={showConfirmPassword ? "text" : "password"}
+                    placeholder="Confirm Password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    required
+                    aria-required="true"
+                    style={{ paddingRight: '50px' }}
+                  />
+                  <label htmlFor="confirmPassword">Confirm Password</label>
+                  <Button
+                    variant="outline-secondary"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    style={{
+                      position: 'absolute',
+                      right: '10px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      zIndex: 3,
+                      background: 'transparent',
+                      border: 'none',
+                      color: '#6c757d'
+                    }}
+                    aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+                  >
+                    <i className={`bi ${showConfirmPassword ? 'bi-eye-slash' : 'bi-eye'}`}></i>
+                  </Button>
+                </Form.Floating>
+                <Button
+                  type="submit"
+                  className="w-100"
+                  disabled={loading}
+                  aria-label="Reset password"
+                >
+                  {loading ? (
+                    <Spinner animation="border" size="sm" aria-label="Processing" />
+                  ) : (
+                    "Change Password"
+                  )}
+                </Button>
+              </Form>
+            </>
+          )}
+
+          <div className="text-center mt-3">
+            <small>
+              <span
+                className="text-primary"
+                style={{ cursor: "pointer" }}
+                onClick={() => {
+                  setShowForgotPassword(false);
+                  setShowModal(true);
+                  setIsLogin(true);
+                  setForgotPasswordEmail("");
+                  setResetCode("");
+                  setEnteredCode("");
+                  setNewPassword("");
+                  setConfirmPassword("");
+                  setResetStep(1);
+                  setError("");
+                }}
+                role="button"
+                aria-label="Back to login"
+              >
+                Back to Login
+              </span>
             </small>
           </div>
         </Modal.Body>

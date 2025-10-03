@@ -361,13 +361,13 @@ function DashboardAndClasses() {
             onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.02)'}
             onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
             onClick={() => {
-              setStatsModalType('assignments');
-              setStatsModalTitle('Assignments Posted');
+              setStatsModalType('exams');
+              setStatsModalTitle('Total Exams Posted');
               setShowStatsModal(true);
             }}
           >
-            <h5>Assignments Posted</h5>
-            <h3>{classes.reduce((acc, cls) => acc + (cls.assignments?.length || 0), 0)}</h3>
+            <h5>Total Exams</h5>
+            <h3>{classes.reduce((acc, cls) => acc + (cls.exams?.length || 0), 0)}</h3>
             <small>Click to view details</small>
           </Card>
         </Col>
@@ -569,7 +569,7 @@ function DashboardAndClasses() {
               <thead>
                 <tr>
                   <th>#</th>
-                  <th>Username</th>
+                  <th>Name</th>
                   <th>Email</th>
                   <th>Class</th>
                 </tr>
@@ -591,7 +591,7 @@ function DashboardAndClasses() {
                   ).map((student, index) => (
                     <tr key={student._id || `${student.username}-${index}`}>
                       <td>{index + 1}</td>
-                      <td>{student.username}</td>
+                      <td>{student.name || student.username}</td>
                       <td>{student.email || 'N/A'}</td>
                       <td>{student.className}</td>
                     </tr>
@@ -601,35 +601,49 @@ function DashboardAndClasses() {
             </Table>
           )}
 
-          {statsModalType === 'assignments' && (
+          {statsModalType === 'exams' && (
             <Table striped bordered hover responsive>
               <thead>
                 <tr>
                   <th>#</th>
-                  <th>Title</th>
+                  <th>Exam Title</th>
                   <th>Class</th>
-                  <th>Due Date</th>
+                  <th>Time Limit</th>
+                  <th>Questions</th>
+                  <th>Submissions</th>
                 </tr>
               </thead>
               <tbody>
                 {classes.flatMap(cls => 
-                  (cls.assignments || []).map(assignment => ({ ...assignment, className: `${cls.name} - ${cls.section}` }))
+                  (cls.exams || []).map(exam => ({ 
+                    ...exam, 
+                    className: `${cls.name} - ${cls.section}`,
+                    totalStudents: cls.students?.length || 0
+                  }))
                 ).length === 0 ? (
                   <tr>
-                    <td colSpan="4" className="text-center text-muted">No assignments found</td>
+                    <td colSpan="6" className="text-center text-muted">No exams found</td>
                   </tr>
                 ) : (
                   classes.flatMap(cls => 
-                    (cls.assignments || []).map(assignment => ({
-                      ...assignment,
-                      className: `${cls.name} - ${cls.section}`
+                    (cls.exams || []).map(exam => ({
+                      ...exam,
+                      className: `${cls.name} - ${cls.section}`,
+                      totalStudents: cls.students?.length || 0,
+                      submittedCount: exam.submissions?.length || 0
                     }))
-                  ).map((assignment, index) => (
-                    <tr key={assignment._id || `assignment-${index}`}>
+                  ).map((exam, index) => (
+                    <tr key={exam._id || `exam-${index}`}>
                       <td>{index + 1}</td>
-                      <td>{assignment.title}</td>
-                      <td>{assignment.className}</td>
-                      <td>{assignment.dueDate ? new Date(assignment.dueDate).toLocaleDateString() : 'N/A'}</td>
+                      <td>{exam.title}</td>
+                      <td>{exam.className}</td>
+                      <td>{exam.timeLimit} min</td>
+                      <td>{exam.questions?.length || 0}</td>
+                      <td>
+                        <span className={exam.submittedCount < exam.totalStudents ? 'text-warning' : 'text-success'}>
+                          {exam.submittedCount} / {exam.totalStudents}
+                        </span>
+                      </td>
                     </tr>
                   ))
                 )}
