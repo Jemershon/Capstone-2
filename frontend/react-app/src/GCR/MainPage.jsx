@@ -127,6 +127,15 @@ export default function LandingPage() {
   const [showToast, setShowToast] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [forgotPasswordEmail, setForgotPasswordEmail] = useState("");
+  const [resetCode, setResetCode] = useState("");
+  const [enteredCode, setEnteredCode] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [resetStep, setResetStep] = useState(1);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   // Inject mobile styles
   useEffect(() => {
