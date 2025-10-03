@@ -549,57 +549,137 @@ function StudentMainDashboard() {
       )}
       
       
-      {/* Statistics Cards */}
+      {/* Recent Activity + Upcoming Exams Panel */}
       <Row className="mb-4">
-        <Col md={4}>
-          <Card 
-            className="p-3 bg-primary text-white"
-            style={{ cursor: 'pointer', transition: 'transform 0.2s' }}
-            onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.02)'}
-            onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
-            onClick={() => {
-              setStatsModalType('classes');
-              setStatsModalTitle('Enrolled Classes');
-              setShowStatsModal(true);
-            }}
-          >
-            <h5>Enrolled Classes</h5>
-            <h3>{classes.length}</h3>
-            <small style={{ opacity: 0.9 }}>Click to view details</small>
+        <Col md={6}>
+          <Card className="shadow-sm h-100">
+            <Card.Header className="bg-primary text-white">
+              <h5 className="mb-0">
+                <i className="bi bi-clock-history me-2"></i>Recent Updates
+              </h5>
+            </Card.Header>
+            <Card.Body style={{ maxHeight: '280px', overflowY: 'auto' }}>
+              {classes.length === 0 ? (
+                <div className="text-center text-muted py-4">
+                  <i className="bi bi-inbox fs-1 d-block mb-2"></i>
+                  <small>No recent updates. Join a class to get started!</small>
+                </div>
+              ) : (
+                <ListGroup variant="flush">
+                  {/* Show recent materials */}
+                  {classes.flatMap(cls => 
+                    (cls.materials || []).slice(0, 2).map(material => ({
+                      ...material,
+                      className: `${cls.name} - ${cls.section}`,
+                      type: 'material'
+                    }))
+                  ).slice(0, 3).map((item, index) => (
+                    <ListGroup.Item key={`material-${index}`} className="py-2">
+                      <div className="d-flex align-items-start">
+                        <Badge bg="success" className="me-2 mt-1">📚</Badge>
+                        <div className="flex-grow-1">
+                          <div><strong>{item.title}</strong></div>
+                          <small className="text-muted">{item.className}</small>
+                        </div>
+                      </div>
+                    </ListGroup.Item>
+                  ))}
+                  
+                  {/* Show recent exams */}
+                  {classes.flatMap(cls => 
+                    (cls.exams || []).slice(0, 2).map(exam => ({
+                      ...exam,
+                      className: `${cls.name} - ${cls.section}`,
+                      type: 'exam'
+                    }))
+                  ).slice(0, 2).map((item, index) => (
+                    <ListGroup.Item key={`exam-${index}`} className="py-2">
+                      <div className="d-flex align-items-start">
+                        <Badge bg="warning" className="me-2 mt-1">📝</Badge>
+                        <div className="flex-grow-1">
+                          <div><strong>{item.title}</strong></div>
+                          <small className="text-muted">{item.className} • {item.timeLimit} min</small>
+                        </div>
+                      </div>
+                    </ListGroup.Item>
+                  ))}
+                  
+                  {classes.length > 0 && classes.flatMap(cls => [...(cls.materials || []), ...(cls.exams || [])]).length === 0 && (
+                    <div className="text-center text-muted py-3">
+                      <small>No updates yet in your classes</small>
+                    </div>
+                  )}
+                </ListGroup>
+              )}
+            </Card.Body>
           </Card>
         </Col>
-        <Col md={4}>
-          <Card 
-            className="p-3 bg-success text-white"
-            style={{ cursor: 'pointer', transition: 'transform 0.2s' }}
-            onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.02)'}
-            onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
-            onClick={() => {
-              setStatsModalType('materials');
-              setStatsModalTitle('Learning Materials');
-              setShowStatsModal(true);
-            }}
-          >
-            <h5>Learning Materials</h5>
-            <h3>{classes.reduce((acc, cls) => acc + (cls.materials?.length || 0), 0)}</h3>
-            <small style={{ opacity: 0.9 }}>Click to view details</small>
-          </Card>
-        </Col>
-        <Col md={4}>
-          <Card 
-            className="p-3 bg-info text-white"
-            style={{ cursor: 'pointer', transition: 'transform 0.2s' }}
-            onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.02)'}
-            onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
-            onClick={() => {
-              setStatsModalType('exams');
-              setStatsModalTitle('Total Exams');
-              setShowStatsModal(true);
-            }}
-          >
-            <h5>Total Exams</h5>
-            <h3>{classes.reduce((acc, cls) => acc + (cls.exams?.length || 0), 0)}</h3>
-            <small style={{ opacity: 0.9 }}>Click to view details</small>
+        <Col md={6}>
+          <Card className="shadow-sm h-100">
+            <Card.Header className="bg-info text-white">
+              <h5 className="mb-0">
+                <i className="bi bi-calendar-check me-2"></i>Available Exams
+              </h5>
+            </Card.Header>
+            <Card.Body style={{ maxHeight: '280px', overflowY: 'auto' }}>
+              {(() => {
+                const allExams = classes.flatMap(cls => 
+                  (cls.exams || []).map(exam => ({
+                    ...exam,
+                    className: `${cls.name} - ${cls.section}`,
+                    classCode: cls.code
+                  }))
+                );
+                
+                if (allExams.length === 0) {
+                  return (
+                    <div className="text-center text-muted py-4">
+                      <i className="bi bi-clipboard-x fs-1 d-block mb-2"></i>
+                      <small>No exams available yet</small>
+                    </div>
+                  );
+                }
+                
+                return (
+                  <ListGroup variant="flush">
+                    {allExams.map((exam, index) => (
+                      <ListGroup.Item 
+                        key={index} 
+                        className="py-2"
+                        style={{ cursor: 'pointer' }}
+                        onClick={() => {
+                          const cls = classes.find(c => c.exams?.some(e => e._id === exam._id));
+                          if (cls) {
+                            window.location.href = `/student/class/${encodeURIComponent(cls.name)}`;
+                          }
+                        }}
+                      >
+                        <div className="d-flex align-items-start">
+                          <div className="flex-grow-1">
+                            <div className="d-flex justify-content-between align-items-start">
+                              <div>
+                                <strong>{exam.title}</strong>
+                                <br />
+                                <small className="text-muted">{exam.className}</small>
+                              </div>
+                              <Badge bg="info" pill>
+                                {exam.questions?.length || 0} Q
+                              </Badge>
+                            </div>
+                            <div className="mt-1">
+                              <small className="text-muted">
+                                <i className="bi bi-clock me-1"></i>{exam.timeLimit} minutes
+                              </small>
+                            </div>
+                          </div>
+                          <i className="bi bi-chevron-right text-muted ms-2"></i>
+                        </div>
+                      </ListGroup.Item>
+                    ))}
+                  </ListGroup>
+                );
+              })()}
+            </Card.Body>
           </Card>
         </Col>
       </Row>
@@ -628,7 +708,22 @@ function StudentMainDashboard() {
           <Col key={cls._id || cls.id} md={4} className="mb-3">
             <Card
               className="p-3 h-100"
-              style={{ backgroundColor: cls.bg || "#F8F9FA", border: "1px solid #ccc", borderRadius: "8px" }}
+              style={{ 
+                backgroundColor: cls.bg || "#F8F9FA", 
+                border: "1px solid #ccc", 
+                borderRadius: "8px",
+                cursor: "pointer",
+                transition: "transform 0.2s, box-shadow 0.2s"
+              }}
+              onClick={() => window.location.href = `/student/class/${encodeURIComponent(cls.name)}`}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = "translateY(-4px)";
+                e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.15)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = "translateY(0)";
+                e.currentTarget.style.boxShadow = "none";
+              }}
             >
               <Card.Body>
                 <div className="mb-2">
@@ -642,17 +737,8 @@ function StudentMainDashboard() {
                   <strong>Class Code:</strong> {cls.code}
                 </p>
               </Card.Body>
-              <Card.Footer className="d-flex justify-content-between align-items-center">
-                <Button 
-                  variant="primary" 
-                  size="sm" 
-                  aria-label={`Enter class ${cls.name}`}
-                  as={Link}
-                  to={`/student/class/${encodeURIComponent(cls.name)}`}
-                >
-                  Enter Class
-                </Button>
-                <Dropdown align="end">
+              <Card.Footer className="d-flex justify-content-end align-items-center">
+                <Dropdown align="end" onClick={(e) => e.stopPropagation()}>
                   <Dropdown.Toggle 
                     variant="outline-secondary" 
                     size="sm"

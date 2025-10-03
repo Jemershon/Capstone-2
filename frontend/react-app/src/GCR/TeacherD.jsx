@@ -319,59 +319,150 @@ function DashboardAndClasses() {
           <Toast.Body className="text-white">{successMessage || error}</Toast.Body>
         </Toast>
       )}
+      
+      {/* Quick Actions + Notifications Panel */}
       <Row className="mb-4">
-        <Col md={4}>
-          <Card 
-            className="p-3 bg-primary text-white" 
-            style={{ cursor: 'pointer', transition: 'transform 0.2s' }}
-            onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.02)'}
-            onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
-            onClick={() => {
-              setStatsModalType('classes');
-              setStatsModalTitle('Total Classes');
-              setShowStatsModal(true);
-            }}
-          >
-            <h5>Total Classes</h5>
-            <h3>{classes.length}</h3>
-            <small>Click to view details</small>
+        <Col md={6}>
+          <Card className="shadow-sm h-100">
+            <Card.Header className="bg-primary text-white">
+              <h5 className="mb-0">
+                <i className="bi bi-lightning-charge-fill me-2"></i>Quick Actions
+              </h5>
+            </Card.Header>
+            <Card.Body>
+              <Row className="g-2">
+                <Col xs={6}>
+                  <Button 
+                    variant="outline-primary" 
+                    className="w-100 py-3 d-flex flex-column align-items-center"
+                    onClick={() => setShowCreateModal(true)}
+                  >
+                    <i className="bi bi-plus-circle-fill fs-3 mb-2"></i>
+                    <span>Create Class</span>
+                  </Button>
+                </Col>
+                <Col xs={6}>
+                  <Button 
+                    variant="outline-success" 
+                    className="w-100 py-3 d-flex flex-column align-items-center"
+                    onClick={() => {
+                      if (classes.length > 0) {
+                        window.location.href = `/teacher/class/${encodeURIComponent(classes[0].name)}`;
+                      } else {
+                        setError("Please create a class first");
+                        setShowToast(true);
+                      }
+                    }}
+                  >
+                    <i className="bi bi-pencil-square fs-3 mb-2"></i>
+                    <span>Create Exam</span>
+                  </Button>
+                </Col>
+                <Col xs={6}>
+                  <Button 
+                    variant="outline-warning" 
+                    className="w-100 py-3 d-flex flex-column align-items-center"
+                    onClick={() => {
+                      if (classes.length > 0) {
+                        window.location.href = `/teacher/class/${encodeURIComponent(classes[0].name)}`;
+                      } else {
+                        setError("Please create a class first");
+                        setShowToast(true);
+                      }
+                    }}
+                  >
+                    <i className="bi bi-cloud-upload-fill fs-3 mb-2"></i>
+                    <span>Upload Material</span>
+                  </Button>
+                </Col>
+                <Col xs={6}>
+                  <Button 
+                    variant="outline-info" 
+                    className="w-100 py-3 d-flex flex-column align-items-center"
+                    onClick={() => {
+                      setStatsModalType('students');
+                      setStatsModalTitle('All Students');
+                      setShowStatsModal(true);
+                    }}
+                  >
+                    <i className="bi bi-people-fill fs-3 mb-2"></i>
+                    <span>View Students</span>
+                  </Button>
+                </Col>
+              </Row>
+            </Card.Body>
           </Card>
         </Col>
-        <Col md={4}>
-          <Card 
-            className="p-3 bg-success text-white"
-            style={{ cursor: 'pointer', transition: 'transform 0.2s' }}
-            onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.02)'}
-            onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
-            onClick={() => {
-              setStatsModalType('students');
-              setStatsModalTitle('Total Students');
-              setShowStatsModal(true);
-            }}
-          >
-            <h5>Total Students</h5>
-            <h3>{classes.reduce((acc, cls) => acc + (cls.students?.length || 0), 0)}</h3>
-            <small>Click to view details</small>
-          </Card>
-        </Col>
-        <Col md={4}>
-          <Card 
-            className="p-3 bg-warning text-dark"
-            style={{ cursor: 'pointer', transition: 'transform 0.2s' }}
-            onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.02)'}
-            onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
-            onClick={() => {
-              setStatsModalType('exams');
-              setStatsModalTitle('Total Exams Posted');
-              setShowStatsModal(true);
-            }}
-          >
-            <h5>Total Exams</h5>
-            <h3>{classes.reduce((acc, cls) => acc + (cls.exams?.length || 0), 0)}</h3>
-            <small>Click to view details</small>
+        <Col md={6}>
+          <Card className="shadow-sm h-100">
+            <Card.Header className="bg-warning">
+              <h5 className="mb-0">
+                <i className="bi bi-bell-fill me-2"></i>Notifications
+              </h5>
+            </Card.Header>
+            <Card.Body style={{ maxHeight: '240px', overflowY: 'auto' }}>
+              {classes.length === 0 ? (
+                <div className="text-center text-muted py-4">
+                  <i className="bi bi-inbox fs-1 d-block mb-2"></i>
+                  <small>No notifications yet</small>
+                </div>
+              ) : (
+                <ListGroup variant="flush">
+                  {/* Show ungraded exams notification */}
+                  {(() => {
+                    const totalSubmissions = classes.reduce((sum, cls) => 
+                      sum + (cls.exams?.reduce((examSum, exam) => 
+                        examSum + (exam.submissions?.length || 0), 0) || 0), 0
+                    );
+                    if (totalSubmissions > 0) {
+                      return (
+                        <ListGroup.Item className="d-flex align-items-center py-2">
+                          <Badge bg="danger" className="me-2">!</Badge>
+                          <div className="flex-grow-1">
+                            <small><strong>{totalSubmissions}</strong> exam submission{totalSubmissions !== 1 ? 's' : ''} to review</small>
+                          </div>
+                          <i className="bi bi-chevron-right"></i>
+                        </ListGroup.Item>
+                      );
+                    }
+                  })()}
+                  
+                  {/* Show active exams */}
+                  {classes.flatMap(cls => 
+                    (cls.exams || []).map(exam => ({
+                      ...exam,
+                      className: `${cls.name} - ${cls.section}`
+                    }))
+                  ).slice(0, 3).map((exam, index) => (
+                    <ListGroup.Item key={index} className="d-flex align-items-center py-2">
+                      <Badge bg="info" className="me-2">📝</Badge>
+                      <div className="flex-grow-1">
+                        <small><strong>{exam.title}</strong> in {exam.className}</small>
+                      </div>
+                    </ListGroup.Item>
+                  ))}
+                  
+                  {/* Show total students */}
+                  {(() => {
+                    const totalStudents = classes.reduce((sum, cls) => sum + (cls.students?.length || 0), 0);
+                    if (totalStudents > 0) {
+                      return (
+                        <ListGroup.Item className="d-flex align-items-center py-2">
+                          <Badge bg="success" className="me-2">👥</Badge>
+                          <div className="flex-grow-1">
+                            <small><strong>{totalStudents}</strong> student{totalStudents !== 1 ? 's' : ''} enrolled across {classes.length} class{classes.length !== 1 ? 'es' : ''}</small>
+                          </div>
+                        </ListGroup.Item>
+                      );
+                    }
+                  })()}
+                </ListGroup>
+              )}
+            </Card.Body>
           </Card>
         </Col>
       </Row>
+      
       <h4 className="fw-bold mb-3 d-flex justify-content-between align-items-center">
         <span>Your classes:</span>
         <Button
@@ -395,7 +486,22 @@ function DashboardAndClasses() {
           <Col key={cls._id || cls.id} md={4} className="mb-3">
             <Card
               className="p-3 h-100"
-              style={{ backgroundColor: cls.bg || "#FFF0D8", border: "1px solid #ccc", borderRadius: "8px" }}
+              style={{ 
+                backgroundColor: cls.bg || "#FFF0D8", 
+                border: "1px solid #ccc", 
+                borderRadius: "8px",
+                cursor: "pointer",
+                transition: "transform 0.2s, box-shadow 0.2s"
+              }}
+              onClick={() => navigate(`/teacher/class/${encodeURIComponent(cls.name)}`)}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = "translateY(-4px)";
+                e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.15)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = "translateY(0)";
+                e.currentTarget.style.boxShadow = "none";
+              }}
             >
               <Card.Body>
                 <Card.Title className="fw-bold">{cls.name}</Card.Title>
@@ -407,12 +513,13 @@ function DashboardAndClasses() {
                   <strong>Students:</strong> {cls.students.length}
                 </p>
               </Card.Body>
-              <Card.Footer className="d-flex justify-content-between align-items-center">
+              <Card.Footer className="d-flex justify-content-end align-items-center">
                 <Button 
                   variant="outline-danger" 
                   size="sm" 
                   aria-label={`Delete class ${cls.name}`}
-                  onClick={async () => {
+                  onClick={async (e) => {
+                    e.stopPropagation();
                     if (window.confirm(`Are you sure you want to delete the class "${cls.name}"? This action cannot be undone.`)) {
                       try {
                         await retry(() => 
@@ -431,14 +538,6 @@ function DashboardAndClasses() {
                   }}
                 >
                   Delete
-                </Button>
-                <Button 
-                  variant="primary" 
-                  size="sm" 
-                  aria-label={`Manage class ${cls.name}`}
-                  onClick={() => navigate(`/teacher/class/${encodeURIComponent(cls.name)}`)}
-                >
-                  Manage Class
                 </Button>
               </Card.Footer>
             </Card>
