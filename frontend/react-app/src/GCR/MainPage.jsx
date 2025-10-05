@@ -3,6 +3,9 @@ import { Link, useNavigate } from "react-router-dom";
 import { Button, Modal, Form, Toast, Spinner, Navbar, Nav, Container, InputGroup, Alert } from "react-bootstrap";
 import axios from "axios";
 import { API_BASE_URL } from "../api";
+import { validateEmail, validatePassword, validateUsername } from "../utils/validation";
+import { showError, parseError } from "../utils/errorHandling";
+import DarkModeToggle from "../components/DarkModeToggle";
 
 // Mobile optimization styles
 const mobileStyles = `
@@ -508,24 +511,52 @@ export default function LandingPage() {
 
   const handleRegister = async (e) => {
     e.preventDefault();
-    if (!formData.name || !formData.username || !formData.email || !formData.password) { // Updated validation
+    
+    // Validate all fields
+    if (!formData.name || !formData.username || !formData.email || !formData.password) {
       setError("All fields are required");
       setShowToast(true);
       return;
     }
+    
+    // Validate email format
+    const emailCheck = validateEmail(formData.email);
+    if (!emailCheck.isValid) {
+      setError(emailCheck.error);
+      setShowToast(true);
+      return;
+    }
+    
+    // Validate username
+    const usernameCheck = validateUsername(formData.username);
+    if (!usernameCheck.isValid) {
+      setError(usernameCheck.error);
+      setShowToast(true);
+      return;
+    }
+    
+    // Validate password strength
+    const passwordCheck = validatePassword(formData.password);
+    if (!passwordCheck.isValid) {
+      setError(passwordCheck.error);
+      setShowToast(true);
+      return;
+    }
+    
     setLoading(true);
     try {
       const res = await retry(() =>
         axios.post(`${API_BASE_URL}/api/register`, formData)
       );
-      console.log("Register response:", res.data); // Debug log
-      setError("Account created successfully! Please login.");
+      console.log("Register response:", res.data);
+      setError("✅ Account created successfully! Please login.");
       setShowToast(true);
       setIsLogin(true);
       setFormData({ name: "", username: "", email: "", password: "", role: "Student" });
     } catch (err) {
       console.error("Register error:", err.response?.data || err.message);
-      setError(err.response?.data?.error || "Registration failed. Check inputs.");
+      const errorMessage = parseError(err);
+      setError(errorMessage);
       setShowToast(true);
     } finally {
       setLoading(false);
@@ -629,11 +660,13 @@ export default function LandingPage() {
 
   const handleLogin = async (e) => {
     e.preventDefault();
+    
     if (!formData.username || !formData.password) {
       setError("Username and password are required");
       setShowToast(true);
       return;
     }
+    
     setLoading(true);
     try {
       const res = await retry(() =>
@@ -656,7 +689,7 @@ export default function LandingPage() {
       setAuthData(res.data.token, res.data.user.username, res.data.user.role);
       
       // Show success message
-      setError("Login successful!");
+      setError("✅ Login successful!");
       setShowToast(true);
       
       console.log("Redirecting to dashboard for role:", res.data.user.role);
@@ -1239,6 +1272,9 @@ export default function LandingPage() {
           </div>
         </Modal.Body>
       </Modal>
+      
+      {/* Dark Mode Toggle */}
+      <DarkModeToggle />
     </div>
   );
 }

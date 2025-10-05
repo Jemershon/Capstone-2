@@ -24,10 +24,11 @@ import {
 } from "react-bootstrap";
 
 // Import components
-import NotificationsDropdown from "./components/NotificationsDropdown";
+import EnhancedNotifications from "../components/EnhancedNotifications";
 import Materials from "./components/Materials";
 import Comments from "./components/Comments";
 import ExamCreator from "./components/ExamCreator";
+import DarkModeToggle from "../components/DarkModeToggle";
 
 // Add custom styles for responsive design and modern UI
 const customStyles = `
@@ -1375,7 +1376,7 @@ function TeacherClassStream() {
           >
             Class Code: {classInfo?.code}
           </Button>
-          <NotificationsDropdown />
+          <EnhancedNotifications />
         </div>
       </div>
 
@@ -4234,6 +4235,9 @@ export default function TeacherDashboard() {
           ✅ Logged out successfully!
         </Toast.Body>
       </Toast>
+      
+      {/* Dark Mode Toggle */}
+      <DarkModeToggle />
     </Container>
   );
 }

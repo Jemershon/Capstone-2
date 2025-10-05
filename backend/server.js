@@ -14,6 +14,7 @@ import { setupSocketIO } from "./socket.js";
 
 // Import middleware and routes
 import { authenticateToken, requireAdmin, requireTeacherOrAdmin, requireStudent } from "./middlewares/auth.js";
+import { validateEmail, validatePassword, validateUsername, rateLimitPasswordReset, sanitizeBody } from "./middlewares/validation.js";
 import materialsRoutes, { setupMaterialsModels } from "./routes/materials.js";
 import commentsRoutes from "./routes/comments.js";
 import notificationsRoutes from "./routes/notifications.js";
@@ -440,20 +441,29 @@ app.post("/api/seed", async (req, res) => {
 });
 
 // Register endpoint
-app.post("/api/register", async (req, res) => {
+app.post("/api/register", validateEmail, validateUsername, validatePassword, async (req, res) => {
   try {
     const { name, username, email, password, role } = req.body;
-    if (!name || !username || !email || !password || !["Student", "Teacher"].includes(role)) {
-      return res.status(400).json({ error: "Invalid input data" });
+    
+    // Additional validation
+    if (!name || !name.trim()) {
+      return res.status(400).json({ error: "Name is required" });
     }
+    
+    if (!["Student", "Teacher"].includes(role)) {
+      return res.status(400).json({ error: "Invalid role. Must be Student or Teacher" });
+    }
+    
     const existingUser = await User.findOne({ $or: [{ username }, { email }] });
     if (existingUser) {
       return res.status(400).json({ error: "Username or email already exists" });
     }
+    
     const hashedPassword = await bcrypt.hash(password, 10);
     const user = new User({ name, username, email, password: hashedPassword, role });
     await user.save();
-    res.status(201).json({ message: "User registered successfully" });
+    
+    res.status(201).json({ message: "✅ User registered successfully" });
   } catch (err) {
     console.error("Register error:", err);
     res.status(500).json({ error: "Registration failed" });
@@ -490,14 +500,14 @@ app.post("/api/register-admin", async (req, res) => {
 });
 
 // Login endpoint
-app.post("/api/login", async (req, res) => {
+app.post("/api/login", validatePassword, async (req, res) => {
   try {
     const { username, email, password } = req.body;
     const loginIdentifier = username || email; // Prioritize username, fallback to email
     console.log("Login attempt for identifier:", loginIdentifier);
     
     if (!loginIdentifier || !password) {
-      return res.status(400).json({ error: "Username and password are required" });
+      return res.status(400).json({ error: "Username/email and password are required" });
     }
     
     // Find user by username first, then by email as fallback
