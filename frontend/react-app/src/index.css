@@ -1,8 +1,26 @@
+:root {
+  --primary-gradient: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  --card-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  --glass-bg: rgba(255, 255, 255, 0.1);
+  --glass-border: 1px solid rgba(255, 255, 255, 0.18);
+  --transition-smooth: all 0.3s ease-in-out;
+}
+
+body {
+  background: linear-gradient(135deg, #1a1c2d 0%, #2d1b69 100%) fixed;
+  color: #fff;
+  min-height: 100vh;
+}
+
 .nav-link-custom {
   color: white !important;
-  border-radius: 5px;
-  padding: 8px 12px;
-  transition: background-color 0.2s ease-in-out;
+  border-radius: 12px;
+  padding: 10px 16px;
+  transition: var(--transition-smooth);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  background: var(--glass-bg);
+  border: var(--glass-border);
 }
 
 .nav-link-custom:hover {
@@ -25,11 +43,209 @@
   padding: 1rem !important;
 }
 
+/* Modern Dashboard Styles */
+.dashboard-header {
+  padding: 2rem 0;
+  margin-bottom: 2rem;
+  border-radius: 16px;
+}
+
+.dashboard-card {
+  background: rgba(255, 255, 255, 0.1);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  padding: 1.5rem;
+  height: 100%;
+  transition: all 0.3s ease;
+}
+
+.dashboard-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+}
+
+/* Modern Navigation */
+.modern-nav {
+  background: rgba(255, 255, 255, 0.1);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.modern-nav .nav-link {
+  color: rgba(255, 255, 255, 0.8);
+  padding: 1rem 1.5rem;
+  transition: all 0.3s ease;
+  border-radius: 8px;
+  margin: 0 0.25rem;
+}
+
+.modern-nav .nav-link:hover,
+.modern-nav .nav-link.active {
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+}
+
+/* Modern Tables */
+.modern-table {
+  background: rgba(255, 255, 255, 0.1);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  overflow: hidden;
+}
+
+.modern-table th {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.8);
+  font-weight: 600;
+  border: none;
+}
+
+.modern-table td {
+  border-color: rgba(255, 255, 255, 0.1);
+  color: white;
+}
+
 /* Desktop: Add left margin for fixed sidebar */
 @media (min-width: 768px) {
   .main-content-responsive {
     margin-left: 16.666667% !important;
   }
+}
+
+/* Modern UI Components */
+.glass-effect {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+}
+
+.glass-effect:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+}
+
+.modern-card {
+  border: none;
+  background: transparent;
+  overflow: hidden;
+}
+
+.modern-card .card-body {
+  padding: 2rem;
+}
+
+.stat-icon {
+  width: 64px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto;
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  border-radius: 16px;
+  color: white;
+}
+
+.stat-value {
+  background: linear-gradient(135deg, #fff 0%, #e0e7ff 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  font-weight: 700;
+}
+
+/* Modern Buttons */
+.btn-modern-primary {
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  border: none;
+  border-radius: 12px;
+  padding: 12px 24px;
+  color: white;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+.btn-modern-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(99, 102, 241, 0.3);
+}
+
+/* Modern Modals */
+.modal-content {
+  background: rgba(23, 25, 35, 0.9);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 16px;
+  color: white;
+}
+
+.modal-header {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 1.5rem;
+}
+
+.modal-footer {
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 1.5rem;
+}
+
+/* Modern Forms */
+.form-control, .form-select {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 12px;
+  color: white;
+  padding: 0.75rem 1rem;
+  transition: all 0.3s ease;
+}
+
+.form-control:focus, .form-select:focus {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.3);
+  box-shadow: 0 0 0 0.25rem rgba(99, 102, 241, 0.25);
+  color: white;
+}
+
+.form-label {
+  color: rgba(255, 255, 255, 0.8);
+  font-weight: 500;
+  margin-bottom: 0.5rem;
+}
+
+/* Form Validation States */
+.form-control.is-valid, .form-select.is-valid {
+  border-color: rgba(16, 185, 129, 0.5);
+  background-color: rgba(16, 185, 129, 0.1);
+}
+
+.form-control.is-invalid, .form-select.is-invalid {
+  border-color: rgba(239, 68, 68, 0.5);
+  background-color: rgba(239, 68, 68, 0.1);
+}
+
+/* Toast Notifications */
+.toast {
+  background: rgba(23, 25, 35, 0.9);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 12px;
+  color: white;
+}
+
+.toast-header {
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 /* Mobile: Add top margin for fixed navbar, no left margin */
@@ -42,7 +258,39 @@
     overflow-x: hidden !important;
   }
   
-  /* Ensure no horizontal scrolling on mobile */
+  /* Modern Animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideIn {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.5s ease-out forwards;
+}
+
+.animate-slide-in {
+  animation: slideIn 0.3s ease-out forwards;
+}
+
+/* Hover Effects */
+.hover-lift {
+  transition: transform 0.3s ease;
+}
+
+.hover-lift:hover {
+  transform: translateY(-5px);
+}
+
+.hover-glow:hover {
+  box-shadow: 0 0 20px rgba(99, 102, 241, 0.4);
+}
+
+/* Ensure no horizontal scrolling on mobile */
   body {
     overflow-x: hidden !important;
   }
