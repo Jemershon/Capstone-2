@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import axios from "axios";
 import { API_BASE_URL, getAuthToken, getUsername, checkAuth, updateExam, deleteExam } from "../api";
+import { retryRequest } from "../utils/errorHandling";
 import { NavLink, Link, Routes, Route, useNavigate, useParams } from "react-router-dom";
 import { io } from "socket.io-client";
 import {
@@ -3900,7 +3901,7 @@ function Profile() {
         </Col>
       </Row>
 
-      {/* Edit Profile Modal */
+      {/* Edit Profile Modal */}
       <Modal show={showEditModal} onHide={() => setShowEditModal(false)} centered>
         <Modal.Header closeButton className="border-0">
           <Modal.Title>⚙️ Edit Profile</Modal.Title>
@@ -3937,7 +3938,6 @@ function Profile() {
           </Button>
         </Modal.Footer>
       </Modal>
-
       {/* Logout Confirmation Modal */}
       <Modal show={showLogoutModal} onHide={() => setShowLogoutModal(false)} centered>
         <Modal.Header closeButton className="border-0">
@@ -4043,8 +4043,7 @@ export default function TeacherDashboard() {
     } else {
       setAuthLoading(false);
     }
-    // Remove isAuthenticated from dependencies to prevent re-verification on state changes
-  }, []); // Empty dependency array - only run once on mount
+  }, [isAuthenticated, verifyToken]); // Add proper dependencies
 
   if (authLoading) {
     return (
