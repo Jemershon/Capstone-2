@@ -1,0 +1,329 @@
+/* Enhanced Mobile Responsiveness */
+
+/* Base mobile styles */
+@media (max-width: 768px) {
+  /* Typography */
+  h1 { font-size: 1.75rem !important; }
+  h2 { font-size: 1.5rem !important; }
+  h3 { font-size: 1.25rem !important; }
+  h4 { font-size: 1.125rem !important; }
+  
+  /* Larger tap targets (min 44x44px for accessibility) */
+  .btn {
+    min-height: 44px !important;
+    padding: 0.75rem 1.25rem !important;
+  }
+  
+  .nav-link {
+    min-height: 44px !important;
+    display: flex !important;
+    align-items: center !important;
+    padding: 0.75rem 1rem !important;
+  }
+  
+  /* Better spacing */
+  .card {
+    margin-bottom: 1rem !important;
+  }
+  
+  .card-body {
+    padding: 1rem !important;
+  }
+  
+  .modal-body {
+    padding: 1.25rem !important;
+  }
+  
+  /* Form improvements */
+  .form-control,
+  .form-select {
+    min-height: 44px !important;
+    font-size: 16px !important; /* Prevents zoom on iOS */
+  }
+  
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  textarea {
+    font-size: 16px !important; /* Prevents zoom on iOS */
+  }
+  
+  /* Better button spacing */
+  .btn-group-vertical .btn {
+    margin-bottom: 0.5rem !important;
+  }
+  
+  /* Stack buttons on mobile */
+  .d-flex.gap-2 {
+    flex-direction: column !important;
+    gap: 0.75rem !important;
+  }
+  
+  .d-flex.gap-2 .btn {
+    width: 100% !important;
+  }
+  
+  /* Table improvements */
+  .table {
+    font-size: 0.875rem !important;
+  }
+  
+  .table td,
+  .table th {
+    padding: 0.5rem !important;
+  }
+  
+  /* Modal improvements */
+  .modal-dialog {
+    margin: 0.5rem !important;
+  }
+  
+  .modal-fullscreen-sm-down {
+    max-width: 100% !important;
+    margin: 0 !important;
+  }
+  
+  /* Dropdown improvements */
+  .dropdown-menu {
+    max-width: 90vw !important;
+  }
+  
+  /* Card grid improvements */
+  .row.g-3,
+  .row.g-4 {
+    gap: 1rem !important;
+  }
+  
+  /* Better image responsiveness */
+  img {
+    max-width: 100% !important;
+    height: auto !important;
+  }
+  
+  /* Prevent horizontal scrolling */
+  body {
+    overflow-x: hidden !important;
+  }
+  
+  .container,
+  .container-fluid {
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
+  }
+  
+  /* Toast/notification positioning */
+  .toast {
+    max-width: calc(100vw - 2rem) !important;
+    margin: 1rem !important;
+  }
+  
+  /* Badge improvements */
+  .badge {
+    font-size: 0.75rem !important;
+    padding: 0.35em 0.65em !important;
+  }
+  
+  /* Nav tabs improvements */
+  .nav-tabs {
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    scroll-behavior: smooth;
+  }
+  
+  .nav-tabs .nav-link {
+    white-space: nowrap !important;
+  }
+  
+  /* Hide scrollbar but keep functionality */
+  .nav-tabs::-webkit-scrollbar {
+    display: none;
+  }
+  
+  /* Alert improvements */
+  .alert {
+    font-size: 0.875rem !important;
+  }
+  
+  /* Sidebar adjustments */
+  .sidebar {
+    width: 100% !important;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    height: 100vh !important;
+    z-index: 1050 !important;
+    transform: translateX(-100%) !important;
+    transition: transform 0.3s ease !important;
+  }
+  
+  .sidebar.show {
+    transform: translateX(0) !important;
+  }
+  
+  /* List group improvements */
+  .list-group-item {
+    padding: 0.75rem 1rem !important;
+  }
+  
+  /* Improved class cards mobile spacing */
+  .class-card-modern {
+    margin: 10px 0 !important;
+    padding: 1rem !important;
+  }
+  
+  /* Better stat cards on mobile */
+  .stats-card {
+    margin-bottom: 1rem !important;
+  }
+  
+  /* Pagination improvements */
+  .pagination {
+    flex-wrap: wrap !important;
+    justify-content: center !important;
+  }
+  
+  .pagination .page-item {
+    margin: 0.25rem !important;
+  }
+}
+
+/* Extra small devices (portrait phones) */
+@media (max-width: 576px) {
+  /* Even more compact spacing */
+  .container,
+  .container-fluid {
+    padding-left: 0.75rem !important;
+    padding-right: 0.75rem !important;
+  }
+  
+  .card-body {
+    padding: 0.75rem !important;
+  }
+  
+  /* Smaller font sizes */
+  body {
+    font-size: 0.875rem !important;
+  }
+  
+  .btn {
+    font-size: 0.875rem !important;
+    padding: 0.5rem 1rem !important;
+  }
+  
+  /* Stack columns on very small screens */
+  .row > * {
+    padding-left: 0.5rem !important;
+    padding-right: 0.5rem !important;
+  }
+}
+
+/* Landscape mobile devices */
+@media (max-width: 896px) and (orientation: landscape) {
+  /* Reduce vertical padding in landscape */
+  .py-4 {
+    padding-top: 1rem !important;
+    padding-bottom: 1rem !important;
+  }
+  
+  .py-5 {
+    padding-top: 1.5rem !important;
+    padding-bottom: 1.5rem !important;
+  }
+  
+  /* Adjust modal height for landscape */
+  .modal-dialog {
+    max-height: 90vh !important;
+  }
+  
+  .modal-body {
+    max-height: 60vh !important;
+    overflow-y: auto !important;
+  }
+}
+
+/* Tablet improvements (768px - 1024px) */
+@media (min-width: 768px) and (max-width: 1024px) {
+  .container {
+    max-width: 100% !important;
+    padding-left: 2rem !important;
+    padding-right: 2rem !important;
+  }
+  
+  /* Better card grid on tablets */
+  .col-md-6 {
+    flex: 0 0 50% !important;
+    max-width: 50% !important;
+  }
+  
+  .col-md-4 {
+    flex: 0 0 50% !important;
+    max-width: 50% !important;
+  }
+}
+
+/* Touch device optimizations */
+@media (hover: none) and (pointer: coarse) {
+  /* Larger interactive elements */
+  button,
+  a,
+  .btn,
+  .nav-link {
+    min-height: 44px !important;
+    min-width: 44px !important;
+  }
+  
+  /* Remove hover effects on touch devices */
+  .btn:hover,
+  .card:hover {
+    transform: none !important;
+  }
+  
+  /* Better tap feedback */
+  button:active,
+  .btn:active {
+    transform: scale(0.98) !important;
+  }
+}
+
+/* High contrast mode for accessibility */
+@media (prefers-contrast: high) {
+  .btn {
+    border: 2px solid currentColor !important;
+  }
+  
+  .card {
+    border: 2px solid currentColor !important;
+  }
+}
+
+/* Reduced motion for accessibility */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Print styles */
+@media print {
+  .sidebar,
+  .navbar,
+  .btn,
+  .dropdown,
+  .modal,
+  .toast {
+    display: none !important;
+  }
+  
+  .card {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+  
+  a[href]:after {
+    content: " (" attr(href) ")";
+  }
+}

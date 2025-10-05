@@ -544,13 +544,19 @@ export default function LandingPage() {
       const res = await axios.post(`${API_BASE_URL}/api/send-reset-code`, {
         email: forgotPasswordEmail
       });
-      setResetCode(res.data.resetCode);
-      setError(`Reset code sent! Your code is: ${res.data.resetCode}`);
+      
+      // Store reset code from response
+      if (res.data.resetCode) {
+        setResetCode(res.data.resetCode);
+      }
+      
+      // Show message with reset code
+      setError(`Your reset code is: ${res.data.resetCode}`);
       setShowToast(true);
       setResetStep(2);
     } catch (err) {
       console.error("Send reset code error:", err.response?.data || err.message);
-      setError(err.response?.data?.error || "Failed to send reset code. Please try again.");
+      setError(err.response?.data?.error || "Failed to send reset code. Please check your email and try again.");
       setShowToast(true);
     } finally {
       setLoading(false);

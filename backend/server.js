@@ -207,6 +207,11 @@ const connectToMongoDB = async (retries = 3) => {
 // Connect to MongoDB
 connectToMongoDB();
 
+// Note: Forgot password uses on-screen code display (no email service)
+setTimeout(() => {
+  console.log('\n💡 Forgot password feature: Displays reset code on screen');
+}, 3000);
+
 // Schemas
 const UserSchema = new mongoose.Schema({
   name: String,
@@ -571,13 +576,12 @@ app.post("/api/send-reset-code", async (req, res) => {
     
     console.log("Reset code generated for", user.username, ":", resetCode);
     
-    // In a real application, send this code via email
-    // For demo purposes, we return it in the response
-    
+    // Return the reset code to display on screen
     res.json({ 
-      message: "Reset code sent successfully",
-      resetCode: resetCode, // In production, send via email instead!
-      email: user.email
+      message: "Your reset code is displayed below. Use it to reset your password.",
+      resetCode: resetCode,
+      email: user.email,
+      success: true
     });
   } catch (err) {
     console.error("Send reset code error:", err);

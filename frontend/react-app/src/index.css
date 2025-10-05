@@ -55,7 +55,8 @@
   /* Make tables responsive on mobile */
   .table-responsive {
     overflow-x: auto !important;
-    -webkit-overflow-scrolling: touch !important;
+    /* Smooth scrolling on mobile devices */
+    scroll-behavior: smooth !important;
   }
   
   /* Ensure cards and content fit mobile screens */
