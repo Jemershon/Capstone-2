@@ -718,7 +718,7 @@ export default function LandingPage() {
             A Smarter Way to Learn
           </h1>
           <p className="lead mt-3">
-            Connect teachers and students in one simple platform. Transform your classroom experience with modern tools.
+            Connect teachers and students in one simple platform.
           </p>
           <div className="mt-4 d-flex gap-3 landing-hero-buttons">
             <button

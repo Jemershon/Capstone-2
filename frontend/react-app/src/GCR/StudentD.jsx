@@ -286,6 +286,18 @@ const customStyles = `
     h1, h2, h3, h4, h5, h6 {
       margin-top: 0 !important;
     }
+    
+    /* Class cards mobile spacing */
+    .class-card-modern {
+      margin-bottom: 20px !important;
+    }
+    
+    /* Add horizontal padding for class cards on mobile */
+    .row > .mb-3 {
+      padding-left: 10px !important;
+      padding-right: 10px !important;
+      margin-bottom: 20px !important;
+    }
   }
 `;
 
@@ -2594,38 +2606,7 @@ function StudentProfile() {
         </Col>
       </Row>
 
-      {/* Quick Actions */}
-      <Card className="shadow-sm">
-        <Card.Header className="bg-secondary text-white">
-          <h5 className="mb-0">
-            <i className="bi bi-lightning-charge me-2"></i>Quick Actions
-          </h5>
-        </Card.Header>
-        <Card.Body>
-          <Row>
-            <Col md={4} className="mb-3">
-              <Button variant="outline-primary" className="w-100 py-3" onClick={() => navigate('/student/dashboard')}>
-                <i className="bi bi-house-fill d-block fs-3 mb-2"></i>
-                Dashboard
-              </Button>
-            </Col>
-            <Col md={4} className="mb-3">
-              <Button variant="outline-success" className="w-100 py-3" onClick={handleEditProfile}>
-                <i className="bi bi-gear-fill d-block fs-3 mb-2"></i>
-                Settings
-              </Button>
-            </Col>
-            <Col md={4} className="mb-3">
-              <Button variant="outline-info" className="w-100 py-3" onClick={() => navigate('/student/grades')}>
-                <i className="bi bi-graph-up d-block fs-3 mb-2"></i>
-                Grades
-              </Button>
-            </Col>
-          </Row>
-        </Card.Body>
-      </Card>
-
-      {/* Edit Profile Modal */}
+      {/* Edit Profile Modal */
       <Modal show={showEditModal} onHide={() => setShowEditModal(false)} centered>
         <Modal.Header closeButton className="border-0">
           <Modal.Title>⚙️ Edit Profile</Modal.Title>
