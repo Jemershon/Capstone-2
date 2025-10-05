@@ -499,8 +499,8 @@ app.post("/api/register-admin", async (req, res) => {
   }
 });
 
-// Login endpoint
-app.post("/api/login", validatePassword, async (req, res) => {
+// Login endpoint - NO validation on login (existing users may have old passwords)
+app.post("/api/login", async (req, res) => {
   try {
     const { username, email, password } = req.body;
     const loginIdentifier = username || email; // Prioritize username, fallback to email
