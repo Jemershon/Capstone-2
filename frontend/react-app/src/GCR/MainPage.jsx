@@ -7,6 +7,50 @@ import { API_BASE_URL } from "../api";
 // Mobile optimization styles
 const mobileStyles = `
   @media (max-width: 767px) {
+    /* Hide navbar on mobile */
+    .modern-navbar {
+      display: none !important;
+    }
+    
+    /* Mobile header with Get Started button */
+    .mobile-header {
+      display: flex !important;
+      justify-content: space-between;
+      align-items: center;
+      padding: 15px 20px;
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+      box-shadow: 0 4px 16px 0 rgba(31, 38, 135, 0.15);
+    }
+    
+    .mobile-header .brand {
+      color: white;
+      font-weight: 700;
+      font-size: 1.5rem;
+      text-shadow: 0 2px 10px rgba(0,0,0,0.2);
+      margin: 0;
+    }
+    
+    .mobile-header .btn-login {
+      background: rgba(255, 255, 255, 0.2);
+      backdrop-filter: blur(10px);
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      color: white;
+      padding: 8px 20px;
+      border-radius: 50px;
+      font-weight: 600;
+      font-size: 0.9rem;
+      transition: all 0.3s ease;
+    }
+    
+    .mobile-header .btn-login:hover {
+      background: rgba(255, 255, 255, 0.3);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 15px rgba(255, 255, 255, 0.3);
+    }
+    
     /* Center all content on mobile */
     .landing-hero-section {
       padding: 40px 15px !important;
@@ -73,25 +117,12 @@ const mobileStyles = `
       padding: 0 !important;
       margin-bottom: 20px !important;
     }
-    
-    /* Navbar optimization */
-    .modern-navbar {
-      padding: 15px 20px !important;
-    }
-    
-    .navbar-brand {
-      font-size: 1.5rem !important;
-    }
-    
-    .navbar-collapse {
-      text-align: center !important;
-      margin-top: 10px !important;
-    }
-    
-    .navbar .btn {
-      width: 100% !important;
-      max-width: 200px !important;
-      margin: 10px auto 0 !important;
+  }
+  
+  @media (min-width: 768px) {
+    /* Hide mobile header on desktop */
+    .mobile-header {
+      display: none !important;
     }
   }
   
@@ -650,29 +681,27 @@ export default function LandingPage() {
 
   return (
     <div className="d-flex flex-column min-vh-100 modern-gradient-bg">
-      <Navbar expand="lg" className="modern-navbar px-4">
+      {/* Mobile Header - visible only on mobile */}
+      <div className="mobile-header d-lg-none">
+        <h1 className="brand">🎓 Remora</h1>
+        <Button
+          className="btn-login"
+          onClick={handleShowModal}
+          aria-label="Get started"
+        >
+          Get Started
+        </Button>
+      </div>
+
+      {/* Desktop Navbar - hidden on mobile */}
+      <Navbar expand="lg" className="modern-navbar px-4 d-none d-lg-flex">
         <Container fluid>
           <Navbar.Brand className="fw-bold fs-3">🎓 Remora</Navbar.Brand>
-          <div className="d-flex align-items-center gap-2">
-            {/* Get Started button visible on mobile */}
-            <Button
-              className="btn-login d-lg-none"
-              onClick={handleShowModal}
-              aria-label="Get started"
-              style={{ padding: '8px 20px', fontSize: '0.9rem' }}
-            >
-              Get Started
-            </Button>
-            <Navbar.Toggle aria-controls="main-nav" style={{ borderColor: 'rgba(255,255,255,0.3)' }}>
-              <span style={{ color: 'white' }}>☰</span>
-            </Navbar.Toggle>
-          </div>
           <Navbar.Collapse id="main-nav">
             <Nav className="ms-auto align-items-lg-center">
               <Nav.Link href="#features" className="mx-2" style={{ color: 'white', fontWeight: 500 }}>Features</Nav.Link>
-              {/* Get Started button visible on desktop */}
               <Button
-                className="btn-login ms-lg-3 d-none d-lg-block"
+                className="btn-login ms-lg-3"
                 onClick={handleShowModal}
                 aria-label="Get started"
               >
