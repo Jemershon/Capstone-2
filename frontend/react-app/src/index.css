@@ -90,12 +90,35 @@ body {
 
 /* Modern Tables */
 .modern-table {
-  background: rgba(255, 255, 255, 0.1);
-  -webkit-backdrop-filter: blur(10px);
-  backdrop-filter: blur(10px);
-  border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: var(--bg-primary);
+  border-radius: var(--radius-lg);
+  border: none;
   overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+
+.modern-table thead {
+  background: var(--primary-gradient);
+  color: white;
+}
+
+.modern-table th {
+  font-weight: 600;
+  padding: 1rem;
+  border: none;
+}
+
+.modern-table td {
+  padding: 1rem;
+  border-bottom: 1px solid var(--bg-secondary);
+}
+
+.modern-table tbody tr {
+  transition: var(--transition);
+}
+
+.modern-table tbody tr:hover {
+  background: var(--bg-secondary);
 }
 
 .modern-table th {
@@ -164,13 +187,35 @@ body {
 
 /* Modern Buttons */
 .btn-modern-primary {
-  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  background: var(--primary-gradient);
   border: none;
-  border-radius: 12px;
-  padding: 12px 24px;
+  border-radius: var(--radius-md);
+  padding: 0.75rem 1.5rem;
   color: white;
   font-weight: 600;
-  transition: all 0.3s ease;
+  transition: var(--transition);
+  box-shadow: var(--shadow-sm);
+}
+
+.btn-modern-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.btn-modern-secondary {
+  background: transparent;
+  border: 2px solid var(--primary-color);
+  color: var(--primary-color);
+  border-radius: var(--radius-md);
+  padding: 0.75rem 1.5rem;
+  font-weight: 600;
+  transition: var(--transition);
+}
+
+.btn-modern-secondary:hover {
+  background: var(--primary-color);
+  color: white;
+  transform: translateY(-2px);
 }
 
 .btn-modern-primary:hover {

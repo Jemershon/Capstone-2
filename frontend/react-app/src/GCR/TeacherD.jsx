@@ -235,12 +235,13 @@ const customStyles = `
   
   /* Class Cards Modern */
   .class-card-modern {
-    border-radius: 20px;
+    border-radius: var(--radius-lg);
     border: none;
     overflow: hidden;
-    transition: all 0.3s ease;
-    box-shadow: 0 10px 25px rgba(0,0,0,0.08);
-    background: white;
+    transition: var(--transition);
+    box-shadow: var(--shadow-md);
+    background: var(--bg-primary);
+    height: 100%;
   }
   
   .class-card-modern:hover {
@@ -255,14 +256,14 @@ const customStyles = `
   
   /* Modern Buttons */
   .btn-modern-primary {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: var(--primary-gradient);
     border: none;
-    border-radius: 12px;
-    padding: 12px 24px;
+    border-radius: var(--radius-md);
+    padding: 0.75rem 1.5rem;
     font-weight: 600;
     color: white;
-    transition: all 0.3s ease;
-    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+    transition: var(--transition);
+    box-shadow: var(--shadow-sm);
   }
   
   .btn-modern-primary:hover {

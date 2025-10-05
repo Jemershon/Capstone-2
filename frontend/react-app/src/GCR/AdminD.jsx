@@ -22,13 +22,15 @@ import {
 const customStyles = `
   /* Modern gradient theme styles */
   .modern-gradient-bg {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: var(--primary-gradient);
     min-height: 100vh;
   }
 
   .modern-sidebar {
-    background: linear-gradient(180deg, #667eea 0%, #764ba2 100%) !important;
-    box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+    background: var(--primary-gradient) !important;
+    box-shadow: var(--shadow-md);
+    border-radius: 0 var(--radius-lg) var(--radius-lg) 0;
+    padding: 2rem 1rem;
   }
 
   .modern-mobile-navbar {

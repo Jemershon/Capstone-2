@@ -14,9 +14,11 @@ const styles = `
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 4rem 2rem;
+    padding: 0;
     position: relative;
     overflow: hidden;
+    background: radial-gradient(circle at center, rgba(99, 102, 241, 0.15) 0%, transparent 70%);
+    text-align: center;
   }
 
   .hero-content {
@@ -24,29 +26,41 @@ const styles = `
     z-index: 1;
     text-align: center;
     max-width: 800px;
+    margin: 0 auto;
+    padding: 2rem;
   }
 
   .hero-title {
-    font-size: 3.5rem;
+    font-size: 4rem;
     font-weight: 800;
     margin-bottom: 1.5rem;
-    background: linear-gradient(135deg, #fff 0%, #e0e7ff 100%);
+    background: linear-gradient(135deg, #ffffff 0%, #e0e7ff 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     text-align: center;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+    animation: fadeInUp 0.8s ease-out;
   }
 
   .hero-subtitle {
-    font-size: 1.25rem;
-    color: rgba(255, 255, 255, 0.8);
+    font-size: 1.5rem;
+    color: rgba(255, 255, 255, 0.9);
     margin-bottom: 2rem;
     line-height: 1.6;
+    max-width: 600px;
+    margin-left: auto;
+    margin-right: auto;
+    animation: fadeInUp 1s ease-out 0.2s;
+    animation-fill-mode: both;
   }
 
   .hero-cta {
-    display: inline-flex;
+    display: flex;
     align-items: center;
+    justify-content: center;
     gap: 1rem;
+    margin-top: 2rem;
     background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
     color: white;
     padding: 1rem 2rem;
@@ -185,9 +199,13 @@ const styles = `
   
   /* Modern Gradient Background */
   .modern-gradient-bg {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #1a1c2d 0%, #2d1b69 100%);
     position: relative;
     overflow: hidden;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
   
   .modern-gradient-bg::before {
@@ -209,13 +227,60 @@ const styles = `
     50% { opacity: 0.8; }
   }
   
-  /* Glassmorphism Navbar */
-  .modern-navbar {
-    background: rgba(255, 255, 255, 0.1) !important;
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
+  /* Clean modern design */
+  .landing-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    text-align: center;
+    padding: 2rem;
+    max-width: 800px;
+    margin: 0 auto;
+  }
+
+  .logo-text {
+    font-size: 2.5rem;
+    font-weight: 800;
+    margin-bottom: 1.5rem;
+    background: linear-gradient(135deg, #fff 0%, #e0e7ff 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    text-align: center;
+  }
+
+  .description {
+    font-size: 1.25rem;
+    color: rgba(255, 255, 255, 0.8);
+    margin-bottom: 2rem;
+    line-height: 1.6;
+    max-width: 600px;
+  }
+
+  .get-started-btn {
+    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+    color: white;
+    padding: 1.25rem 3rem;
+    border-radius: 50px;
+    font-weight: 600;
+    font-size: 1.25rem;
+    border: none;
+    transition: all 0.3s ease;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    margin: 2rem auto;
+    box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
+  }
+
+  .get-started-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(99, 102, 241, 0.3);
+    color: white;
   }
   
   .modern-navbar .navbar-brand {
@@ -774,65 +839,23 @@ export default function LandingPage() {
 
   return (
     <div className="d-flex flex-column min-vh-100 modern-gradient-bg">
-      {/* Mobile Header - visible only on mobile */}
-      <div className="mobile-header d-lg-none">
-        <h1 className="brand">🎓 Remora</h1>
-        <Button
-          className="btn-login"
-          onClick={handleShowModal}
-          aria-label="Get started"
-        >
-          Get Started
-        </Button>
-      </div>
-
-      {/* Desktop Navbar - hidden on mobile */}
-      <Navbar expand="lg" className="modern-navbar px-4 d-none d-lg-flex">
-        <Container fluid>
-          <Navbar.Brand className="fw-bold fs-3">🎓 Remora</Navbar.Brand>
-          <Navbar.Collapse id="main-nav">
-            <Nav className="ms-auto align-items-lg-center">
-              <Nav.Link href="#features" className="mx-2" style={{ color: 'white', fontWeight: 500 }}>Features</Nav.Link>
-              <Button
-                className="btn-login ms-lg-3"
-                onClick={handleShowModal}
-                aria-label="Get started"
-              >
-                Get Started
-              </Button>
-            </Nav>
-          </Navbar.Collapse>
-        </Container>
-      </Navbar>
-
-      <section className="container flex-grow-1 d-flex flex-column flex-md-row align-items-center justify-content-between py-5 landing-hero-section">
-        <div className="col-md-6">
-          <h1 className="display-4 fw-bold">
+      <section className="hero-section">
+        <div className="hero-content">
+          <h1 className="hero-title">
             A Smarter Way to Learn
           </h1>
-          <p className="lead mt-3">
+          <p className="hero-subtitle">
             Connect teachers and students in one simple platform.
           </p>
-          <div className="mt-4 d-flex gap-3 landing-hero-buttons">
+          <div className="hero-cta">
             <button
-              className="btn btn-modern-primary"
-              onClick={() => openModalWithRole("Student")}
-              aria-label="Join as Student"
+              className="get-started-btn"
+              onClick={handleShowModal}
+              aria-label="Get Started"
             >
-              Join as Student
+              Get Started
+              <i className="bi bi-arrow-right"></i>
             </button>
-            <button
-              className="btn btn-modern-secondary"
-              onClick={() => openModalWithRole("Teacher")}
-              aria-label="Join as Teacher"
-            >
-              Join as Teacher
-            </button>
-          </div>
-        </div>
-        <div className="col-md-5 text-center mt-5 mt-md-0 landing-hero-image">
-          <div className="hero-icon">
-            <i className="bi bi-mortarboard-fill"></i>
           </div>
         </div>
       </section>

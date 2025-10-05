@@ -1,0 +1,253 @@
+/* Modern UI Theme Variables */
+:root {
+  --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --primary-color: #667eea;
+  --secondary-color: #764ba2;
+  --text-primary: #2d3748;
+  --text-secondary: #4a5568;
+  --bg-primary: #ffffff;
+  --bg-secondary: #f7fafc;
+  --shadow-sm: 0 4px 6px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 8px 15px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 15px 30px rgba(0, 0, 0, 0.15);
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 20px;
+  --transition: all 0.3s ease;
+}
+
+/* Modern Cards */
+.modern-card {
+  border-radius: var(--radius-lg);
+  border: none;
+  background: var(--bg-primary);
+  box-shadow: var(--shadow-md);
+  transition: var(--transition);
+  overflow: hidden;
+}
+
+.modern-card:hover {
+  transform: translateY(-5px);
+  box-shadow: var(--shadow-lg);
+}
+
+.modern-card-header {
+  background: var(--primary-gradient);
+  color: white;
+  padding: 1.25rem 1.5rem;
+  font-weight: 600;
+  border: none;
+}
+
+/* Modern Buttons */
+.btn-modern-primary {
+  background: var(--primary-gradient);
+  border: none;
+  border-radius: var(--radius-md);
+  padding: 0.75rem 1.5rem;
+  font-weight: 600;
+  color: white;
+  transition: var(--transition);
+  box-shadow: var(--shadow-sm);
+}
+
+.btn-modern-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.btn-modern-secondary {
+  background: transparent;
+  border: 2px solid var(--primary-color);
+  color: var(--primary-color);
+  border-radius: var(--radius-md);
+  padding: 0.75rem 1.5rem;
+  font-weight: 600;
+  transition: var(--transition);
+}
+
+.btn-modern-secondary:hover {
+  background: var(--primary-color);
+  color: white;
+  transform: translateY(-2px);
+}
+
+/* Modern Forms */
+.form-control-modern {
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--bg-secondary);
+  padding: 0.75rem 1rem;
+  transition: var(--transition);
+  background: var(--bg-primary);
+}
+
+.form-control-modern:focus {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.15);
+  outline: none;
+}
+
+.form-label-modern {
+  color: var(--text-secondary);
+  font-weight: 500;
+  margin-bottom: 0.5rem;
+}
+
+/* Modern Tables */
+.modern-table {
+  background: var(--bg-primary);
+  border-radius: var(--radius-lg);
+  border: none;
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+
+.modern-table thead {
+  background: var(--primary-gradient);
+  color: white;
+}
+
+.modern-table th {
+  font-weight: 600;
+  padding: 1rem;
+  border: none;
+}
+
+.modern-table td {
+  padding: 1rem;
+  border-bottom: 1px solid var(--bg-secondary);
+}
+
+.modern-table tbody tr {
+  transition: var(--transition);
+}
+
+.modern-table tbody tr:hover {
+  background: var(--bg-secondary);
+}
+
+/* Modern Modals */
+.modern-modal .modal-content {
+  border-radius: var(--radius-lg);
+  border: none;
+  box-shadow: var(--shadow-lg);
+}
+
+.modern-modal .modal-header {
+  background: var(--primary-gradient);
+  color: white;
+  border-bottom: none;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  padding: 1.5rem;
+}
+
+.modern-modal .modal-body {
+  padding: 2rem;
+}
+
+.modern-modal .modal-footer {
+  border-top: 1px solid var(--bg-secondary);
+  padding: 1.5rem;
+}
+
+.modern-modal .modal-title {
+  font-weight: 600;
+  font-size: 1.25rem;
+}
+
+/* Badges and Alerts */
+.badge-modern {
+  border-radius: var(--radius-sm);
+  padding: 0.35em 0.75em;
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.5px;
+}
+
+.badge-modern-primary {
+  background: var(--primary-gradient);
+  color: white;
+}
+
+.alert-modern {
+  border-radius: var(--radius-md);
+  border: none;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1rem;
+  box-shadow: var(--shadow-sm);
+}
+
+.alert-modern-success {
+  background: linear-gradient(135deg, #84cc16 0%, #22c55e 100%);
+  color: white;
+}
+
+.alert-modern-danger {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  color: white;
+}
+
+/* Sidebar */
+.modern-sidebar {
+  background: var(--primary-gradient) !important;
+  box-shadow: var(--shadow-md);
+  border-radius: 0 var(--radius-lg) var(--radius-lg) 0;
+  padding: 2rem 1rem;
+}
+
+.modern-sidebar .nav-link {
+  color: rgba(255, 255, 255, 0.8);
+  border-radius: var(--radius-md);
+  padding: 0.75rem 1rem;
+  margin: 0.25rem 0;
+  transition: var(--transition);
+}
+
+.modern-sidebar .nav-link:hover,
+.modern-sidebar .nav-link.active {
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+  transform: translateX(5px);
+}
+
+/* Animations */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-in-up {
+  animation: fadeInUp 0.5s ease-out;
+}
+
+/* Dark Mode Support */
+[data-theme="dark"] {
+  --bg-primary: #1a1c2d;
+  --bg-secondary: #2d2d3f;
+  --text-primary: #e2e8f0;
+  --text-secondary: #a0aec0;
+}
+
+/* Responsive Utilities */
+@media (max-width: 768px) {
+  .modern-sidebar {
+    border-radius: 0;
+  }
+  
+  .modern-card {
+    margin-bottom: 1rem;
+  }
+  
+  .btn-modern-primary,
+  .btn-modern-secondary {
+    width: 100%;
+    margin-bottom: 0.5rem;
+  }
+}

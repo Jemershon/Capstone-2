@@ -12,7 +12,7 @@ import { io } from "socket.io-client";
 const customStyles = `
   /* Modern gradient theme styles */
   .modern-gradient-bg {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: var(--primary-gradient);
     min-height: 100vh;
   }
 
@@ -86,14 +86,14 @@ const customStyles = `
   }
 
   .btn-modern-primary {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: var(--primary-gradient);
     border: none;
     color: white;
-    padding: 10px 24px;
-    border-radius: 25px;
+    padding: 0.75rem 1.5rem;
+    border-radius: var(--radius-md);
     font-weight: 600;
-    transition: all 0.3s ease;
-    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+    transition: var(--transition);
+    box-shadow: var(--shadow-sm);
   }
 
   .btn-modern-primary:hover {
