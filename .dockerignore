@@ -1,6 +1,8 @@
-# Frontend (completely exclude)
-frontend/
-react-app/
+# Frontend exclusions removed so build systems (Nixpacks / Docker) can
+# include the frontend/react-app folder during image builds. This ensures
+# the `cd frontend/react-app && npm install && npm run build` step finds
+# the frontend code. (If you need to re-exclude for local reasons, adjust
+# your CI/CD or Dockerfile instead.)
 
 # Dependencies
 node_modules/
