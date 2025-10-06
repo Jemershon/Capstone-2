@@ -1,14 +1,30 @@
 import axios from 'axios';
 
-// Determine the API base URL from environment variables or use the default
-export const API_BASE_URL = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_URL)
-	? import.meta.env.VITE_API_URL
-	: (typeof process !== 'undefined' && process.env && process.env.REACT_APP_API_URL)
-		? process.env.REACT_APP_API_URL
-		: 'http://localhost:4000';
+// Read the raw API base value from env (support Vite and older react env var)
+const rawApiBase = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_URL)
+  ? import.meta.env.VITE_API_URL
+  : (typeof process !== 'undefined' && process.env && process.env.REACT_APP_API_URL)
+    ? process.env.REACT_APP_API_URL
+    : 'http://localhost:4000';
 
-// Debug API URL during initialization
-console.log('🔌 API_BASE_URL initialized as:', API_BASE_URL);
+// Normalize the API base to an absolute URL. Browsers treat values without a
+// protocol as relative paths (which causes the current origin to be prepended).
+// If the provided value already includes a protocol, keep it. If it looks like
+// localhost or 127.x, use http://; otherwise default to https://.
+function normalizeApiBase(raw) {
+  if (!raw) return raw;
+  const trimmed = raw.trim();
+  if (/^https?:\/\//i.test(trimmed)) return trimmed.replace(/\/+$/,'');
+  if (/^(localhost|127\.|0\.0\.0\.0)/i.test(trimmed)) return `http://${trimmed.replace(/\/+$/,'')}`;
+  // default to https for other hosts
+  return `https://${trimmed.replace(/\/+$/,'')}`;
+}
+
+export const API_BASE_URL = normalizeApiBase(rawApiBase);
+
+// Debug API URL during initialization (show raw and normalized)
+console.log('🔌 API_BASE_URL raw value:', rawApiBase);
+console.log('🔌 API_BASE_URL normalized to:', API_BASE_URL);
 
 // Helper functions for working with authentication
 export const getAuthToken = () => localStorage.getItem('token');
