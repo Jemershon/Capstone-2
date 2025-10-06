@@ -6,10 +6,23 @@ import { API_BASE_URL } from "../api";
 
 // Mobile optimization styles
 const mobileStyles = `
+  /* Hide visual scrollbar but preserve scrolling (Firefox, IE, WebKit) */
+  html, body {
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE 10+ */
+  }
+
+  /* WebKit browsers */
+  body::-webkit-scrollbar {
+    width: 0px;
+    height: 0px;
+    background: transparent;
+  }
+
   @media (max-width: 767px) {
     /* Center all content on mobile */
     .landing-hero-section {
-      padding: 40px 15px !important;
+      padding: 40px 15px !important; /* Restored original hero padding */
       text-align: center !important;
     }
     
@@ -23,13 +36,25 @@ const mobileStyles = `
     .landing-hero-section h1 {
       font-size: 2.5rem !important;
       text-align: center !important;
-      margin-bottom: 1rem !important;
+        margin-bottom: 0.75rem !important;
+      /* Match desktop heading styles for consistency */
+      font-weight: 800 !important;
+      color: white !important;
+      text-shadow: 0 4px 20px rgba(0,0,0,0.2) !important;
+      line-height: 1.05 !important;
+    }
+    /* Mobile underline sizing and centering */
+    .landing-hero-section h1::after {
+      width: 56px !important;
+      height: 5px !important;
+      margin: 10px auto 0 auto !important;
+      display: block !important;
     }
     
     .landing-hero-section p.lead {
-      font-size: 1.1rem !important;
+        font-size: 1.05rem !important;
       text-align: center !important;
-      margin-bottom: 1.5rem !important;
+        margin-bottom: 1rem !important;
     }
     
     /* Button container on mobile */
@@ -50,13 +75,13 @@ const mobileStyles = `
     
     /* Image on mobile */
     .landing-hero-image {
-      margin-top: 30px !important;
-      padding: 0 30px !important;
+        margin-top: 20px !important;
+        padding: 0 24px !important;
     }
     
     .landing-hero-image .hero-icon {
-      width: 200px !important;
-      height: 200px !important;
+        width: 180px !important;
+        height: 180px !important;
     }
     
     /* Features section on mobile */
@@ -74,24 +99,30 @@ const mobileStyles = `
       margin-bottom: 20px !important;
     }
     
-    /* Navbar optimization */
+    /* Navbar optimization: make header compact on mobile */
     .modern-navbar {
-      padding: 15px 20px !important;
+      padding: 8px 12px !important;
     }
-    
+
     .navbar-brand {
-      font-size: 1.5rem !important;
+      font-size: 1.35rem !important;
+      font-weight: 700 !important;
+      color: white !important;
+      text-shadow: none !important;
+      margin-right: 10px !important;
     }
-    
+
+    /* Keep collapse behavior but make CTA comfortably sized */
     .navbar-collapse {
       text-align: center !important;
-      margin-top: 10px !important;
+      margin-top: 8px !important;
     }
-    
+
     .navbar .btn {
-      width: 100% !important;
-      max-width: 200px !important;
-      margin: 10px auto 0 !important;
+      padding: 8px 14px !important;
+      font-size: 1rem !important;
+      max-width: 180px !important;
+      margin: 0 !important;
     }
   }
   
@@ -137,7 +168,7 @@ const mobileStyles = `
     text-shadow: 0 2px 10px rgba(0,0,0,0.2);
   }
   
-  .modern-navbar .btn-login {
+  .btn-login {
     background: rgba(255, 255, 255, 0.2);
     backdrop-filter: blur(10px);
     border: 2px solid rgba(255, 255, 255, 0.3);
@@ -148,7 +179,7 @@ const mobileStyles = `
     transition: all 0.3s ease;
   }
   
-  .modern-navbar .btn-login:hover {
+  .btn-login:hover {
     background: rgba(255, 255, 255, 0.3);
     border-color: rgba(255, 255, 255, 0.5);
     transform: translateY(-2px);
@@ -169,6 +200,7 @@ const mobileStyles = `
     text-shadow: 0 4px 20px rgba(0,0,0,0.2);
     animation: fadeInUp 0.8s ease-out;
   }
+  /* Underline intentionally only shown on mobile via media query */
   
   .landing-hero-section p.lead {
     color: rgba(255, 255, 255, 0.95);
@@ -650,32 +682,21 @@ export default function LandingPage() {
 
   return (
     <div className="d-flex flex-column min-vh-100 modern-gradient-bg">
-      <Navbar expand="lg" className="modern-navbar px-4 d-none d-lg-flex">
+  <Navbar expand="lg" className="modern-navbar px-4">
         <Container fluid>
           <Navbar.Brand className="fw-bold fs-3">🎓 Remora</Navbar.Brand>
-          <Navbar.Toggle aria-controls="main-nav" style={{ borderColor: 'rgba(255,255,255,0.3)' }}>
-            <span style={{ color: 'white' }}>☰</span>
-          </Navbar.Toggle>
-          <Navbar.Collapse id="main-nav">
-            <Nav className="ms-auto align-items-lg-center">
-              {/* Get Started button removed from navbar per design — mobile/standalone button is used instead */}
-            </Nav>
-          </Navbar.Collapse>
+          <div className="ms-auto d-flex align-items-center">
+            <button
+              className="btn btn-modern-secondary ms-3"
+              onClick={handleShowModal}
+              aria-label="Get started"
+            >
+              Get Started
+            </button>
+          </div>
         </Container>
       </Navbar>
-
-      {/* Mobile-only Get Started button: visible outside the navbar and right-aligned */}
-      <div className="container d-lg-none mt-3">
-        <div className="d-flex justify-content-end">
-          <Button
-            className="btn-login"
-            onClick={handleShowModal}
-            aria-label="Get started"
-          >
-            Get Started
-          </Button>
-        </div>
-      </div>
+      
 
       <section className="container flex-grow-1 d-flex flex-column flex-md-row align-items-center justify-content-between py-5 landing-hero-section">
         <div className="col-md-6">
