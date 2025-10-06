@@ -26,6 +26,21 @@ export const API_BASE_URL = normalizeApiBase(rawApiBase);
 console.log('🔌 API_BASE_URL raw value:', rawApiBase);
 console.log('🔌 API_BASE_URL normalized to:', API_BASE_URL);
 
+// Set axios default base URL to the normalized API base so that any plain
+// axios requests (or third-party libs using axios) will target the correct
+// backend origin. Also provide a pre-configured apiClient for callers that
+// prefer an instance.
+try {
+  if (API_BASE_URL) {
+    axios.defaults.baseURL = API_BASE_URL;
+  }
+} catch (e) {
+  // Non-fatal — log for visibility
+  console.warn('Could not set axios default baseURL:', e);
+}
+
+export const apiClient = axios.create({ baseURL: API_BASE_URL });
+
 // Helper functions for working with authentication
 export const getAuthToken = () => localStorage.getItem('token');
 export const getUsername = () => localStorage.getItem('username');
