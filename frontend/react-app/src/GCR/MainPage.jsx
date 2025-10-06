@@ -62,7 +62,7 @@ const mobileStyles = `
       display: flex !important;
       flex-direction: column !important;
       align-items: center !important;
-      gap: 15px !important;
+      gap: 20px !important;
       width: 100% !important;
       padding: 0 15px !important;
     }
@@ -74,15 +74,24 @@ const mobileStyles = `
     }
     
     /* Image on mobile */
-    .landing-hero-image {
-        margin-top: 20px !important;
-        padding: 0 24px !important;
-    }
+  .landing-hero-image {
+    margin-top: 20px !important;
+    padding: 0 24px !important;
+    margin-bottom: 28px !important; /* increased gap so bouncing logo doesn't overlap buttons */
+  }
     
-    .landing-hero-image .hero-icon {
-        width: 180px !important;
-        height: 180px !important;
-    }
+  .landing-hero-image .hero-icon {
+    width: 180px !important;
+    height: 180px !important;
+    /* use a gentler float on mobile to avoid overlapping CTAs */
+    animation: float-mobile 3s ease-in-out infinite !important;
+  }
+
+  /* Mobile-specific gentle float animation */
+  @keyframes float-mobile {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-10px); }
+  }
     
     /* Features section on mobile */
     .features-section {
