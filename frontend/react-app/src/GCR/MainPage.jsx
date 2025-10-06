@@ -650,7 +650,7 @@ export default function LandingPage() {
 
   return (
     <div className="d-flex flex-column min-vh-100 modern-gradient-bg">
-      <Navbar expand="lg" className="modern-navbar px-4">
+      <Navbar expand="lg" className="modern-navbar px-4 d-none d-lg-flex">
         <Container fluid>
           <Navbar.Brand className="fw-bold fs-3">🎓 Remora</Navbar.Brand>
           <Navbar.Toggle aria-controls="main-nav" style={{ borderColor: 'rgba(255,255,255,0.3)' }}>
@@ -658,18 +658,24 @@ export default function LandingPage() {
           </Navbar.Toggle>
           <Navbar.Collapse id="main-nav">
             <Nav className="ms-auto align-items-lg-center">
-              <Nav.Link href="#features" className="mx-2" style={{ color: 'white', fontWeight: 500 }}>Features</Nav.Link>
-              <Button
-                className="btn-login ms-lg-3"
-                onClick={handleShowModal}
-                aria-label="Get started"
-              >
-                Get Started
-              </Button>
+              {/* Get Started button removed from navbar per design — mobile/standalone button is used instead */}
             </Nav>
           </Navbar.Collapse>
         </Container>
       </Navbar>
+
+      {/* Mobile-only Get Started button: visible outside the navbar and right-aligned */}
+      <div className="container d-lg-none mt-3">
+        <div className="d-flex justify-content-end">
+          <Button
+            className="btn-login"
+            onClick={handleShowModal}
+            aria-label="Get started"
+          >
+            Get Started
+          </Button>
+        </div>
+      </div>
 
       <section className="container flex-grow-1 d-flex flex-column flex-md-row align-items-center justify-content-between py-5 landing-hero-section">
         <div className="col-md-6">
@@ -679,7 +685,7 @@ export default function LandingPage() {
           <p className="lead mt-3">
             Connect teachers and students in one simple platform. Transform your classroom experience with modern tools.
           </p>
-          <div className="mt-4 d-flex gap-3 landing-hero-buttons">
+          <div className="mt-4 d-flex gap-3 landing-hero-buttons justify-content-end justify-content-md-start">
             <button
               className="btn btn-modern-primary"
               onClick={() => openModalWithRole("Student")}
