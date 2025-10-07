@@ -438,6 +438,17 @@ const modalPauseStyles = `
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
 }
+
+/* Reserve stable space for the Google Sign-In button to avoid layout shifts */
+#gsi-button-container {
+  width: 260px; /* approximate width of GSI button */
+  height: 48px; /* approximate height */
+  display: flex !important;
+  justify-content: center;
+  align-items: center;
+  transition: none !important;
+  -webkit-transition: none !important;
+}
 `;
 
 // Add animation keyframes
@@ -711,12 +722,20 @@ export default function LandingPage() {
       // If we rendered the button previously into the hidden root, move it here
       const root = document.getElementById('gsi-button-root');
       if (root && root.childNodes.length > 0) {
+        // Temporarily hide container to avoid visible DOM insertion
+        const prevVisibility = container.style.visibility;
+        container.style.visibility = 'hidden';
         // Move the node into the visible container to avoid re-render
         while (root.childNodes.length) {
           container.appendChild(root.childNodes[0]);
         }
-        // Ensure container is visible (in case CSS hides it)
-        container.style.display = 'flex';
+        // Remove placeholder if present then reveal container after DOM changes
+        requestAnimationFrame(() => {
+          const placeholder = container.querySelector('button[aria-hidden="true"]');
+          if (placeholder) placeholder.remove();
+          container.style.visibility = prevVisibility || 'visible';
+          container.style.visibility = 'visible';
+        });
       } else {
         // Fallback: render directly into container
         window.google.accounts.id.initialize({
@@ -727,6 +746,12 @@ export default function LandingPage() {
           },
         });
         window.google.accounts.id.renderButton(container, { theme: 'outline', size: 'large' });
+        // Remove placeholder after rendering via GSI
+        requestAnimationFrame(() => {
+          const placeholder = container.querySelector('button[aria-hidden="true"]');
+          if (placeholder) placeholder.remove();
+          container.style.visibility = 'visible';
+        });
       }
       // Optionally show one-tap prompt (disabled by default)
       // window.google.accounts.id.prompt();
@@ -962,7 +987,12 @@ export default function LandingPage() {
           {/* Google Sign-In divider - shown for both Login and Create Account flows */}
           <div className="text-center mt-3">
             <div style={{ margin: '12px 0', color: '#6c757d' }}>or</div>
-            <div id="gsi-button-container" style={{ display: 'flex', justifyContent: 'center' }}></div>
+            <div id="gsi-button-container" style={{ display: 'flex', justifyContent: 'center' }}>
+              {/* Placeholder to reserve space and avoid layout shift on first paint */}
+              <button className="btn btn-outline-secondary" style={{ width: '240px', height: '44px', borderRadius: '6px' }} aria-hidden="true">
+                Sign in
+              </button>
+            </div>
           </div>
           {/* Forgot password removed by request */}
           <div className="text-center mt-3">
