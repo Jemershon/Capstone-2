@@ -893,7 +893,6 @@ export default function LandingPage() {
           <div className="text-center mt-3">
             <div style={{ margin: '12px 0', color: '#6c757d' }}>or</div>
             <div id="gsi-button-container" style={{ display: 'flex', justifyContent: 'center' }}></div>
-            <div className="mt-2 text-muted small">Sign in with your Google account</div>
           </div>
           {/* Forgot password removed by request */}
           <div className="text-center mt-3">
