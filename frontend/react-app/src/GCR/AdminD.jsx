@@ -304,7 +304,7 @@ function DashboardHome() {
   const [showToast, setShowToast] = useState(false);
   const [showCreateUserModal, setShowCreateUserModal] = useState(false);
   const [showCreateClassModal, setShowCreateClassModal] = useState(false);
-  const [userData, setUserData] = useState({ name: "", username: "", email: "", password: "", role: "student" });
+  const [userData, setUserData] = useState({ name: "", username: "", password: "", role: "student" });
   const [classData, setClassData] = useState({ name: "", section: "", code: "", teacher: "" });
   const [selectedUser, setSelectedUser] = useState(null);
   const [selectedClass, setSelectedClass] = useState(null);
@@ -339,8 +339,8 @@ function DashboardHome() {
   }, [fetchData]);
 
   const handleCreateUser = async () => {
-    if (!userData.name || !userData.username || !userData.email || !userData.password) {
-      setError("All fields are required");
+    if (!userData.name || !userData.username || !userData.password) {
+      setError("Name, username and password are required");
       setShowToast(true);
       return;
     }
@@ -377,6 +377,23 @@ function DashboardHome() {
     } catch (err) {
       console.error("Delete user error:", err.response?.data || err.message);
       setError(err.response?.data?.error || "Failed to delete user. Check network.");
+      setShowToast(true);
+    }
+  };
+
+  const handleUnlinkGoogle = async (userId) => {
+    try {
+      await retry(() =>
+        axios.put(`${API_BASE_URL}/api/admin/users/${userId}/unlink-google`, null, {
+          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+        })
+      );
+      await fetchData();
+      setError("Google account unlinked successfully!");
+      setShowToast(true);
+    } catch (err) {
+      console.error("Unlink google error:", err.response?.data || err.message);
+      setError(err.response?.data?.error || "Failed to unlink google account. Check network.");
       setShowToast(true);
     }
   };
@@ -593,6 +610,80 @@ function DashboardHome() {
           </Card>
         </Col>
       </Row>
+
+      {/* Google Sign-ins Section */}
+      <Row>
+        <Col md={12}>
+          <Card className="mb-4 modern-card">
+            <Card.Header className="modern-card-header d-flex justify-content-between align-items-center">
+              Google Sign-ins ({users.filter(u => u.googleId).length})
+            </Card.Header>
+            <Card.Body style={{ maxHeight: "400px", overflowY: "auto" }}>
+              {users.filter(u => u.googleId).length === 0 ? (
+                <div className="text-center text-muted py-4">
+                  <i className="bi bi-google fs-1 d-block mb-2"></i>
+                  <p>No Google sign-ins found.</p>
+                </div>
+              ) : (
+                <Row>
+                  {users.filter(u => u.googleId).map((gUser) => (
+                    <Col key={gUser._id || gUser.id} xs={12} sm={6} lg={4} className="mb-3">
+                      <Card className="h-100 admin-user-card">
+                        <Card.Body>
+                          <div className="d-flex align-items-start mb-2">
+                            <div className="me-2" style={{ width: "48px", height: "48px" }}>
+                              {gUser.picture ? (
+                                <img src={gUser.picture} alt={gUser.username} style={{ width: "48px", height: "48px", borderRadius: "50%" }} />
+                              ) : (
+                                <div className="bg-secondary text-white rounded-circle p-2 d-flex align-items-center justify-content-center" style={{ width: "48px", height: "48px" }}>
+                                  <i className="bi bi-person-fill"></i>
+                                </div>
+                              )}
+                            </div>
+                            <div className="flex-grow-1">
+                              <h6 className="mb-0 fw-bold">{gUser.username}</h6>
+                              <small className="text-muted d-block">{gUser.email}</small>
+                              <small className="text-muted d-block">Role: {gUser.role}</small>
+                              <small className="text-muted d-block">Google ID: <code style={{fontSize: '0.75rem'}}>{gUser.googleId}</code></small>
+                            </div>
+                            <div className="ms-2 d-flex flex-column">
+                              <Button
+                                variant="outline-danger"
+                                size="sm"
+                                className="mb-2"
+                                onClick={async () => {
+                                  if (window.confirm(`Are you sure you want to delete user "${gUser.username}"?`)) {
+                                    await handleDeleteUser(gUser._id || gUser.id);
+                                  }
+                                }}
+                                aria-label={`Delete user ${gUser.username}`}
+                              >
+                                <i className="bi bi-trash"></i>
+                              </Button>
+                              <Button
+                                variant="outline-secondary"
+                                size="sm"
+                                onClick={async () => {
+                                  if (window.confirm(`Unlink Google account from "${gUser.username}"? This will keep the user but remove Google sign-in.`)) {
+                                    await handleUnlinkGoogle(gUser._id || gUser.id);
+                                  }
+                                }}
+                                aria-label={`Unlink google for ${gUser.username}`}
+                              >
+                                Unlink
+                              </Button>
+                            </div>
+                          </div>
+                        </Card.Body>
+                      </Card>
+                    </Col>
+                  ))}
+                </Row>
+              )}
+            </Card.Body>
+          </Card>
+        </Col>
+      </Row>
       
       {/* User Detail Modal */}
       <Modal
@@ -630,12 +721,7 @@ function DashboardHome() {
                   <strong className="text-muted d-block mb-1">Email</strong>
                   <p className="mb-0">{selectedUser.email}</p>
                 </Col>
-                <Col md={6} className="mb-3">
-                  <strong className="text-muted d-block mb-1">Password</strong>
-                  <code className="d-block p-2 bg-light rounded" style={{ fontSize: "0.85rem", wordBreak: "break-all" }}>
-                    {selectedUser.password || 'N/A'}
-                  </code>
-                </Col>
+                {/* Password removed from admin user details for privacy */}
                 <Col md={6} className="mb-3">
                   <strong className="text-muted d-block mb-1">Role</strong>
                   <span className={`badge ${selectedUser.role === 'teacher' ? 'bg-success' : selectedUser.role === 'admin' ? 'bg-danger' : 'bg-info'}`}>
@@ -804,17 +890,7 @@ function DashboardHome() {
                 aria-required="true"
               />
             </Form.Group>
-            <Form.Group className="mb-3">
-              <Form.Label>Email</Form.Label>
-              <Form.Control
-                type="email"
-                value={userData.email}
-                onChange={(e) => setUserData({ ...userData, email: e.target.value })}
-                placeholder="e.g., john.doe@example.com"
-                required
-                aria-required="true"
-              />
-            </Form.Group>
+            {/* Email removed from admin create user flow */}
             <Form.Group className="mb-3">
               <Form.Label>Password</Form.Label>
               <Form.Control
@@ -845,7 +921,7 @@ function DashboardHome() {
             variant="secondary"
             onClick={() => {
               setShowCreateUserModal(false);
-              setUserData({ name: "", username: "", email: "", password: "", role: "student" });
+              setUserData({ name: "", username: "", password: "", role: "student" });
               setError("");
             }}
             aria-label="Cancel create user"
@@ -855,7 +931,7 @@ function DashboardHome() {
           <Button
             className="btn-modern-primary"
             onClick={handleCreateUser}
-            disabled={!userData.name || !userData.username || !userData.email || !userData.password}
+            disabled={!userData.name || !userData.username || !userData.password}
             aria-label="Create user"
           >
             Create

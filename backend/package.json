@@ -17,6 +17,7 @@
     "dependencies": {
         "bcryptjs": "^3.0.2",
         "cloudinary": "^1.41.3",
+        "google-auth-library": "^8.7.0",
         "cors": "^2.8.5",
         "dotenv": "^17.2.2",
         "express": "^4.21.2",

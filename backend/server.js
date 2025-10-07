@@ -213,6 +213,8 @@ const UserSchema = new mongoose.Schema({
   username: { type: String, unique: true },
   email: { type: String, unique: true },
   password: String,
+  googleId: { type: String, index: true, sparse: true },
+  picture: String,
   role: { type: String, enum: ["Student", "Teacher", "Admin"], default: "Student" },
   creditPoints: { type: Number, default: 0, min: 0, max: 10 }, // Max 10 credit points
 });
@@ -438,15 +440,19 @@ app.post("/api/seed", async (req, res) => {
 app.post("/api/register", async (req, res) => {
   try {
     const { name, username, email, password, role } = req.body;
-    if (!name || !username || !email || !password || !["Student", "Teacher"].includes(role)) {
+    // Email is now optional because users can sign up with Google
+    if (!name || !username || !password || !["Student", "Teacher"].includes(role)) {
       return res.status(400).json({ error: "Invalid input data" });
     }
-    const existingUser = await User.findOne({ $or: [{ username }, { email }] });
+
+    // Check uniqueness: username is required unique; email if provided must be unique
+    const existingUser = await User.findOne({ $or: [{ username }, ...(email ? [{ email }] : [])] });
     if (existingUser) {
       return res.status(400).json({ error: "Username or email already exists" });
     }
+
     const hashedPassword = await bcrypt.hash(password, 10);
-    const user = new User({ name, username, email, password: hashedPassword, role });
+    const user = new User({ name, username, email: email || undefined, password: hashedPassword, role });
     await user.save();
     res.status(201).json({ message: "User registered successfully" });
   } catch (err) {
@@ -544,94 +550,78 @@ app.post("/api/login", async (req, res) => {
   }
 });
 
-// Send reset code endpoint
-app.post("/api/send-reset-code", async (req, res) => {
+// Google Sign-In endpoint (verify ID token and issue app JWT)
+import { OAuth2Client } from 'google-auth-library';
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID || '');
+
+app.post('/api/auth/google', async (req, res) => {
   try {
-    const { email } = req.body;
-    console.log("Send reset code request for email:", email);
-    
-    if (!email) {
-      return res.status(400).json({ error: "Email is required" });
+    const { id_token } = req.body;
+    if (!id_token) return res.status(400).json({ error: 'id_token is required' });
+
+    // Verify the id_token with Google's library
+    const ticket = await googleClient.verifyIdToken({ idToken: id_token, audience: process.env.GOOGLE_CLIENT_ID });
+    const payload = ticket.getPayload();
+    if (!payload || !payload.email_verified) {
+      return res.status(401).json({ error: 'Google account not verified' });
     }
-    
-    // Find user by email
-    const user = await User.findOne({ email });
-    
+
+  const googleId = payload.sub;
+  const email = payload.email;
+  const name = payload.name || '';
+  const picture = payload.picture || '';
+  const requestedRole = req.body.requestedRole; // optional role from frontend when registering
+
+    // Try to find an existing user by googleId or email
+    let user = await User.findOne({ $or: [{ googleId }, { email }] });
+
     if (!user) {
-      return res.status(404).json({ error: "No account found with this email address" });
+      // Create a username from email local part (ensure uniqueness)
+      const baseUsername = email.split('@')[0].replace(/[^a-zA-Z0-9]/g, '').toLowerCase() || `user${Date.now()}`;
+      let username = baseUsername;
+      let suffix = 1;
+      while (await User.findOne({ username })) {
+        username = `${baseUsername}${suffix}`;
+        suffix++;
+      }
+
+      // Validate requested role if provided (only allow Student or Teacher here)
+      let roleToSet = 'Student';
+      if (requestedRole && ['Student', 'Teacher'].includes(requestedRole)) {
+        roleToSet = requestedRole;
+      }
+
+      user = new User({
+        name,
+        username,
+        email,
+        password: '', // no local password
+        role: roleToSet,
+        googleId,
+        picture,
+      });
+      await user.save();
+      console.log('Created new user from Google Sign-In:', user.username);
+    } else {
+      // If user exists but doesn't have googleId, attach it
+      if (!user.googleId) {
+        user.googleId = googleId;
+        user.picture = user.picture || picture;
+        await user.save();
+      }
     }
-    
-    // Generate 6-digit reset code
-    const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
-    
-    // Store reset code and expiry in user document (expires in 15 minutes)
-    user.resetCode = resetCode;
-    user.resetCodeExpiry = new Date(Date.now() + 15 * 60 * 1000);
-    await user.save();
-    
-    console.log("Reset code generated for", user.username, ":", resetCode);
-    
-    // In a real application, send this code via email
-    // For demo purposes, we return it in the response
-    
-    res.json({ 
-      message: "Reset code sent successfully",
-      resetCode: resetCode, // In production, send via email instead!
-      email: user.email
-    });
+
+    // Issue our app JWT
+    const token = jwt.sign({ id: user._id, role: user.role, username: user.username, email: user.email, name: user.name }, process.env.JWT_SECRET || 'devsecret123', { expiresIn: '1d' });
+
+    res.json({ token, user: { id: user._id, role: user.role, username: user.username, name: user.name, email: user.email, picture: user.picture } });
   } catch (err) {
-    console.error("Send reset code error:", err);
-    res.status(500).json({ error: "Failed to send reset code" });
+    console.error('Google sign-in error:', err);
+    res.status(500).json({ error: 'Google authentication failed' });
   }
 });
 
-// Reset password endpoint
-app.post("/api/reset-password", async (req, res) => {
-  try {
-    const { email, resetCode, newPassword } = req.body;
-    console.log("Reset password request for email:", email);
-    
-    if (!email || !resetCode || !newPassword) {
-      return res.status(400).json({ error: "Email, reset code, and new password are required" });
-    }
-    
-    // Find user by email
-    const user = await User.findOne({ email });
-    
-    if (!user) {
-      return res.status(404).json({ error: "No account found with this email address" });
-    }
-    
-    // Verify reset code
-    if (user.resetCode !== resetCode) {
-      return res.status(400).json({ error: "Invalid reset code" });
-    }
-    
-    // Check if code has expired
-    if (user.resetCodeExpiry < new Date()) {
-      return res.status(400).json({ error: "Reset code has expired. Please request a new one." });
-    }
-    
-    // Hash new password
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
-    
-    // Update password and clear reset code
-    user.password = hashedPassword;
-    user.resetCode = undefined;
-    user.resetCodeExpiry = undefined;
-    await user.save();
-    
-    console.log("Password reset successful for", user.username);
-    
-    res.json({ 
-      message: "Password reset successfully",
-      success: true
-    });
-  } catch (err) {
-    console.error("Reset password error:", err);
-    res.status(500).json({ error: "Failed to reset password" });
-  }
-});
+// Forgot-password / reset-password endpoints removed per request
 
 // Token verification endpoint
 app.get("/api/verify-token", authenticateToken, async (req, res) => {
@@ -720,6 +710,38 @@ app.get("/api/profile", authenticateToken, async (req, res) => {
   }
 });
 
+// Update profile (allow changing name and optionally adding email/picture)
+app.put("/api/profile", authenticateToken, async (req, res) => {
+  try {
+    const { name, email, picture } = req.body;
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    // If email provided, ensure uniqueness (allow same email if it's the user's current email)
+    if (email && email !== user.email) {
+      const existing = await User.findOne({ email });
+      if (existing) return res.status(400).json({ error: "Email already in use" });
+      user.email = email;
+    }
+
+    if (typeof name === 'string' && name.trim().length > 0) {
+      user.name = name.trim();
+    }
+
+    if (picture) {
+      user.picture = picture;
+    }
+
+    await user.save();
+    const safeUser = user.toObject();
+    delete safeUser.password;
+    res.json(safeUser);
+  } catch (err) {
+    console.error("Update profile error:", err);
+    res.status(500).json({ error: "Failed to update profile" });
+  }
+});
+
 // Admin: Get all users
 app.get("/api/admin/users", authenticateToken, requireAdmin, async (req, res) => {
   try {
@@ -738,15 +760,21 @@ app.get("/api/admin/users", authenticateToken, requireAdmin, async (req, res) =>
 app.post("/api/admin/users", authenticateToken, requireAdmin, async (req, res) => {
   try {
     const { name, username, email, password, role } = req.body;
-    if (!name || !username || !email || !password || !["Student", "Teacher", "Admin"].includes(role)) {
+    // Email is optional for admin-created users
+    if (!name || !username || !password || !["Student", "Teacher", "Admin"].includes(role)) {
       return res.status(400).json({ error: "Invalid input data" });
     }
-    const existingUser = await User.findOne({ $or: [{ username }, { email }] });
+    // Check username uniqueness and email uniqueness only if provided
+    const lookup = [{ username }];
+    if (email) lookup.push({ email });
+    const existingUser = await User.findOne({ $or: lookup });
     if (existingUser) {
       return res.status(400).json({ error: "Username or email already exists" });
     }
     const hashedPassword = await bcrypt.hash(password, 10);
-    const user = new User({ name, username, email, password: hashedPassword, role });
+    const userData = { name, username, password: hashedPassword, role };
+    if (email) userData.email = email;
+    const user = new User(userData);
     await user.save();
     res.status(201).json({ message: "User created successfully" });
   } catch (err) {
@@ -814,6 +842,23 @@ app.delete("/api/admin/users/:id", authenticateToken, requireAdmin, async (req, 
   } catch (err) {
     console.error("Delete user error:", err);
     res.status(500).json({ error: "Failed to delete user" });
+  }
+});
+
+// Admin: Unlink google account from user (clear googleId and picture)
+app.put("/api/admin/users/:id/unlink-google", authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+    user.googleId = undefined;
+    user.picture = undefined;
+    await user.save();
+    res.json({ message: "Google account unlinked successfully" });
+  } catch (err) {
+    console.error("Unlink google error:", err);
+    res.status(500).json({ error: "Failed to unlink google account" });
   }
 });
 

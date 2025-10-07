@@ -3720,10 +3720,11 @@ function Profile() {
   };
 
   const handleEditProfile = () => {
-    setEditForm({
-      name: profile.name || '',
-      email: profile.email || ''
-    });
+    if (profile && profile.googleId) {
+      setEditForm({ name: profile.name || '' });
+    } else {
+      setEditForm({ name: profile.name || '', email: profile.email || '' });
+    }
     setShowEditModal(true);
   };
 
@@ -3928,15 +3929,17 @@ function Profile() {
                 placeholder="Enter your name"
               />
             </Form.Group>
-            <Form.Group className="mb-3">
-              <Form.Label>Email</Form.Label>
-              <Form.Control
-                type="email"
-                value={editForm.email}
-                onChange={(e) => setEditForm({...editForm, email: e.target.value})}
-                placeholder="Enter your email"
-              />
-            </Form.Group>
+                {!profile?.googleId && (
+                  <Form.Group className="mb-3">
+                    <Form.Label>Email</Form.Label>
+                    <Form.Control
+                      type="email"
+                      value={editForm.email || ''}
+                      onChange={(e) => setEditForm({...editForm, email: e.target.value})}
+                      placeholder="Enter your email"
+                    />
+                  </Form.Group>
+                )}
           </Form>
         </Modal.Body>
         <Modal.Footer className="border-0">
