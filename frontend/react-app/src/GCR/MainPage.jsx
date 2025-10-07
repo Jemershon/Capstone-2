@@ -231,6 +231,8 @@ const mobileStyles = `
     border-radius: 0;
     box-shadow: none;
     padding: 0;
+    transition: opacity 220ms ease-in-out;
+    opacity: 1;
     overflow: visible;
   }
 
@@ -742,19 +744,38 @@ export default function LandingPage() {
       // If we rendered the button previously into the hidden root, move it here
       const root = document.getElementById('gsi-button-root');
       if (root && root.childNodes.length > 0) {
-        // Temporarily hide container to avoid visible DOM insertion
-        const prevVisibility = container.style.visibility;
-        container.style.visibility = 'hidden';
+  // Temporarily hide container and make transparent to avoid visible DOM insertion/flicker
+  const prevVisibility = container.style.visibility;
+  container.style.visibility = 'hidden';
+  container.style.opacity = '0';
         // Move the node into the visible container to avoid re-render
         while (root.childNodes.length) {
           container.appendChild(root.childNodes[0]);
         }
-        // Remove placeholder if present then reveal container after DOM changes
+        // Remove placeholder if present then reveal container after fonts/styles settle
         requestAnimationFrame(() => {
-          const placeholder = container.querySelector('button[aria-hidden="true"]');
-          if (placeholder) placeholder.remove();
-          container.style.visibility = prevVisibility || 'visible';
-          container.style.visibility = 'visible';
+          const reveal = async () => {
+            try {
+              // Wait for fonts to be ready to avoid FOUT/FOIT that changes weight
+              if (document.fonts && document.fonts.ready) {
+                await Promise.race([
+                  document.fonts.ready,
+                  new Promise((r) => setTimeout(r, 300))
+                ]);
+              } else {
+                // small fallback delay
+                await new Promise((r) => setTimeout(r, 120));
+              }
+            } catch (e) {
+              // ignore
+            }
+            const placeholder = container.querySelector('button[aria-hidden="true"]');
+            if (placeholder) placeholder.remove();
+            container.style.visibility = prevVisibility || 'visible';
+            // Fade in after making visible
+            requestAnimationFrame(() => { container.style.opacity = '1'; });
+          };
+          reveal();
         });
       } else {
         // Fallback: render directly into container
@@ -766,11 +787,26 @@ export default function LandingPage() {
           },
         });
         window.google.accounts.id.renderButton(container, { theme: 'outline', size: 'large' });
-        // Remove placeholder after rendering via GSI
+        // Make container transparent first, then wait for fonts to stabilize before showing the rendered button to avoid text weight flicker
+        container.style.visibility = 'hidden';
+        container.style.opacity = '0';
         requestAnimationFrame(() => {
-          const placeholder = container.querySelector('button[aria-hidden="true"]');
-          if (placeholder) placeholder.remove();
-          container.style.visibility = 'visible';
+          (async () => {
+            try {
+              if (document.fonts && document.fonts.ready) {
+                await Promise.race([
+                  document.fonts.ready,
+                  new Promise((r) => setTimeout(r, 300))
+                ]);
+              } else {
+                await new Promise((r) => setTimeout(r, 120));
+              }
+            } catch (e) {}
+            const placeholder = container.querySelector('button[aria-hidden="true"]');
+            if (placeholder) placeholder.remove();
+            container.style.visibility = 'visible';
+            requestAnimationFrame(() => { container.style.opacity = '1'; });
+          })();
         });
       }
       // Optionally show one-tap prompt (disabled by default)
