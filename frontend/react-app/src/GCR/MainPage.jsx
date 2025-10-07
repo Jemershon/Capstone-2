@@ -867,7 +867,7 @@ export default function LandingPage() {
     <div className="d-flex flex-column min-vh-100 modern-gradient-bg">
   <Navbar expand="lg" className="modern-navbar px-4">
         <Container fluid>
-          <Navbar.Brand className="fw-bold fs-3">🎓 Remora</Navbar.Brand>
+          <Navbar.Brand className="fw-bold fs-3">Remora</Navbar.Brand>
           <div className="ms-auto d-flex align-items-center">
             <button
               className="btn btn-modern-secondary ms-3"
