@@ -3786,10 +3786,15 @@ function Profile() {
         {/* Profile Information Card */}
         <Col lg={8} className="mb-4">
           <Card className="h-100 modern-card">
-            <Card.Header className="modern-card-header">
+            <Card.Header className="modern-card-header d-flex align-items-center justify-content-between">
               <h5 className="mb-0">
                 <i className="bi bi-person-circle me-2"></i>Personal Information
               </h5>
+              <div>
+                <Button variant="outline-light" size="sm" onClick={handleEditProfile} aria-label="Edit profile settings">
+                  <i className="bi bi-gear-fill"></i>
+                </Button>
+              </div>
             </Card.Header>
             <Card.Body>
               <Row>
@@ -3882,36 +3887,7 @@ function Profile() {
         </Col>
       </Row>
 
-      {/* Quick Actions */}
-      <Card className="shadow-sm">
-        <Card.Header className="bg-secondary text-white">
-          <h5 className="mb-0">
-            <i className="bi bi-lightning-charge me-2"></i>Quick Actions
-          </h5>
-        </Card.Header>
-        <Card.Body>
-          <Row>
-            <Col md={4} className="mb-3">
-              <Button variant="outline-primary" className="w-100 py-3" onClick={() => window.location.href = '/teacher/dashboard'}>
-                <i className="bi bi-house-fill d-block fs-3 mb-2"></i>
-                Dashboard
-              </Button>
-            </Col>
-            <Col md={4} className="mb-3">
-              <Button variant="outline-success" className="w-100 py-3" onClick={handleEditProfile}>
-                <i className="bi bi-gear-fill d-block fs-3 mb-2"></i>
-                Settings
-              </Button>
-            </Col>
-            <Col md={4} className="mb-3">
-              <Button variant="outline-info" className="w-100 py-3" onClick={() => fetchProfile()}>
-                <i className="bi bi-arrow-clockwise d-block fs-3 mb-2"></i>
-                Refresh
-              </Button>
-            </Col>
-          </Row>
-        </Card.Body>
-      </Card>
+      {/* Quick Actions removed - settings moved to profile header */}
 
       {/* Edit Profile Modal */}
       <Modal show={showEditModal} onHide={() => setShowEditModal(false)} centered>

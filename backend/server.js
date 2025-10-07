@@ -554,6 +554,10 @@ app.post("/api/login", async (req, res) => {
 import { OAuth2Client } from 'google-auth-library';
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID || '');
 
+if (!process.env.GOOGLE_CLIENT_ID) {
+  console.warn('⚠️ GOOGLE_CLIENT_ID is not set in environment variables. Google sign-in will fail until this is set.');
+}
+
 app.post('/api/auth/google', async (req, res) => {
   try {
     const { id_token } = req.body;
@@ -616,9 +620,26 @@ app.post('/api/auth/google', async (req, res) => {
 
     res.json({ token, user: { id: user._id, role: user.role, username: user.username, name: user.name, email: user.email, picture: user.picture } });
   } catch (err) {
-    console.error('Google sign-in error:', err);
+    // Log full error stack for debugging
+    console.error('Google sign-in error:', err && err.stack ? err.stack : err);
+
+    // In non-production, return error details to aid debugging (do NOT leak in production)
+    if (NODE_ENV !== 'production') {
+      return res.status(500).json({ error: 'Google authentication failed', details: err && err.message ? err.message : String(err) });
+    }
+
+    // Generic response for production
     res.status(500).json({ error: 'Google authentication failed' });
   }
+});
+
+// Debug endpoint to verify required Google env is present (no secret values returned)
+app.get('/api/google-env-check', (req, res) => {
+  res.json({
+    hasGoogleClientId: Boolean(process.env.GOOGLE_CLIENT_ID),
+    hasJwtSecret: Boolean(process.env.JWT_SECRET),
+    nodeEnv: NODE_ENV
+  });
 });
 
 // Forgot-password / reset-password endpoints removed per request
