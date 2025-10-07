@@ -425,6 +425,21 @@ const mobileStyles = `
   }
 `;
 
+// When a modal is open, large background animations and backdrop-filters can cause
+// repaints and jank on some devices. We toggle `modal-active` on <body> while the
+// modal is open to pause these heavy effects and reduce flicker.
+const modalPauseStyles = `
+.modal-active .modern-gradient-bg,
+.modal-active .landing-hero-section,
+.modal-active .modern-card,
+.modal-active .profile-card-modern {
+  animation-play-state: paused !important;
+  transition: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+`;
+
 // Add animation keyframes
 const animationStyles = `
   @keyframes pulse {
@@ -482,9 +497,14 @@ export default function LandingPage() {
     const styleElement = document.createElement('style');
     styleElement.textContent = mobileStyles;
     document.head.appendChild(styleElement);
+    // Inject modal pause styles once
+    const pauseEl = document.createElement('style');
+    pauseEl.textContent = modalPauseStyles;
+    document.head.appendChild(pauseEl);
     
     return () => {
       document.head.removeChild(styleElement);
+      document.head.removeChild(pauseEl);
     };
   }, []);
 
@@ -511,6 +531,8 @@ export default function LandingPage() {
   }, []);
 
   const handleShowModal = () => {
+    // Pause heavy background rendering to avoid flicker on modal open
+    try { document.body.classList.add('modal-active'); } catch(e) {}
     setShowModal(true);
     setError("");
     setFormData({ name: "", username: "", email: "", password: "", role: "Student" });
@@ -540,11 +562,14 @@ export default function LandingPage() {
       setShowToast(true);
     } finally {
       setLoading(false);
+      // Ensure we remove the modal-active class when flow completes
+      try { document.body.classList.remove('modal-active'); } catch(e) {}
     }
   };
 
   const handleCloseModal = () => {
     setShowModal(false);
+    try { document.body.classList.remove('modal-active'); } catch(e) {}
     setError("");
     setFormData({ name: "", username: "", email: "", password: "", role: "Student" });
     setIsLogin(true);
@@ -636,6 +661,7 @@ export default function LandingPage() {
   const openModalWithRole = (role) => {
     setFormData({ name: "", username: "", email: "", password: "", role });
     setIsLogin(false);
+    try { document.body.classList.add('modal-active'); } catch(e) {}
     setShowModal(true);
     setError("");
     setShowPassword(false);
