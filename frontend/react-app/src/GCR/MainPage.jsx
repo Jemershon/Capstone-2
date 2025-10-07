@@ -219,6 +219,29 @@ const mobileStyles = `
     text-shadow: 0 2px 10px rgba(0,0,0,0.1);
     animation: fadeInUp 1s ease-out;
   }
+
+  /* Google Sign-In container: minimal, neutral, centered */
+  #gsi-button-container {
+    width: 100%;
+    margin: 12px auto 0 auto;
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    background: transparent;
+    border-radius: 0;
+    box-shadow: none;
+    padding: 0;
+    overflow: visible;
+  }
+
+  /* Ensure any rendered Google elements are centered and do not force layout changes */
+  #gsi-button-container > * {
+    display: inline-flex !important;
+    margin: 0 auto !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+  }
   
   @keyframes fadeInUp {
     from {
@@ -438,14 +461,11 @@ const modalPauseStyles = `
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
 }
-
-/* Reserve stable space for the Google Sign-In button to avoid layout shifts */
+/* Keep modal-active lightweight; center GSI container without forcing a fixed size */
 #gsi-button-container {
-  width: 260px; /* approximate width of GSI button */
-  height: 48px; /* approximate height */
   display: flex !important;
-  justify-content: center;
-  align-items: center;
+  justify-content: center !important;
+  align-items: center !important;
   transition: none !important;
   -webkit-transition: none !important;
 }
@@ -987,12 +1007,7 @@ export default function LandingPage() {
           {/* Google Sign-In divider - shown for both Login and Create Account flows */}
           <div className="text-center mt-3">
             <div style={{ margin: '12px 0', color: '#6c757d' }}>or</div>
-            <div id="gsi-button-container" style={{ display: 'flex', justifyContent: 'center' }}>
-              {/* Placeholder to reserve space and avoid layout shift on first paint */}
-              <button className="btn btn-outline-secondary" style={{ width: '240px', height: '44px', borderRadius: '6px' }} aria-hidden="true">
-                Sign in
-              </button>
-            </div>
+            <div id="gsi-button-container" />
           </div>
           {/* Forgot password removed by request */}
           <div className="text-center mt-3">
