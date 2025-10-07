@@ -537,8 +537,19 @@ function DashboardAndClasses() {
               onClick={() => navigate(`/teacher/class/${encodeURIComponent(cls.name)}`)}
             >
               <Card.Body>
-                <Card.Title className="fw-bold">{cls.name}</Card.Title>
-                <Card.Subtitle className="mb-2 text-muted">{cls.section}</Card.Subtitle>
+                <div className="d-flex align-items-center justify-content-between">
+                  <div>
+                    <Card.Title className="fw-bold">{cls.name}</Card.Title>
+                    <Card.Subtitle className="mb-2 text-muted">{cls.section}</Card.Subtitle>
+                  </div>
+                  {cls.teacherPicture && (
+                    <img
+                      src={cls.teacherPicture}
+                      alt={`${cls.teacher}'s avatar`}
+                      style={{ width: 56, height: 56, borderRadius: '50%', objectFit: 'cover', marginLeft: 12 }}
+                    />
+                  )}
+                </div>
                 <p className="mb-1">
                   <strong>Class Code:</strong> {cls.code}
                 </p>

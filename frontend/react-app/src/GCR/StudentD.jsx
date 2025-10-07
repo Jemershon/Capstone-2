@@ -709,9 +709,18 @@ function StudentMainDashboard() {
               onClick={() => window.location.href = `/student/class/${encodeURIComponent(cls.name)}`}
             >
               <Card.Body>
-                <div className="mb-2">
-                  <Card.Title className="fw-bold">{cls.name}</Card.Title>
-                  <Card.Subtitle className="mb-2 text-muted">{cls.section}</Card.Subtitle>
+                <div className="d-flex align-items-center justify-content-between mb-2">
+                  <div>
+                    <Card.Title className="fw-bold">{cls.name}</Card.Title>
+                    <Card.Subtitle className="mb-2 text-muted">{cls.section}</Card.Subtitle>
+                  </div>
+                  {cls.teacherPicture && (
+                    <img
+                      src={cls.teacherPicture}
+                      alt={`${cls.teacher}'s avatar`}
+                      style={{ width: 56, height: 56, borderRadius: '50%', objectFit: 'cover', marginLeft: 12 }}
+                    />
+                  )}
                 </div>
                 <p className="mb-1">
                   <strong>Teacher:</strong> {cls.teacher}
@@ -779,10 +788,10 @@ function StudentMainDashboard() {
         </Modal.Footer>
       </Modal>
 
-      {/* Unenroll Confirmation Modal - Google Classroom Style */}
-      <Modal 
-        show={showUnenrollModal} 
-        onHide={() => setShowUnenrollModal(false)} 
+      {/* Unenroll Confirmation Modal - compact style */}
+      <Modal
+        show={showUnenrollModal}
+        onHide={() => setShowUnenrollModal(false)}
         centered
         size="sm"
       >
@@ -790,61 +799,27 @@ function StudentMainDashboard() {
           <Modal.Title>Leave class?</Modal.Title>
         </Modal.Header>
         <Modal.Body>
-          <div className="text-center">
-            <div className="mb-3">
-              <i className="bi bi-exclamation-triangle text-warning" style={{ fontSize: '48px' }}></i>
+          <div className="d-flex align-items-center gap-3">
+            {selectedClassToUnenroll?.teacherPicture && (
+              <img
+                src={selectedClassToUnenroll.teacherPicture}
+                alt={`${selectedClassToUnenroll.teacher}'s avatar`}
+                style={{ width: 56, height: 56, borderRadius: '50%', objectFit: 'cover' }}
+              />
+            )}
+            <div>
+              <p className="mb-1 fw-bold">{selectedClassToUnenroll?.name}</p>
+              <p className="mb-0 text-muted small">You will lose access to posts, assignments and materials. You can rejoin with the class code.</p>
             </div>
-            <p className="mb-2">
-              <strong>{selectedClassToUnenroll?.name}</strong>
-            </p>
-            <p className="text-muted">
-              You'll no longer have access to class posts, assignments, and materials. 
-              You can rejoin this class if your teacher shares the class code again.
-            </p>
           </div>
         </Modal.Body>
-        <Modal.Footer className="d-flex flex-column w-100">
-          <div className="d-flex justify-content-between w-100">
-            <Button 
-              variant="outline-secondary" 
-              onClick={() => setShowUnenrollModal(false)}
-            >
-              Cancel
-            </Button>
-            <Button 
-              variant="danger" 
-              onClick={handleUnenrollClass}
-              disabled={!selectedClassToUnenroll}
-            >
-              Leave class
-            </Button>
-          </div>
-          
-          {/* Emergency force leave option - Google Classroom has something similar */}
-          <div className="mt-2 text-center w-100">
-            <hr className="my-2" />
-            <small className="text-muted mb-2 d-block">
-              If you're having trouble leaving the class:
-            </small>
-            <Button 
-              variant="outline-secondary" 
-              size="sm"
-              className="w-100 text-muted"
-              onClick={() => {
-                // Force remove class locally
-                if (selectedClassToUnenroll) {
-                  const updatedClasses = classes.filter(c => c !== selectedClassToUnenroll);
-                  setClasses(updatedClasses);
-                  localStorage.setItem('studentClasses', JSON.stringify(updatedClasses));
-                  setError(`Class removed from your view`);
-                  setShowToast(true);
-                }
-                setShowUnenrollModal(false);
-              }}
-            >
-              <small>Force remove from my classes</small>
-            </Button>
-          </div>
+        <Modal.Footer className="d-flex justify-content-between">
+          <Button variant="outline-secondary" onClick={() => setShowUnenrollModal(false)}>
+            Cancel
+          </Button>
+          <Button variant="danger" onClick={handleUnenrollClass} disabled={!selectedClassToUnenroll}>
+            Leave class
+          </Button>
         </Modal.Footer>
       </Modal>
 

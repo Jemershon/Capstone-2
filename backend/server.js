@@ -224,6 +224,7 @@ const ClassSchema = new mongoose.Schema({
   section: String,
   code: { type: String, unique: true },
   teacher: String,
+  teacherPicture: String,
   students: [{ type: String }],
   bg: { type: String, default: "#FFF0D8" },
 });
@@ -754,6 +755,17 @@ app.put("/api/profile", authenticateToken, async (req, res) => {
     }
 
     await user.save();
+    // Propagate picture changes to classes where this user is the teacher
+    try {
+      if (picture) {
+        await Class.updateMany({ teacher: user.username }, { $set: { teacherPicture: picture } });
+      } else {
+        // If picture removed, clear teacherPicture on classes
+        await Class.updateMany({ teacher: user.username }, { $unset: { teacherPicture: "" } });
+      }
+    } catch (updateErr) {
+      console.warn('Failed to propagate user picture to classes:', updateErr && updateErr.message ? updateErr.message : updateErr);
+    }
     const safeUser = user.toObject();
     delete safeUser.password;
     res.json(safeUser);
@@ -774,6 +786,27 @@ app.get("/api/admin/users", authenticateToken, requireAdmin, async (req, res) =>
   } catch (err) {
     console.error("Get users error:", err);
     res.status(500).json({ error: "Failed to fetch users" });
+  }
+});
+
+// Admin utility: backfill teacherPicture for existing classes from the corresponding user's picture
+app.post('/api/admin/backfill-class-pictures', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const classes = await Class.find();
+    let updated = 0;
+    for (const cls of classes) {
+      if (!cls.teacher) continue;
+      const teacherUser = await User.findOne({ username: cls.teacher });
+      if (teacherUser && teacherUser.picture) {
+        cls.teacherPicture = teacherUser.picture;
+        await cls.save();
+        updated++;
+      }
+    }
+    res.json({ message: 'Backfill complete', updated });
+  } catch (err) {
+    console.error('Backfill error:', err);
+    res.status(500).json({ error: 'Backfill failed' });
   }
 });
 
@@ -916,6 +949,12 @@ app.post("/api/admin/classes", authenticateToken, requireTeacherOrAdmin, async (
       return res.status(400).json({ error: "Class code already exists" });
     }
     const cls = new Class({ name, section, code: code.toUpperCase(), teacher, students: [], bg });
+    try {
+      const teacherUser = await User.findOne({ username: teacher });
+      if (teacherUser && teacherUser.picture) cls.teacherPicture = teacherUser.picture;
+    } catch (e) {
+      console.warn('Could not fetch teacher picture for admin-created class:', e.message || e);
+    }
     await cls.save();
     res.status(201).json({ message: "Class created successfully" });
   } catch (err) {
@@ -997,6 +1036,12 @@ app.post("/api/classes", authenticateToken, requireTeacherOrAdmin, async (req, r
       return res.status(400).json({ error: "Class code already exists" });
     }
     const cls = new Class({ name, section, code: code.toUpperCase(), teacher: teacherUsername, students: [], bg });
+    try {
+      const teacherUser = await User.findOne({ username: teacherUsername });
+      if (teacherUser && teacherUser.picture) cls.teacherPicture = teacherUser.picture;
+    } catch (e) {
+      console.warn('Could not fetch teacher picture for class creation:', e.message || e);
+    }
     await cls.save();
     res.status(201).json({ message: "Class created successfully", cls });
   } catch (err) {
