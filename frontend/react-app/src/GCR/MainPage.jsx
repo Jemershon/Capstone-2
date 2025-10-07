@@ -519,6 +519,39 @@ export default function LandingPage() {
     script.defer = true;
     script.onload = () => {
       console.log('Google Identity Services loaded');
+      try {
+        // Create a hidden root where we render the GSI button once to avoid
+        // re-rendering on every modal open (which causes layout shift)
+        let root = document.getElementById('gsi-button-root');
+        if (!root) {
+          root = document.createElement('div');
+          root.id = 'gsi-button-root';
+          root.style.display = 'none';
+          document.body.appendChild(root);
+        }
+
+        // Initialize once (safe to call multiple times but we guard)
+        if (window.google && window.google.accounts && window.google.accounts.id) {
+          try {
+            window.google.accounts.id.initialize({
+              client_id: (import.meta.env && import.meta.env.VITE_GOOGLE_CLIENT_ID) || (process.env.REACT_APP_GOOGLE_CLIENT_ID) || '',
+              callback: (resp) => {
+                const credential = resp.credential;
+                if (credential) handleGoogleCredential(credential, formData.role);
+              },
+            });
+
+            // Render the button once into the hidden root
+            if (root && root.childNodes.length === 0) {
+              window.google.accounts.id.renderButton(root, { theme: 'outline', size: 'large' });
+            }
+          } catch (e) {
+            console.warn('GSI initialize/render failed on load', e);
+          }
+        }
+      } catch (e) {
+        console.warn('GSI setup error', e);
+      }
     };
     script.onerror = () => {
       console.warn('Failed to load Google Identity Services');
@@ -672,18 +705,29 @@ export default function LandingPage() {
     if (!showModal) return;
     if (typeof window === 'undefined' || !window.google || !window.google.accounts || !window.google.accounts.id) return;
     try {
-      // Clear previous button container
       const container = document.getElementById('gsi-button-container');
       if (!container) return;
-      container.innerHTML = '';
-      window.google.accounts.id.initialize({
-        client_id: (import.meta.env && import.meta.env.VITE_GOOGLE_CLIENT_ID) || (process.env.REACT_APP_GOOGLE_CLIENT_ID) || '',
-        callback: (resp) => {
-          const credential = resp.credential;
-          if (credential) handleGoogleCredential(credential, formData.role);
-        },
-      });
-      window.google.accounts.id.renderButton(container, { theme: 'outline', size: 'large' });
+
+      // If we rendered the button previously into the hidden root, move it here
+      const root = document.getElementById('gsi-button-root');
+      if (root && root.childNodes.length > 0) {
+        // Move the node into the visible container to avoid re-render
+        while (root.childNodes.length) {
+          container.appendChild(root.childNodes[0]);
+        }
+        // Ensure container is visible (in case CSS hides it)
+        container.style.display = 'flex';
+      } else {
+        // Fallback: render directly into container
+        window.google.accounts.id.initialize({
+          client_id: (import.meta.env && import.meta.env.VITE_GOOGLE_CLIENT_ID) || (process.env.REACT_APP_GOOGLE_CLIENT_ID) || '',
+          callback: (resp) => {
+            const credential = resp.credential;
+            if (credential) handleGoogleCredential(credential, formData.role);
+          },
+        });
+        window.google.accounts.id.renderButton(container, { theme: 'outline', size: 'large' });
+      }
       // Optionally show one-tap prompt (disabled by default)
       // window.google.accounts.id.prompt();
     } catch (err) {
