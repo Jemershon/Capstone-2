@@ -542,6 +542,9 @@ export default function LandingPage() {
   const [showToast, setShowToast] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [gsiPending, setGsiPending] = useState(false);
+  const [gsiError, setGsiError] = useState('');
+  const gsiTimeoutRef = React.useRef(null);
   
 
   // Inject mobile styles
@@ -627,19 +630,38 @@ export default function LandingPage() {
 
   // Handler for Google credential (id_token) response
   const handleGoogleCredential = async (credential, requestedRole) => {
+    // Clear any pending timeout when credential arrives
+    if (gsiTimeoutRef.current) {
+      clearTimeout(gsiTimeoutRef.current);
+      gsiTimeoutRef.current = null;
+    }
+    setGsiPending(false);
+    setGsiError('');
     try {
       setLoading(true);
       const body = { id_token: credential };
       if (requestedRole) body.requestedRole = requestedRole;
-      const res = await axios.post(`${API_BASE_URL}/api/auth/google`, body);
+      // Add a reasonable timeout to avoid hanging on slow mobile networks
+      const res = await axios.post(`${API_BASE_URL}/api/auth/google`, body, { timeout: 10000 });
       const { setAuthData } = await import('../api');
       setAuthData(res.data.token, res.data.user.username, res.data.user.role);
       setError('Login successful via Google');
       setShowToast(true);
+      // Redirect safely: guard against missing/invalid role to avoid uncaught exceptions
       setTimeout(() => {
-        if (res.data.user.role === 'Student') navigate('/student/dashboard');
-        else if (res.data.user.role === 'Teacher') navigate('/teacher/dashboard');
-        else if (res.data.user.role === 'Admin') navigate('/admin/dashboard');
+        try {
+          const role = res?.data?.user?.role;
+          if (role === 'Student') return navigate('/student/dashboard');
+          if (role === 'Teacher') return navigate('/teacher/dashboard');
+          if (role === 'Admin') return navigate('/admin/dashboard');
+          // fallback: navigate to homepage and log for debugging
+          console.warn('Unknown user role after Google login:', role);
+          navigate('/');
+        } catch (navErr) {
+          console.error('Navigation error after Google login:', navErr);
+          // Ensure user isn't left on a blank screen
+          navigate('/');
+        }
       }, 800);
     } catch (err) {
       console.error('Google login error:', err.response?.data || err.message);
@@ -729,10 +751,17 @@ export default function LandingPage() {
       
       // Redirect after a short delay
       setTimeout(() => {
-        if (res.data.user.role === "Student") navigate("/student/dashboard");
-        else if (res.data.user.role === "Teacher") navigate("/teacher/dashboard");
-        else if (res.data.user.role === "Admin") navigate("/admin/dashboard");
-        else throw new Error("Invalid role");
+        try {
+          const role = res?.data?.user?.role;
+          if (role === 'Student') return navigate('/student/dashboard');
+          if (role === 'Teacher') return navigate('/teacher/dashboard');
+          if (role === 'Admin') return navigate('/admin/dashboard');
+          console.warn('Login returned invalid/unknown role:', role);
+          navigate('/');
+        } catch (navErr) {
+          console.error('Navigation error after login:', navErr);
+          navigate('/');
+        }
       }, 1000);
     } catch (err) {
       console.error("Login error:", err.response?.data || err.message);
@@ -796,6 +825,14 @@ export default function LandingPage() {
             // Fade in after making visible
             requestAnimationFrame(() => { container.style.opacity = '1'; });
           };
+          // Start a pending state: if no credential callback arrives within 12s, show fallback
+          setGsiPending(true);
+          if (gsiTimeoutRef.current) clearTimeout(gsiTimeoutRef.current);
+          gsiTimeoutRef.current = setTimeout(() => {
+            setGsiPending(false);
+            setGsiError('If sign-in is taking too long on your device, try opening this page in your phone browser (not the in-app browser).');
+            gsiTimeoutRef.current = null;
+          }, 12000);
           reveal();
         });
       } else {
@@ -808,6 +845,14 @@ export default function LandingPage() {
           },
         });
         window.google.accounts.id.renderButton(container, { theme: 'outline', size: 'large' });
+        // Start a pending state to detect hangs on mobile/in-app browsers
+        setGsiPending(true);
+        if (gsiTimeoutRef.current) clearTimeout(gsiTimeoutRef.current);
+        gsiTimeoutRef.current = setTimeout(() => {
+          setGsiPending(false);
+          setGsiError('If sign-in is taking too long on your device, try opening this page in your phone browser (not the in-app browser).');
+          gsiTimeoutRef.current = null;
+        }, 12000);
         // Make container transparent first, then wait for fonts to stabilize before showing the rendered button to avoid text weight flicker
         container.style.visibility = 'hidden';
         container.style.opacity = '0';
@@ -1066,7 +1111,24 @@ export default function LandingPage() {
           {/* Google Sign-In divider - shown for both Login and Create Account flows */}
           <div className="text-center mt-3">
             <div style={{ margin: '12px 0', color: '#6c757d' }}>or</div>
-            <div id="gsi-button-container" />
+            {/* GSI: show either pending spinner, the button container, or an actionable error */}
+            {gsiPending ? (
+              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                <Spinner animation="border" size="sm" aria-label="GSI pending" />
+                <small style={{ marginLeft: 8, color: '#6c757d' }}>One moment, please…</small>
+              </div>
+            ) : gsiError ? (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+                <small style={{ color: '#dc3545' }}>{gsiError}</small>
+                <div>
+                  <a href={window.location.href} target="_blank" rel="noopener noreferrer" className="btn btn-outline-primary">
+                    Open in browser
+                  </a>
+                </div>
+              </div>
+            ) : (
+              <div id="gsi-button-container" />
+            )}
           </div>
           {/* Forgot password removed by request */}
           <div className="text-center mt-3">
