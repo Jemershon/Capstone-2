@@ -543,8 +543,6 @@ export default function LandingPage() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [gsiPending, setGsiPending] = useState(false);
-  const [gsiError, setGsiError] = useState('');
-  const gsiTimeoutRef = React.useRef(null);
   
 
   // Inject mobile styles
@@ -630,13 +628,8 @@ export default function LandingPage() {
 
   // Handler for Google credential (id_token) response
   const handleGoogleCredential = async (credential, requestedRole) => {
-    // Clear any pending timeout when credential arrives
-    if (gsiTimeoutRef.current) {
-      clearTimeout(gsiTimeoutRef.current);
-      gsiTimeoutRef.current = null;
-    }
+    // Clear any pending UI state when credential arrives
     setGsiPending(false);
-    setGsiError('');
     try {
       setLoading(true);
       const body = { id_token: credential };
@@ -825,14 +818,7 @@ export default function LandingPage() {
             // Fade in after making visible
             requestAnimationFrame(() => { container.style.opacity = '1'; });
           };
-          // Start a pending state: if no credential callback arrives within 12s, show fallback
-          setGsiPending(true);
-          if (gsiTimeoutRef.current) clearTimeout(gsiTimeoutRef.current);
-          gsiTimeoutRef.current = setTimeout(() => {
-            setGsiPending(false);
-            setGsiError('If sign-in is taking too long on your device, try opening this page in your phone browser (not the in-app browser).');
-            gsiTimeoutRef.current = null;
-          }, 12000);
+          // reveal the pre-rendered button
           reveal();
         });
       } else {
@@ -845,14 +831,7 @@ export default function LandingPage() {
           },
         });
         window.google.accounts.id.renderButton(container, { theme: 'outline', size: 'large' });
-        // Start a pending state to detect hangs on mobile/in-app browsers
-        setGsiPending(true);
-        if (gsiTimeoutRef.current) clearTimeout(gsiTimeoutRef.current);
-        gsiTimeoutRef.current = setTimeout(() => {
-          setGsiPending(false);
-          setGsiError('If sign-in is taking too long on your device, try opening this page in your phone browser (not the in-app browser).');
-          gsiTimeoutRef.current = null;
-        }, 12000);
+        // rendered directly into container
         // Make container transparent first, then wait for fonts to stabilize before showing the rendered button to avoid text weight flicker
         container.style.visibility = 'hidden';
         container.style.opacity = '0';
@@ -1112,23 +1091,7 @@ export default function LandingPage() {
           <div className="text-center mt-3">
             <div style={{ margin: '12px 0', color: '#6c757d' }}>or</div>
             {/* GSI: show either pending spinner, the button container, or an actionable error */}
-            {gsiPending ? (
-              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                <Spinner animation="border" size="sm" aria-label="GSI pending" />
-                <small style={{ marginLeft: 8, color: '#6c757d' }}>One moment, please…</small>
-              </div>
-            ) : gsiError ? (
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-                <small style={{ color: '#dc3545' }}>{gsiError}</small>
-                <div>
-                  <a href={window.location.href} target="_blank" rel="noopener noreferrer" className="btn btn-outline-primary">
-                    Open in browser
-                  </a>
-                </div>
-              </div>
-            ) : (
-              <div id="gsi-button-container" />
-            )}
+            <div id="gsi-button-container" />
           </div>
           {/* Forgot password removed by request */}
           <div className="text-center mt-3">
