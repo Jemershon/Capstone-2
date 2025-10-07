@@ -790,6 +790,8 @@ export default function LandingPage() {
             }
             const placeholder = container.querySelector('button[aria-hidden="true"]');
             if (placeholder) placeholder.remove();
+            // Mark as visible using a data attribute (used by CSS) and then reveal
+            container.setAttribute('data-gsi-visible', 'true');
             container.style.visibility = prevVisibility || 'visible';
             // Fade in after making visible
             requestAnimationFrame(() => { container.style.opacity = '1'; });
@@ -823,6 +825,8 @@ export default function LandingPage() {
             } catch (e) {}
             const placeholder = container.querySelector('button[aria-hidden="true"]');
             if (placeholder) placeholder.remove();
+            // Mark visible and reveal
+            container.setAttribute('data-gsi-visible', 'true');
             container.style.visibility = 'visible';
             requestAnimationFrame(() => { container.style.opacity = '1'; });
           })();

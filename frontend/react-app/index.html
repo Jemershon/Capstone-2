@@ -4,6 +4,28 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Preconnect to Google fonts and preload Roboto to reduce weight/metric swaps in GSI button -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <!-- Critical inline CSS: keep the Google Sign-In container hidden until React/JS makes it visible
+         and force a strong fallback font-weight to avoid thin->bold flash on initial render. -->
+    <style>
+      /* Hide the GSI container by default so it doesn't render text before fonts/styles are ready */
+      #gsi-button-container { visibility: hidden; opacity: 0; transition: opacity 220ms ease-in-out; }
+
+      /* Immediately apply a bold, system/Roboto fallback so weight appears consistent
+         even before the webfont finishes loading. This helps eliminate thin->bold flashes. */
+      #gsi-button-container, #gsi-button-container * {
+        font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
+        font-weight: 700 !important;
+        -webkit-font-smoothing: antialiased !important;
+        -moz-osx-font-smoothing: grayscale !important;
+        text-rendering: optimizeLegibility !important;
+      }
+      /* When JS marks the container visible, make sure it shows (this overrides the default hidden state) */
+      #gsi-button-container[data-gsi-visible="true"] { visibility: visible !important; opacity: 1 !important; }
+    </style>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <title>Remora</title>
   </head>
