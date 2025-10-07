@@ -243,6 +243,25 @@ const mobileStyles = `
     max-width: 100% !important;
     box-sizing: border-box !important;
   }
+
+  /* Fallback rules for common GSI classes (best-effort). Some GSI markup may be
+     injected and partially stylable; these rules try to enforce weight/centering
+     when possible to reduce visible weight swaps. If GSI renders inside an
+     iframe or shadow DOM these cannot penetrate, but many deployments use
+     plain DOM nodes. */
+  #gsi-button-container .g_id_signin,
+  #gsi-button-container .g_id_signin *,
+  #gsi-button-container .abcRioButton,
+  #gsi-button-container .abcRioButton * {
+    font-weight: 700 !important;
+    text-rendering: optimizeLegibility !important;
+    -webkit-font-smoothing: antialiased !important;
+    -moz-osx-font-smoothing: grayscale !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    margin: 0 auto !important;
+  }
   }
   
   @keyframes fadeInUp {
