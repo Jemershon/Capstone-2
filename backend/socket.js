@@ -4,10 +4,35 @@ import { Server } from "socket.io";
 import jwt from "jsonwebtoken";
 
 export function setupSocketIO(httpServer) {
+  // Build a safe allowlist for Socket.IO CORS handling.
+  // Use CORS_ORIGIN environment variable if provided (trim trailing slashes),
+  // and allow common local development origins. Also allow Vercel-hosted frontends
+  // with the pattern https://*.vercel.app.
+  const normalize = (u) => (typeof u === 'string' ? u.trim().replace(/\/+$/g, '') : u);
+  const envOrigin = normalize(process.env.CORS_ORIGIN);
+  const allowedOrigins = new Set([
+    envOrigin || 'http://localhost:5173',
+    'http://localhost:5174',
+    'http://localhost:3000'
+  ].filter(Boolean));
+
+  const vercelRegex = /^https:\/\/([a-z0-9-]+\.)?vercel\.app$/i;
+
   const io = new Server(httpServer, {
     cors: {
-      origin: [process.env.CORS_ORIGIN || "http://localhost:5173", "http://localhost:5174"],
-      methods: ["GET", "POST"],
+      origin: (origin, callback) => {
+        // Allow requests without origin (tools, mobile apps, or same-origin)
+        if (!origin) return callback(null, true);
+
+        const normalized = normalize(origin);
+        if (allowedOrigins.has(normalized) || vercelRegex.test(normalized)) {
+          return callback(null, true);
+        }
+
+        console.warn('Socket CORS blocked origin:', origin);
+        return callback(new Error('Not allowed by CORS'), false);
+      },
+      methods: ['GET', 'POST', 'OPTIONS'],
       credentials: true
     }
   });
