@@ -36,7 +36,14 @@ const PORT = process.env.PORT || 4000;
 const MONGODB_URI = process.env.MONGODB_URI || "mongodb://localhost:27017/notetify";
 const JWT_SECRET = process.env.JWT_SECRET || "fallback-secret-change-in-production";
 const NODE_ENV = process.env.NODE_ENV || "development";
-const CORS_ORIGIN = process.env.CORS_ORIGIN || "http://localhost:5173";
+// Normalize CORS origin env value: trim trailing slashes so values like
+// "https://goals-ccs.vercel.app/" and "https://goals-ccs.vercel.app" both work.
+function normalizeOrigin(raw) {
+  if (!raw || typeof raw !== 'string') return raw;
+  return raw.trim().replace(/\/+$/g, '');
+}
+
+const CORS_ORIGIN = normalizeOrigin(process.env.CORS_ORIGIN) || "http://localhost:5173";
 
 // Middleware
 app.use(express.json({ limit: '50mb' }));
@@ -59,7 +66,7 @@ const corsOptions = {
     if (NODE_ENV === 'production') {
       // Add your specific Vercel URL
       allowedOrigins.push(
-        "https://capstone-2-ten-pied.vercel.app",
+        "https://goals-ccs.vercel.app",
         "https://*.vercel.app" // Allow all Vercel apps as fallback
       );
     }
