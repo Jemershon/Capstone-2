@@ -1,8 +1,13 @@
 [build]
 builder = "NIXPACKS"
-buildCommand = "cd frontend/react-app && npm install && npm run build"
+[build]
+builder = "NIXPACKS"
+# Install backend and frontend dependencies, then build the frontend
+buildCommand = "cd backend && npm ci && cd ../frontend/react-app && npm ci && npm run build"
 
 [deploy]
+#[deploy]
+# Start using the repo-level start script which launches the backend
 startCommand = "npm start"
 healthcheckPath = "/api/test"
 healthcheckTimeout = 600
