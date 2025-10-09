@@ -31,9 +31,10 @@ import ExamCreator from "./components/ExamCreator";
 
 // Add custom styles for responsive design and modern UI
 const customStyles = `
-  /* Modern Gradient Background */
+  /* Modern Gradient Background (brand colors) */
+  :root { --brand-red: #a30c0c; --brand-red-dark: #780606; --brand-gold: #ffcc00; --brand-gold-light: #ffd54a; }
   .dashboard-modern-bg {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, var(--brand-red) 0%, var(--brand-red-dark) 100%);
     min-height: 100vh;
   }
   
@@ -41,7 +42,7 @@ const customStyles = `
     margin-left: 0;
     padding: 0;
     min-height: 100vh;
-    background: linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%);
+  background: linear-gradient(135deg, rgba(163,12,12,0.04) 0%, rgba(120,20,20,0.04) 100%);
   }
   
   @media (min-width: 768px) {
@@ -53,7 +54,7 @@ const customStyles = `
   
   /* Glassmorphism Sidebar */
   .modern-sidebar {
-    background: linear-gradient(180deg, #667eea 0%, #764ba2 100%) !important;
+    background: linear-gradient(180deg, var(--brand-red) 0%, var(--brand-red-dark) 100%) !important;
     box-shadow: 4px 0 20px rgba(0, 0, 0, 0.1);
     border-right: 1px solid rgba(255, 255, 255, 0.1);
   }
@@ -101,7 +102,7 @@ const customStyles = `
     }
     
     .modern-mobile-navbar {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+      background: linear-gradient(135deg, var(--brand-red) 0%, var(--brand-red-dark) 100%) !important;
       box-shadow: 0 4px 20px rgba(0,0,0,0.1);
     }
     
@@ -150,7 +151,7 @@ const customStyles = `
   }
   
   .modern-card-header {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, var(--brand-red) 0%, var(--brand-red-dark) 100%);
     color: white;
     padding: 20px 25px;
     font-weight: 700;
@@ -164,7 +165,7 @@ const customStyles = `
   
   /* Profile Card Enhancement */
   .profile-card-modern {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, var(--brand-red) 0%, var(--brand-red-dark) 100%);
     border-radius: 20px;
     padding: 30px;
     color: white;
@@ -235,14 +236,14 @@ const customStyles = `
   
   /* Modern Buttons */
   .btn-modern-primary {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, var(--brand-gold) 0%, var(--brand-gold-light) 100%);
     border: none;
     border-radius: 12px;
     padding: 12px 24px;
     font-weight: 600;
-    color: white;
+    color: var(--brand-red);
     transition: all 0.3s ease;
-    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+    box-shadow: 0 4px 15px rgba(163, 12, 12, 0.15);
   }
   
   .btn-modern-primary:hover {
@@ -252,20 +253,20 @@ const customStyles = `
   }
   
   .btn-modern-secondary {
-    background: rgba(102, 126, 234, 0.1);
-    border: 2px solid #667eea;
+    background: rgba(163, 12, 12, 0.06);
+    border: 2px solid var(--brand-red);
     border-radius: 12px;
     padding: 12px 24px;
     font-weight: 600;
-    color: #667eea;
+    color: var(--brand-red);
     transition: all 0.3s ease;
   }
   
   .btn-modern-secondary:hover {
-    background: #667eea;
+    background: var(--brand-red);
     color: white;
     transform: translateY(-2px);
-    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+    box-shadow: 0 4px 15px rgba(163, 12, 12, 0.25);
   }
   
   /* Modal Modern */
@@ -276,7 +277,7 @@ const customStyles = `
   }
   
   .modal-header {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, var(--brand-red) 0%, var(--brand-red-dark) 100%);
     color: white;
     border-radius: 20px 20px 0 0 !important;
     padding: 20px 30px;
@@ -305,8 +306,8 @@ const customStyles = `
   }
   
   .form-control:focus, .form-select:focus {
-    border-color: #667eea;
-    box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.15);
+    border-color: var(--brand-red);
+    box-shadow: 0 0 0 0.2rem rgba(163, 12, 12, 0.12);
   }
   
   /* Toast Notifications */
@@ -322,7 +323,7 @@ const customStyles = `
   }
   
   .table thead {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, var(--brand-red) 0%, var(--brand-red-dark) 100%);
     color: white;
   }
   
@@ -331,7 +332,7 @@ const customStyles = `
   }
   
   .table tbody tr:hover {
-    background-color: rgba(102, 126, 234, 0.05);
+    background-color: rgba(163, 12, 12, 0.04);
     transform: scale(1.01);
   }
   
@@ -359,12 +360,12 @@ const customStyles = `
   }
   
   ::-webkit-scrollbar-thumb {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, var(--brand-red) 0%, var(--brand-red-dark) 100%);
     border-radius: 10px;
   }
   
   ::-webkit-scrollbar-thumb:hover {
-    background: linear-gradient(135deg, #5568d3 0%, #6a3e8f 100%);
+    background: linear-gradient(135deg, var(--brand-red-dark) 0%, var(--brand-red) 100%);
   }
   
   /* Animations */

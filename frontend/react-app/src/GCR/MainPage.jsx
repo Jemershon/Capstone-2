@@ -135,9 +135,18 @@ const mobileStyles = `
     }
   }
   
+  /* Brand color variables (derived from logo) */
+  :root {
+    --brand-red: #a30c0c; /* primary maroon */
+    --brand-red-dark: #780606; /* darker maroon */
+    --brand-gold: #ffcc00; /* primary gold */
+    --brand-gold-light: #ffd54a; /* light gold */
+    --brand-outline: #1e1e1e;
+  }
+
   /* Modern Gradient Background */
   .modern-gradient-bg {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, var(--brand-red) 0%, var(--brand-red-dark) 100%);
     position: relative;
     overflow: hidden;
   }
@@ -150,9 +159,9 @@ const mobileStyles = `
     right: 0;
     bottom: 0;
     background: 
-      radial-gradient(circle at 20% 50%, rgba(120, 119, 198, 0.3), transparent 50%),
-      radial-gradient(circle at 80% 80%, rgba(255, 77, 109, 0.3), transparent 50%),
-      radial-gradient(circle at 40% 80%, rgba(120, 119, 198, 0.2), transparent 50%);
+      radial-gradient(circle at 20% 50%, rgba(255, 204, 0, 0.12), transparent 50%),
+      radial-gradient(circle at 80% 80%, rgba(255, 210, 74, 0.10), transparent 50%),
+      radial-gradient(circle at 40% 80%, rgba(120, 20, 20, 0.08), transparent 50%);
     animation: gradientMove 15s ease infinite;
   }
   
@@ -277,8 +286,8 @@ const mobileStyles = `
   
   /* Modern Buttons */
   .btn-modern-primary {
-    background: white;
-    color: #667eea;
+    background: linear-gradient(135deg, var(--brand-gold) 0%, var(--brand-gold-light) 100%);
+    color: var(--brand-red);
     border: none;
     padding: 14px 36px;
     border-radius: 50px;
@@ -290,8 +299,8 @@ const mobileStyles = `
   }
   
   .btn-modern-primary:hover {
-    background: rgba(255, 255, 255, 0.95);
-    color: #667eea;
+    filter: brightness(0.95) saturate(1.05);
+    color: var(--brand-red-dark);
     transform: translateY(-3px);
     box-shadow: 0 15px 40px rgba(0,0,0,0.3);
   }
@@ -333,6 +342,14 @@ const mobileStyles = `
     animation: float 3s ease-in-out infinite;
     margin: 0 auto;
   }
+
+  /* Ensure images placed inside the hero-icon scale nicely and stay clipped */
+  .hero-icon img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover; /* fill the circle, cropping if necessary */
+    display: block;
+  }
   
   @keyframes float {
     0%, 100% {
@@ -362,7 +379,7 @@ const mobileStyles = `
   .feature-icon {
     width: 80px;
     height: 80px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, var(--brand-red) 0%, var(--brand-gold) 100%);
     border-radius: 20px;
     display: flex;
     align-items: center;
@@ -370,7 +387,7 @@ const mobileStyles = `
     margin: 0 auto 20px;
     font-size: 2.5rem;
     color: white;
-    box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+    box-shadow: 0 10px 25px rgba(163, 12, 12, 0.25);
   }
   
   .feature-card-modern h5 {
@@ -388,7 +405,7 @@ const mobileStyles = `
   
   /* Footer Modern */
   .modern-footer {
-    background: linear-gradient(to right, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(to right, var(--brand-red) 0%, var(--brand-red-dark) 100%);
     color: rgba(255, 255, 255, 0.9);
     padding: 30px 0;
     border-top: none;
@@ -402,7 +419,7 @@ const mobileStyles = `
   }
   
   .modal-header {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, var(--brand-red) 0%, var(--brand-red-dark) 100%);
     color: white;
     border-radius: 20px 20px 0 0 !important;
     padding: 20px 30px;
@@ -430,8 +447,8 @@ const mobileStyles = `
   }
   
   .form-floating > .form-control:focus {
-    border-color: #667eea;
-    box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.15);
+    border-color: var(--brand-red);
+    box-shadow: 0 0 0 0.2rem rgba(163, 12, 12, 0.12);
   }
   
   .form-select {
@@ -442,22 +459,23 @@ const mobileStyles = `
   }
   
   .form-select:focus {
-    border-color: #667eea;
-    box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.15);
+    border-color: var(--brand-red);
+    box-shadow: 0 0 0 0.2rem rgba(163, 12, 12, 0.12);
   }
   
   .modal-body .btn-primary {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, var(--brand-gold) 0%, var(--brand-gold-light) 100%);
+    color: var(--brand-red);
     border: none;
     border-radius: 12px;
     padding: 12px;
     font-weight: 600;
     transition: all 0.3s ease;
   }
-  
+
   .modal-body .btn-primary:hover {
     transform: translateY(-2px);
-    box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+    box-shadow: 0 8px 20px rgba(163, 12, 12, 0.18);
   }
   
   /* Particle Effect (optional decorative element) */
@@ -867,7 +885,7 @@ export default function LandingPage() {
     <div className="d-flex flex-column min-vh-100 modern-gradient-bg">
   <Navbar expand="lg" className="modern-navbar px-4">
         <Container fluid>
-          <Navbar.Brand className="fw-bold fs-3">Remora</Navbar.Brand>
+          <Navbar.Brand className="fw-bold fs-3">GOALS</Navbar.Brand>
           <div className="ms-auto d-flex align-items-center">
             <button
               className="btn btn-modern-secondary ms-3"
@@ -884,10 +902,10 @@ export default function LandingPage() {
       <section className="container flex-grow-1 d-flex flex-column flex-md-row align-items-center justify-content-between py-5 landing-hero-section">
         <div className="col-md-6">
           <h1 className="display-4 fw-bold">
-            A Smarter Way to Learn
+            Gabrielian Online Academic Learning System
           </h1>
           <p className="lead mt-3">
-            Connect teachers and students in one simple platform. Transform your classroom experience with modern tools.
+            College of Computer Studies Department
           </p>
           <div className="mt-4 d-flex gap-3 landing-hero-buttons justify-content-end justify-content-md-start">
             <button
@@ -908,14 +926,14 @@ export default function LandingPage() {
         </div>
         <div className="col-md-5 text-center mt-5 mt-md-0 landing-hero-image">
           <div className="hero-icon">
-            <i className="bi bi-mortarboard-fill"></i>
+            <img src="/transparentLogo.png" alt="hero logo" />
           </div>
         </div>
       </section>
 
       <section id="features" className="py-5 bg-white features-section">
         <div className="container text-center">
-          <h2 className="fw-bold mb-5" style={{ fontSize: '2.5rem', color: '#2d3748' }}>Why Choose Remora?</h2>
+          <h2 className="fw-bold mb-5" style={{ fontSize: '2.5rem', color: '#2d3748' }}>Why Choose GOALS?</h2>
           <div className="row g-4">
             <div className="col-md-4">
               <div className="feature-card-modern">
@@ -957,7 +975,7 @@ export default function LandingPage() {
       <footer className="modern-footer text-center py-4 mt-auto">
         <div className="container">
           <p className="mb-2" style={{ fontSize: '1.1rem', fontWeight: 500 }}>
-            © {new Date().getFullYear()} Remora. All rights reserved.
+            © {new Date().getFullYear()} GOALS. All rights reserved.
           </p>
           <small style={{ opacity: 0.9 }}>
             Empowering education through technology

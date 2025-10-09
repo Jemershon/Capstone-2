@@ -9,19 +9,20 @@ import { io } from "socket.io-client";
 
 // Add custom styles for responsive design and modern theme
 const customStyles = `
-  /* Modern gradient theme styles */
+  /* Modern gradient theme styles (brand colors) */
+  :root { --brand-red: #a30c0c; --brand-red-dark: #780606; --brand-gold: #ffcc00; --brand-gold-light: #ffd54a; }
   .modern-gradient-bg {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, var(--brand-red) 0%, var(--brand-red-dark) 100%);
     min-height: 100vh;
   }
 
   .modern-sidebar {
-    background: linear-gradient(180deg, #667eea 0%, #764ba2 100%) !important;
+    background: linear-gradient(180deg, var(--brand-red) 0%, var(--brand-red-dark) 100%) !important;
     box-shadow: 2px 0 10px rgba(0,0,0,0.1);
   }
 
   .modern-mobile-navbar {
-    background: linear-gradient(90deg, #667eea 0%, #764ba2 100%) !important;
+    background: linear-gradient(90deg, var(--brand-red) 0%, var(--brand-red-dark) 100%) !important;
     box-shadow: 0 2px 10px rgba(0,0,0,0.1);
   }
 
@@ -45,7 +46,7 @@ const customStyles = `
   }
 
   .modern-card-header {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, var(--brand-red) 0%, var(--brand-red-dark) 100%);
     color: white;
     border: none;
     border-radius: 20px 20px 0 0 !important;
@@ -66,7 +67,7 @@ const customStyles = `
 
   .class-card-modern:hover {
     transform: translateY(-8px);
-    box-shadow: 0 12px 40px rgba(102, 126, 234, 0.3);
+    box-shadow: 0 12px 40px rgba(163, 12, 12, 0.25);
   }
 
   .class-card-modern .card-body {
@@ -81,30 +82,30 @@ const customStyles = `
     left: 0;
     right: 0;
     height: 5px;
-    background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(90deg, var(--brand-red) 0%, var(--brand-red-dark) 100%);
   }
 
   .btn-modern-primary {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, var(--brand-gold) 0%, var(--brand-gold-light) 100%);
     border: none;
-    color: white;
+    color: var(--brand-red);
     padding: 10px 24px;
     border-radius: 25px;
     font-weight: 600;
     transition: all 0.3s ease;
-    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+    box-shadow: 0 4px 15px rgba(163, 12, 12, 0.15);
   }
 
   .btn-modern-primary:hover {
     transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
-    background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+    box-shadow: 0 6px 20px rgba(163, 12, 12, 0.25);
+    filter: brightness(0.95);
   }
 
   .btn-modern-secondary {
     background: rgba(255, 255, 255, 0.9);
-    border: 2px solid #667eea;
-    color: #667eea;
+    border: 2px solid var(--brand-red);
+    color: var(--brand-red);
     padding: 10px 24px;
     border-radius: 25px;
     font-weight: 600;
@@ -112,13 +113,13 @@ const customStyles = `
   }
 
   .btn-modern-secondary:hover {
-    background: #667eea;
+    background: var(--brand-red);
     color: white;
     transform: translateY(-2px);
   }
 
   .modern-modal-header {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, var(--brand-red) 0%, var(--brand-red-dark) 100%);
     color: white;
     border: none;
     border-radius: 20px 20px 0 0 !important;
@@ -141,7 +142,7 @@ const customStyles = `
     margin-left: 0;
     padding: 0;
     min-height: 100vh;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, var(--brand-red) 0%, var(--brand-red-dark) 100%);
   }
   
   @media (min-width: 768px) {
