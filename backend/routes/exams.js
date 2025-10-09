@@ -313,6 +313,11 @@ router.post('/:id/submit', authenticateToken, requireStudent, async (req, res) =
     if (!cls || !cls.students.includes(req.user.username)) {
       return res.status(403).json({ error: 'Not enrolled in this class' });
     }
+    // Enforce exam expiry: do not allow submissions after due date
+    if (exam.due && new Date() > new Date(exam.due)) {
+      console.log(`Submission attempt after due date for exam ${exam._id} by ${req.user.username}`);
+      return res.status(400).json({ error: 'Exam has expired and can no longer be submitted' });
+    }
     
     // Prevent multiple submissions
     const existing = await ExamSubmission.findOne({ examId: exam._id, student: req.user.username });

@@ -1657,6 +1657,7 @@ function TeacherClassStream() {
                               {exam.createdBy && `Posted by ${exam.createdBy}`} 
                               {exam.description && ` • ${exam.description}`}
                               {exam.createdAt && ` • Created: ${new Date(exam.createdAt).toLocaleDateString()}`}
+                                {exam.due && ` • Due: ${new Date(exam.due).toLocaleString()}`}
                             </small>
                           </div>
                           <div>
@@ -2173,8 +2174,9 @@ function TeacherClassStream() {
                             <tr key={index}>
                               <td>{submission.student}</td>
                               <td>
-                                <span className={`badge ${submission.finalScore >= 70 ? 'bg-success' : submission.finalScore >= 50 ? 'bg-warning' : 'bg-danger'}`}>
-                                  {submission.finalScore.toFixed(1)}%
+                                {/* Show numeric score as X/Y, but keep color thresholds based on percentage */}
+                                <span className={`badge ${(((submission.finalScore || 0) / (submission.answers ? submission.answers.length : (submission.totalQuestions || 1))) * 100) >= 70 ? 'bg-success' : (((submission.finalScore || 0) / (submission.answers ? submission.answers.length : (submission.totalQuestions || 1))) * 100) >= 50 ? 'bg-warning' : 'bg-danger'}`}>
+                                  {submission.finalScore}/{submission.answers ? submission.answers.length : (submission.totalQuestions || 0)}
                                 </span>
                               </td>
                               <td>{new Date(submission.submittedAt).toLocaleString()}</td>

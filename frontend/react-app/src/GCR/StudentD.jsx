@@ -1331,6 +1331,11 @@ function StudentClassStream() {
       alert("You have already submitted this exam.");
       return;
     }
+    // Prevent taking an exam that has expired
+    if (exam.due && new Date(exam.due) < new Date()) {
+      alert('This exam has expired and can no longer be taken.');
+      return;
+    }
     
     // Open exam modal
     setSelectedExam(exam);
@@ -1693,20 +1698,25 @@ function StudentClassStream() {
                                 </Badge>
                               </div>
                             ) : (
-                              <Button 
-                                variant="primary" 
-                                size="sm"
-                                onClick={() => handleTakeExam(exam)}
-                                disabled={examLoading === exam._id}
-                                data-exam-id={exam._id}
-                                data-status="not-submitted"
-                              >
-                                {examLoading === exam._id ? (
-                                  <><span className="spinner-border spinner-border-sm me-1" /> Checking...</>
-                                ) : (
-                                  "Take Exam"
-                                )}
-                              </Button>
+                              <div className="d-flex align-items-center">
+                                {exam.due && new Date(exam.due) < new Date() ? (
+                                  <Badge bg="secondary" className="me-2">Expired</Badge>
+                                ) : null}
+                                <Button 
+                                  variant="primary" 
+                                  size="sm"
+                                  onClick={() => handleTakeExam(exam)}
+                                  disabled={examLoading === exam._id || (exam.due && new Date(exam.due) < new Date())}
+                                  data-exam-id={exam._id}
+                                  data-status="not-submitted"
+                                >
+                                  {examLoading === exam._id ? (
+                                    <><span className="spinner-border spinner-border-sm me-1" /> Checking...</>
+                                  ) : (
+                                    "Take Exam"
+                                  )}
+                                </Button>
+                              </div>
                             )}
                           </div>
                         </Card.Body>
