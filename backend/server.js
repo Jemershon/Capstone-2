@@ -189,6 +189,36 @@ const connectToMongoDB = async (retries = 3) => {
         socketTimeoutMS: 45000,
       });
       console.log(`✅ Connected to MongoDB: ${MONGODB_URI.replace(/\/\/.*@/, '//<credentials>@')}`);
+
+      // Idempotent startup migration: fix duplicate-null-email unique index issue
+      try {
+        const db = mongoose.connection.db;
+        const users = db.collection('users');
+        console.log('Startup migration: unsetting email:null documents if any');
+        const updateResult = await users.updateMany({ email: null }, { $unset: { email: '' } });
+        if (updateResult.modifiedCount > 0) {
+          console.log(`Startup migration: unset email on ${updateResult.modifiedCount} documents`);
+        } else {
+          console.log('Startup migration: no email:null documents found');
+        }
+
+        // Recreate partial unique index on email so null/missing emails are allowed
+        try {
+          await users.dropIndex('email_1');
+          console.log('Startup migration: dropped existing email_1 index');
+        } catch (err) {
+          // If dropIndex fails because index doesn't exist, log and continue
+          console.log('Startup migration: dropIndex email_1:', err.message);
+        }
+
+        await users.createIndex(
+          { email: 1 },
+          { unique: true, partialFilterExpression: { email: { $exists: true, $ne: null } } }
+        );
+        console.log('Startup migration: ensured partial unique index on email');
+      } catch (migErr) {
+        console.error('Startup migration error:', migErr);
+      }
       return;
     } catch (error) {
       console.error(`❌ MongoDB connection attempt ${i + 1}/${retries} failed:`, error.message);
