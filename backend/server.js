@@ -1,3 +1,16 @@
+// Minimal log level control: set LOG_LEVEL=debug|info|warn|error in environment to see more logs
+{
+  const envLevel = (process.env.LOG_LEVEL || 'warn').toLowerCase();
+  const levels = { error: 0, warn: 1, info: 2, debug: 3 };
+  const current = levels[envLevel] ?? 1;
+  const _orig = { log: console.log, info: console.info, warn: console.warn, error: console.error, debug: console.debug };
+  console.log = (...args) => { if (current >= 2) _orig.log(...args); };
+  console.info = (...args) => { if (current >= 2) _orig.info(...args); };
+  console.debug = (...args) => { if (current >= 3) _orig.debug(...args); };
+  console.warn = (...args) => { if (current >= 1) _orig.warn(...args); };
+  console.error = (...args) => { _orig.error(...args); };
+}
+
 import dotenv from "dotenv";
 dotenv.config();
 // Force redeploy to pick up new environment variables
@@ -48,6 +61,16 @@ const CORS_ORIGIN = normalizeOrigin(process.env.CORS_ORIGIN) || "http://localhos
 // Middleware
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
+
+// Simple request logger to help debug incoming API calls
+app.use((req, res, next) => {
+  try {
+    console.debug(`Incoming request: ${req.method} ${req.originalUrl}`);
+  } catch (e) {
+    // ignore
+  }
+  next();
+});
 
 // CORS configuration
 const corsOptions = {
@@ -116,7 +139,7 @@ if (NODE_ENV === 'development') {
     });
     
     app.use("/uploads", express.static(uploadsDir));
-    console.log("ℹ️ Serving static files locally (development mode)");
+  console.debug("Serving static files locally (development mode)");
   } catch (error) {
     console.warn("⚠️ Could not create uploads directory:", error.message);
     console.warn("⚠️ File uploads may not work locally");
@@ -194,12 +217,10 @@ const connectToMongoDB = async (retries = 3) => {
       try {
         const db = mongoose.connection.db;
         const users = db.collection('users');
-        console.log('Startup migration: unsetting email:null documents if any');
+        // Run lightweight migration: remove null emails and ensure a safe unique index on email.
         const updateResult = await users.updateMany({ email: null }, { $unset: { email: '' } });
         if (updateResult.modifiedCount > 0) {
-          console.log(`Startup migration: unset email on ${updateResult.modifiedCount} documents`);
-        } else {
-          console.log('Startup migration: no email:null documents found');
+          console.info(`Startup migration: fixed ${updateResult.modifiedCount} user documents`);
         }
 
         // Recreate partial unique index on email so null/missing emails are allowed
@@ -209,32 +230,51 @@ const connectToMongoDB = async (retries = 3) => {
           const existingIndexes = await users.indexes();
           for (const idx of existingIndexes) {
             if (idx.key && idx.key.email === 1) {
-              try {
+                try {
                 await users.dropIndex(idx.name);
-                console.log(`Startup migration: dropped existing index ${idx.name} on email`);
+                console.debug(`Startup migration: dropped index ${idx.name}`);
               } catch (dropErr) {
-                console.log(`Startup migration: failed dropping index ${idx.name}:`, dropErr.message);
+                console.warn(`Startup migration: failed dropping index ${idx.name}:`, dropErr.message);
               }
             }
           }
         } catch (listErr) {
-          console.log('Startup migration: could not list indexes:', listErr.message);
+          console.warn('Startup migration: could not list indexes:', listErr.message);
         }
 
         // Create a resilient unique index on email. Different MongoDB versions
-        // support different partial expression operators; attempt several
-        // strategies and fall back gracefully.
+        // support different partial expression operators; detect server version
+        // and only attempt the preferred partial expression when supported.
+        let supportsPreferredPartial = false;
+        try {
+          const admin = db.admin();
+          const info = await admin.serverInfo();
+          const ver = (info && info.version) ? info.version : '';
+          const parts = ver.split('.').map(n => parseInt(n, 10) || 0);
+          const major = parts[0] || 0;
+          const minor = parts[1] || 0;
+          // Assume preferred partial index expression is safe on MongoDB >= 4.4
+          if (major > 4 || (major === 4 && minor >= 4)) supportsPreferredPartial = true;
+          console.debug(`MongoDB version ${ver} - preferred partial index ${supportsPreferredPartial ? 'enabled' : 'disabled'}`);
+        } catch (verErr) {
+          console.debug('Could not determine MongoDB server version, will use fallback index strategy');
+        }
+
         const tryCreateEmailIndex = async () => {
           // Preferred: partial index excluding nulls (most explicit)
-          try {
-            await users.createIndex(
-              { email: 1 },
-              { unique: true, partialFilterExpression: { email: { $exists: true, $ne: null } } }
-            );
-            console.log('Startup migration: ensured partial unique index on email (\"$ne:null\")');
-            return;
-          } catch (e1) {
-            console.log('Startup migration: preferred partial index failed:', e1.message);
+          if (supportsPreferredPartial) {
+            try {
+              await users.createIndex(
+                { email: 1 },
+                { unique: true, partialFilterExpression: { email: { $exists: true, $ne: null } } }
+              );
+              console.info('Startup migration: created preferred email unique index');
+              return;
+            } catch (e1) {
+              console.debug('Startup migration: preferred partial index failed:', e1.message);
+            }
+          } else {
+            console.debug('Skipping preferred partial index (server version does not support expression)');
           }
 
           // Fallback: partial index where email exists (may exclude missing fields)
@@ -243,20 +283,35 @@ const connectToMongoDB = async (retries = 3) => {
               { email: 1 },
               { unique: true, partialFilterExpression: { email: { $exists: true } } }
             );
-            console.log('Startup migration: ensured partial unique index on email (\"$exists\")');
+            console.info('Startup migration: created fallback email unique index');
             return;
           } catch (e2) {
-            console.log('Startup migration: partial $exists index failed:', e2.message);
+            // Some MongoDB servers may report index name conflicts or unsupported
+            // partial index expressions. In development we prefer to continue
+            // rather than crash the whole server. If the error indicates an
+            // existing index name conflict, log it and continue.
+            console.debug('Startup migration: fallback partial index failed:', e2.message);
+            if (e2 && (e2.codeName === 'IndexKeySpecsConflict' || /same name as the requested index/i.test(e2.message))) {
+              console.warn('Startup migration: index name conflict detected; continuing without replacing index (development mode)');
+            }
           }
 
           // Last resort: create a sparse unique index (supported on older servers)
           try {
             await users.createIndex({ email: 1 }, { unique: true, sparse: true });
-            console.log('Startup migration: ensured sparse unique index on email');
+            console.info('Startup migration: created sparse unique index (last resort)');
             return;
           } catch (e3) {
-            console.error('Startup migration: failed to create any email unique index:', e3.message);
-            throw e3;
+            // Last-resort index creation failed. If the failure is due to an
+            // existing index (name conflict) we will continue in development
+            // and avoid crashing the process. Otherwise rethrow so it can be
+            // observed and handled upstream.
+            if (e3 && (e3.codeName === 'IndexKeySpecsConflict' || /same name as the requested index/i.test(e3.message))) {
+              console.error('Startup migration: index creation conflict detected, continuing in development:', e3.message);
+            } else {
+              console.error('Startup migration: failed to create any email unique index:', e3.message);
+              throw e3;
+            }
           }
         };
 
@@ -375,6 +430,10 @@ const ExamSubmissionSchema = new mongoose.Schema(
     rawScore: Number,
     finalScore: Number,
     totalQuestions: { type: Number, default: 0 },
+    // Capture class context at submission time so grading can reference course/year
+    className: String,
+    classCourse: String,
+    classYear: String,
     creditsUsed: { type: Number, default: 0 },
     submittedAt: { type: Date, default: Date.now },
   },
@@ -743,9 +802,9 @@ app.post("/api/login", async (req, res) => {
 import { OAuth2Client } from 'google-auth-library';
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID || '');
 
-if (!process.env.GOOGLE_CLIENT_ID) {
-  console.warn('⚠️ GOOGLE_CLIENT_ID is not set in environment variables. Google sign-in will fail until this is set.');
-}
+// NOTE: we avoid warning at startup about GOOGLE_CLIENT_ID because some
+// environments may still validate ID tokens successfully. Any real runtime
+// failure during Google auth will be surfaced in the auth endpoint.
 
 app.post('/api/auth/google', async (req, res) => {
   try {
@@ -1128,10 +1187,13 @@ app.get("/api/admin/classes", authenticateToken, requireTeacherOrAdmin, async (r
 // Admin/Teacher: Create class (admin path)
 app.post("/api/admin/classes", authenticateToken, requireTeacherOrAdmin, async (req, res) => {
   try {
-    let { name, section, code, teacher, bg } = req.body;
-    if (!name || !section || !teacher) {
-      return res.status(400).json({ error: "Name, section and teacher are required" });
+  let { name, section, code, teacher, bg, course, year } = req.body;
+    // Accept either section or year (year may contain year-section like '4-2')
+    if (!name || !(section || year) || !teacher) {
+      return res.status(400).json({ error: "Name, year/section and teacher are required" });
     }
+    // Prefer explicit section, otherwise fall back to year
+    section = section || year;
 
     // Always generate server-side class code (do not accept client-supplied codes)
     try {
@@ -1144,15 +1206,15 @@ app.post("/api/admin/classes", authenticateToken, requireTeacherOrAdmin, async (
       return res.status(400).json({ error: "Class code already exists" });
     }
 
-    const cls = new Class({ name, section, code, teacher, students: [], bg });
+  const cls = new Class({ name, section, course, year, code, teacher, students: [], bg });
     try {
       const teacherUser = await User.findOne({ username: teacher });
       if (teacherUser && teacherUser.picture) cls.teacherPicture = teacherUser.picture;
     } catch (e) {
       console.warn('Could not fetch teacher picture for admin-created class:', e.message || e);
     }
-    await cls.save();
-    res.status(201).json({ message: "Class created successfully" });
+  await cls.save();
+  res.status(201).json({ message: "Class created successfully", cls });
   } catch (err) {
     console.error("Create class error:", err);
     res.status(500).json({ error: "Failed to create class" });
@@ -1221,10 +1283,13 @@ app.get("/api/classes/:className", authenticateToken, async (req, res) => {
 app.post("/api/classes", authenticateToken, requireTeacherOrAdmin, async (req, res) => {
   try {
     // NOTE: we ignore any teacher field from the client and assign the logged-in user's username
-    let { name, section, code, bg } = req.body;
-    if (!name || !section) {
-      return res.status(400).json({ error: "Name and section are required" });
+  let { name, section, code, bg, course, year } = req.body;
+    // Accept either section or year
+    if (!name || !(section || year)) {
+      return res.status(400).json({ error: "Name and year/section are required" });
     }
+    // Use year as section when section is not provided
+    section = section || year;
 
     // Always generate server-side class code (do not accept client-supplied codes)
     try {
@@ -1238,7 +1303,7 @@ app.post("/api/classes", authenticateToken, requireTeacherOrAdmin, async (req, r
     if (existingClass) {
       return res.status(400).json({ error: "Class code already exists" });
     }
-    const cls = new Class({ name, section, code: code.toUpperCase(), teacher: teacherUsername, students: [], bg });
+  const cls = new Class({ name, section, course, year, code: code.toUpperCase(), teacher: teacherUsername, students: [], bg });
     try {
       const teacherUser = await User.findOne({ username: teacherUsername });
       if (teacherUser && teacherUser.picture) cls.teacherPicture = teacherUser.picture;
@@ -2567,21 +2632,24 @@ process.on('unhandledRejection', (reason, promise) => {
 // Handle uncaught exceptions
 process.on('uncaughtException', (error) => {
   console.error('💥 Uncaught Exception:', error);
-  if (NODE_ENV === 'production') {
-    console.error('⚠️ Uncaught exception in production - attempting to continue');
-    // Log but don't exit to keep server running for Railway
-  } else {
-    console.error('💥 Uncaught exception - exiting');
-    process.exit(1);
+  // In development, log and continue to allow interactive debugging and
+  // uninterrupted testing (do not exit). In production, prefer to log and
+  // attempt to continue as well, but alert operators.
+  try {
+    if (NODE_ENV === 'production') {
+      console.error('⚠️ Uncaught exception in production - attempting to continue');
+      // Avoid exiting here so monitoring/hosting platforms can report the issue
+      // and the process can be restarted cleanly if necessary.
+    } else {
+      console.warn('⚠️ Uncaught exception in development - continuing (non-fatal)');
+    }
+  } catch (e) {
+    console.error('Error handling uncaught exception:', e);
   }
 });
 
 // Start server
 httpServer.listen(PORT, '0.0.0.0', () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`📡 Environment: ${NODE_ENV}`);
-  console.log(`💾 Database: ${MONGODB_URI.replace(/\/\/.*@/, '//<credentials>@')}`);
-  console.log(`🔧 File Storage: ${NODE_ENV === 'production' ? 'Cloudinary (Cloud)' : 'Local Filesystem'}`);
-  console.log(`🌐 CORS Origin: ${CORS_ORIGIN}`);
-  console.log(`📡 WebSocket server initialized`);
+  // Single clear startup message so it's obvious when the backend is running
+  console.warn(`Backend running on port ${PORT}`);
 });

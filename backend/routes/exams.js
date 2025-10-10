@@ -359,6 +359,10 @@ router.post('/:id/submit', authenticateToken, requireStudent, async (req, res) =
       answers, 
       rawScore, 
       finalScore, 
+      totalQuestions: total,
+      className: cls.name || exam.class,
+      classCourse: cls.course || '',
+      classYear: cls.year || '',
       creditsUsed: creditsToUse 
     });
     await submission.save();

@@ -17,6 +17,7 @@ import {
   Spinner,
   Alert,
 } from "react-bootstrap";
+// NotificationsDropdown not shown for Admin dashboard per request
 
 // Add custom styles for responsive design and modern theme
 const customStyles = `
@@ -308,7 +309,7 @@ function DashboardHome() {
   const [createdCode, setCreatedCode] = useState("");
   const [showCreatedCodeModal, setShowCreatedCodeModal] = useState(false);
   const [userData, setUserData] = useState({ name: "", username: "", password: "", role: "student" });
-  const [classData, setClassData] = useState({ name: "", section: "", code: "", teacher: "" });
+  const [classData, setClassData] = useState({ name: "", section: "", code: "", teacher: "", course: "", year: "" });
   const [selectedUser, setSelectedUser] = useState(null);
   const [selectedClass, setSelectedClass] = useState(null);
   const [showUserDetailModal, setShowUserDetailModal] = useState(false);
@@ -402,8 +403,8 @@ function DashboardHome() {
   };
 
   const handleCreateClass = async () => {
-    if (!classData.name || !classData.section || !classData.teacher) {
-      setError("Name, section and teacher are required");
+    if (!classData.name || !(classData.section || classData.year) || !classData.teacher) {
+      setError("Name, year/section and teacher are required");
       setShowToast(true);
       return;
     }
@@ -411,7 +412,7 @@ function DashboardHome() {
       const res = await retry(() =>
         axios.post(
           `${API_BASE_URL}/api/admin/classes`,
-          { name: classData.name, section: classData.section, bg: classData.bg, teacher: classData.teacher },
+          { name: classData.name, section: classData.section || classData.year, bg: classData.bg, course: classData.course, year: classData.year, teacher: classData.teacher },
           { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
         )
       );
@@ -419,7 +420,7 @@ function DashboardHome() {
       const newCode = created.code || (created.cls && created.cls.code) || '';
       await fetchData();
       setShowCreateClassModal(false);
-      setClassData({ name: "", section: "", code: "", teacher: "" });
+  setClassData({ name: "", section: "", code: "", teacher: "", course: "", year: "" });
       setCreatedCode(newCode);
       setShowCreatedCodeModal(true);
       setError("");
@@ -980,36 +981,54 @@ function DashboardHome() {
                 type="text"
                 value={classData.name}
                 onChange={(e) => setClassData({ ...classData, name: e.target.value })}
-                placeholder="e.g., Math 101"
                 required
                 aria-required="true"
               />
             </Form.Group>
-            <Form.Group className="mb-3">
-              <Form.Label>Section</Form.Label>
-              <Form.Control
-                type="text"
-                value={classData.section}
-                onChange={(e) => setClassData({ ...classData, section: e.target.value })}
-                placeholder="e.g., A"
-                required
-                aria-required="true"
-              />
-            </Form.Group>
-            {/* Class code is generated server-side; admins do not enter it */}
+
+            {/* Teacher username stays here */}
             <Form.Group className="mb-3">
               <Form.Label>Teacher Username</Form.Label>
               <Form.Control
                 type="text"
                 value={classData.teacher}
                 onChange={(e) => setClassData({ ...classData, teacher: e.target.value })}
-                placeholder="e.g., teacher1"
                 required
                 aria-required="true"
               />
               <Form.Text className="text-muted">
                 Use the teacher's username (e.g., teacher1)
               </Form.Text>
+            </Form.Group>
+
+            <Form.Group className="mb-3">
+              <Form.Label>Course</Form.Label>
+              <Form.Control
+                type="text"
+                value={classData.course}
+                onChange={(e) => setClassData({ ...classData, course: e.target.value })}
+                aria-label="Course"
+              />
+            </Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Label>Year / Section</Form.Label>
+              <Form.Control
+                type="text"
+                value={classData.year}
+                onChange={(e) => setClassData({ ...classData, year: e.target.value })}
+                aria-label="Year and Section"
+              />
+            </Form.Group>
+
+            {/* Background Color moved to the bottom */}
+            <Form.Group className="mb-3">
+              <Form.Label>Background Color</Form.Label>
+              <Form.Control
+                type="color"
+                value={classData.bg}
+                onChange={(e) => setClassData({ ...classData, bg: e.target.value })}
+                aria-label="Background color"
+              />
             </Form.Group>
           </Form>
         </Modal.Body>
@@ -1028,7 +1047,7 @@ function DashboardHome() {
           <Button
             className="btn-modern-primary"
             onClick={handleCreateClass}
-            disabled={!classData.name || !classData.section || !classData.teacher}
+            disabled={!classData.name || !classData.year || !classData.teacher}
             aria-label="Create class"
           >
             Create
@@ -1149,8 +1168,12 @@ export default function AdminDashboard() {
         <div className="d-md-none">
           <Navbar expand="lg" className="modern-mobile-navbar shadow-sm">
             <Container fluid>
-              <Navbar.Brand className="fw-bold text-primary fs-4">👑 Admin</Navbar.Brand>
-              <Navbar.Toggle aria-controls="mobile-nav" />
+              <div className="d-flex align-items-center justify-content-between w-100">
+                <Navbar.Brand className="fw-bold text-primary fs-4">👑 Admin</Navbar.Brand>
+                <div className="d-flex align-items-center">
+                  <Navbar.Toggle aria-controls="mobile-nav" />
+                </div>
+              </div>
               <Navbar.Collapse id="mobile-nav">
                 <Nav className="w-100">
                   <Nav.Link

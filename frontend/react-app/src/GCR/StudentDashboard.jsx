@@ -206,7 +206,11 @@ function StudentDashboard() {
         </div>
         
         {/* Main Content */}
-        <Col md={10} className="main-content-responsive">
+        <Col md={10} className="main-content-responsive" style={{ position: 'relative' }}>
+          {/* Account-level notifications (absolute so it doesn't add vertical gap) */}
+          <div style={{ position: 'absolute', top: 12, right: 18, zIndex: 1050 }}>
+            <NotificationsDropdown />
+          </div>
           <Routes>
             <Route path="/" element={<StudentMainDashboard />} />
             <Route path="/dashboard" element={<StudentMainDashboard />} />
@@ -830,7 +834,6 @@ function StudentClassStream() {
           <div className="d-flex justify-content-between align-items-center mb-4">
             <h2 className="fw-bold text-primary">{className}</h2>
             <div className="d-flex align-items-center gap-3">
-              <NotificationsDropdown />
               {/* Leave class dropdown menu */}
               <Dropdown align="end">
                 <Dropdown.Toggle 

@@ -412,7 +412,7 @@ function DashboardAndClasses() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [createdCode, setCreatedCode] = useState("");
   const [showCreatedCodeModal, setShowCreatedCodeModal] = useState(false);
-  const [classData, setClassData] = useState({ name: "", section: "", code: "", bg: "#FFF0D8" });
+  const [classData, setClassData] = useState({ name: "", section: "", code: "", bg: "#FFF0D8", course: "", year: "" });
   const [selectedClass, setSelectedClass] = useState(null);
   const [showManageModal, setShowManageModal] = useState(false);
   const [user, setUser] = useState({ username: "" });
@@ -456,8 +456,8 @@ function DashboardAndClasses() {
   }, [fetchData]);
 
   const handleCreateClass = async () => {
-    if (!classData.name || !classData.section) {
-      setError("Name and section are required");
+    if (!classData.name || !(classData.section || classData.year)) {
+      setError("Name and year/section are required");
       setShowToast(true);
       return;
     }
@@ -467,8 +467,10 @@ function DashboardAndClasses() {
           `${API_BASE_URL}/api/classes`,
           { 
             name: classData.name,
-            section: classData.section,
+            section: classData.section || classData.year,
             bg: classData.bg,
+            course: classData.course,
+            year: classData.year,
             teacher: user.username // backend will ignore this and use token, but keep for compatibility
           },
           { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
@@ -478,7 +480,7 @@ function DashboardAndClasses() {
       const newCode = created.code || (created.cls && created.cls.code) || '';
       await fetchData();
       setShowCreateModal(false);
-      setClassData({ name: "", section: "", code: "", bg: "#FFF0D8" });
+  setClassData({ name: "", section: "", code: "", bg: "#FFF0D8", course: "", year: "" });
       setCreatedCode(newCode);
       setShowCreatedCodeModal(true);
       setError("");
@@ -547,7 +549,7 @@ function DashboardAndClasses() {
                 <div className="d-flex align-items-center justify-content-between">
                   <div>
                     <Card.Title className="fw-bold">{cls.name}</Card.Title>
-                    <Card.Subtitle className="mb-2 text-muted">{cls.section}</Card.Subtitle>
+                    <Card.Subtitle className="mb-2 text-muted">{(cls.course ? `${cls.course} ` : '')}{cls.year ? `${cls.year} · ` : ''}{cls.section}</Card.Subtitle>
                   </div>
                   {cls.teacherPicture && (
                     <img
@@ -600,7 +602,7 @@ function DashboardAndClasses() {
         show={showCreateModal}
         onHide={() => {
           setShowCreateModal(false);
-          setClassData({ name: "", section: "", code: "", bg: "#FFF0D8" });
+          setClassData({ name: "", section: "", code: "", bg: "#FFF0D8", course: "", year: "" });
           setError("");
         }}
         centered
@@ -616,24 +618,32 @@ function DashboardAndClasses() {
                 type="text"
                 value={classData.name}
                 onChange={(e) => setClassData({ ...classData, name: e.target.value })}
-                placeholder="e.g., Math 101"
                 required
                 aria-required="true"
+              />
+            </Form.Group>
+
+            {/* Course and Year/Section are shown under Class Name. Section input removed; year will be used as section value. */}
+            <Form.Group className="mb-3">
+              <Form.Label>Course</Form.Label>
+              <Form.Control
+                type="text"
+                value={classData.course}
+                onChange={(e) => setClassData({ ...classData, course: e.target.value })}
+                aria-label="Course"
               />
             </Form.Group>
             <Form.Group className="mb-3">
-              <Form.Label>Section</Form.Label>
+              <Form.Label>Year / Section</Form.Label>
               <Form.Control
                 type="text"
-                value={classData.section}
-                onChange={(e) => setClassData({ ...classData, section: e.target.value })}
-                placeholder="e.g., A"
-                required
-                aria-required="true"
+                value={classData.year}
+                onChange={(e) => setClassData({ ...classData, year: e.target.value })}
+                aria-label="Year and Section"
               />
             </Form.Group>
-            {/* Class code is generated server-side; teachers do not enter it */}
 
+            {/* Background Color moved to the bottom of the modal */}
             <Form.Group className="mb-3">
               <Form.Label>Background Color</Form.Label>
               <Form.Control
@@ -650,7 +660,7 @@ function DashboardAndClasses() {
             variant="secondary"
             onClick={() => {
               setShowCreateModal(false);
-              setClassData({ name: "", section: "", code: "", bg: "#FFF0D8" });
+              setClassData({ name: "", section: "", code: "", bg: "#FFF0D8", course: "", year: "" });
               setError("");
             }}
           >
@@ -659,7 +669,7 @@ function DashboardAndClasses() {
           <Button
             className="btn-modern-primary"
             onClick={handleCreateClass}
-            disabled={!classData.name || !classData.section}
+            disabled={!classData.name || !classData.year}
             aria-label="Create class"
           >
             Create
@@ -1371,17 +1381,7 @@ function TeacherClassStream() {
     <div>
       <div className="d-flex justify-content-between align-items-center mb-3">
         <h2 className="fw-bold">{className}</h2>
-        <div className="d-flex align-items-center gap-2">
-          <Button 
-            variant="outline-secondary" 
-            size="sm"
-            onClick={() => window.navigator.clipboard.writeText(classInfo?.code)}
-            title="Copy class code"
-          >
-            Class Code: {classInfo?.code}
-          </Button>
-          <NotificationsDropdown />
-        </div>
+        {/* removed class code display per user request */}
       </div>
 
       {(error || successMessage) && (
@@ -4131,8 +4131,13 @@ export default function TeacherDashboard() {
         <div className="d-md-none">
           <Navbar expand="lg" className="modern-mobile-navbar shadow-sm">
             <Container fluid>
-              <Navbar.Brand className="fw-bold fs-4">🏫 Teacher</Navbar.Brand>
-              <Navbar.Toggle aria-controls="mobile-nav" />
+              <div className="d-flex align-items-center justify-content-between w-100">
+                <Navbar.Brand className="fw-bold fs-4">🏫 Teacher</Navbar.Brand>
+                <div className="d-flex align-items-center">
+                  <NotificationsDropdown />
+                  <Navbar.Toggle aria-controls="mobile-nav" />
+                </div>
+              </div>
               <Navbar.Collapse id="mobile-nav">
                 <Nav className="w-100">
                   <Nav.Link
@@ -4172,7 +4177,11 @@ export default function TeacherDashboard() {
           </Navbar>
         </div>
         {/* Main Content */}
-        <Col md={10} xs={12} className="main-content-responsive">
+        <Col md={10} xs={12} className="main-content-responsive" style={{ position: 'relative' }}>
+          {/* Top-right notifications (absolute so it doesn't add vertical gap) */}
+          <div style={{ position: 'absolute', top: 12, right: 18, zIndex: 1050 }}>
+            <NotificationsDropdown />
+          </div>
           <Routes>
             <Route path="dashboard" element={<DashboardAndClasses />} />
             {/* Removed global Assignments and Announcements to match per-class stream */}

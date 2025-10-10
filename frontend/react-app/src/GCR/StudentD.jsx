@@ -423,11 +423,16 @@ function StudentDashboard() {
         </Col>
         
         {/* Mobile navbar */}
-        <div className="d-md-none">
+        <div className="d-md-none position-fixed w-100" style={{top: 0, zIndex: 1000}}>
           <Navbar expand="lg" className="modern-mobile-navbar shadow-sm">
             <Container fluid>
-              <Navbar.Brand className="fw-bold text-primary fs-4">📚 Student</Navbar.Brand>
-              <Navbar.Toggle aria-controls="mobile-nav" />
+              <div className="d-flex align-items-center justify-content-between w-100">
+                <Navbar.Brand className="fw-bold text-primary fs-4">📚 Student</Navbar.Brand>
+                <div className="d-flex align-items-center">
+                  <NotificationsDropdown />
+                  <Navbar.Toggle aria-controls="mobile-nav" />
+                </div>
+              </div>
               <Navbar.Collapse id="mobile-nav">
                 <Nav className="w-100">
                   <Nav.Link
@@ -461,7 +466,11 @@ function StudentDashboard() {
         </div>
         
         {/* Main Content */}
-        <Col md={10} xs={12} className="main-content-responsive">
+        <Col md={10} xs={12} className="main-content-responsive" style={{ position: 'relative' }}>
+          {/* Top-right notifications (absolute so it doesn't add vertical gap) */}
+          <div style={{ position: 'absolute', top: 12, right: 18, zIndex: 1050 }}>
+            <NotificationsDropdown />
+          </div>
           <Routes>
             <Route path="/" element={<StudentMainDashboard />} />
             <Route path="/dashboard" element={<StudentMainDashboard />} />
@@ -1508,7 +1517,7 @@ function StudentClassStream() {
           <div className="d-flex justify-content-between align-items-center mb-3">
             <h2 className="fw-bold text-primary">{className}</h2>
             <div className="d-flex align-items-center gap-3">
-              <NotificationsDropdown />
+              {/* Account-level notifications are provided by StudentDashboard's header */}
             </div>
           </div>
 
@@ -2480,8 +2489,12 @@ function StudentProfile() {
       )}
 
       {/* Header Section */}
-      <div className="d-flex justify-content-between align-items-center mb-4">
-        <h2 className="fw-bold mb-0">🎓 Student Profile</h2>
+      <div className="d-flex justify-content-between align-items-center mb-3">
+        <h2 className="fw-bold text-primary">My Profile</h2>
+        <div className="d-flex align-items-center gap-3">
+          {/* Notifications are shown at the dashboard/account level, not per-class */}
+          {/* Leave class dropdown menu */}
+        </div>
       </div>
 
       <Row>

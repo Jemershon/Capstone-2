@@ -20,7 +20,7 @@ const configureCloudinary = () => {
     console.log('✅ Cloudinary configured for production');
     return true;
   } else {
-    console.log('ℹ️ Using local file storage (development mode)');
+    // local storage used in development (no noisy log)
     return false;
   }
 };

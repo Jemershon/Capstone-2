@@ -4,7 +4,7 @@ import {
   Button, Badge, Dropdown, ListGroup, Spinner, Modal 
 } from 'react-bootstrap';
 import { API_BASE_URL, getAuthToken } from '../../api';
-import { io } from 'socket.io-client';
+import { getSocket, ensureSocketConnected } from '../../socketClient';
 
 // Retry function for API calls
 const retry = async (fn, retries = 3, delay = 1000) => {
@@ -54,71 +54,53 @@ function NotificationsDropdown() {
     }
   }, []);
   
-  // Reference to socket instance to maintain connection
+  // Reference to socket connection status
   const socketRef = useRef(null);
-  
+
   useEffect(() => {
     fetchNotifications();
-    
-    // Set up Socket.IO connection for real-time notifications
+
     const token = getAuthToken();
-    if (token) {
-      try {
-        console.log("Setting up socket connection for notifications...");
-        // Create socket connection
-        const socket = io(API_BASE_URL, {
-          transports: ['websocket', 'polling'],
-          timeout: 10000,
-          reconnection: true,
-          reconnectionDelay: 1000,
-          reconnectionAttempts: 5
-        });
-        socketRef.current = socket;
-        
-        // Socket connection events
-        socket.on('connect', () => {
-          console.log('✅ Connected to notification server, socket ID:', socket.id);
-          socket.emit('authenticate', token);
-        });
-        
-        socket.on('connect_error', (error) => {
-          console.error('❌ Socket connection error:', error);
-        });
-        
-        socket.on('disconnect', (reason) => {
-          console.log('🔌 Socket disconnected:', reason);
-        });
-        
-        // Listen for new notifications
-        socket.on('new-notification', (notification) => {
-          console.log('🔔 Received new notification:', notification);
-          // Add the new notification to the top of the list
-          setNotifications(prev => [notification, ...prev.slice(0, 4)]);
-          // Increment unread count
-          setUnreadCount(prev => prev + 1);
-          
-          // Show browser notification if supported
-          if ('Notification' in window && Notification.permission === 'granted') {
-            new Notification('New Notification', {
-              body: notification.message,
-              icon: '/favicon.ico'
-            });
-          }
-        });
-        
-        // Request notification permission if not already granted
-        if ('Notification' in window && Notification.permission !== 'denied') {
-          Notification.requestPermission();
+    if (!token) return;
+
+    // Use the shared socket client to avoid multiple connections
+    const socket = getSocket();
+    socketRef.current = socket;
+
+    try {
+      // Ensure the socket is connected and authenticated
+      ensureSocketConnected();
+
+      // Attach listener for new notifications
+      const onNewNotification = (notification) => {
+        setNotifications(prev => [notification, ...prev.slice(0, 4)]);
+        setUnreadCount(prev => prev + 1);
+        if ('Notification' in window && Notification.permission === 'granted') {
+          new Notification('New Notification', { body: notification.message, icon: '/favicon.ico' });
         }
-      } catch (error) {
-        console.error('Error setting up socket connection:', error);
+      };
+
+      socket.on('new-notification', onNewNotification);
+
+      // Request notification permission if not already denied
+      if ('Notification' in window && Notification.permission !== 'denied') {
+        Notification.requestPermission();
       }
+
+      // Save handler on ref for cleanup
+      socketRef.current._onNewNotification = onNewNotification;
+    } catch (err) {
+      console.debug('Socket setup skipped or failed:', err.message || err);
     }
-    
+
     return () => {
-      // Clean up socket connection when component unmounts
-      if (socketRef.current) {
-        socketRef.current.disconnect();
+      try {
+        if (socketRef.current && socketRef.current._onNewNotification) {
+          socketRef.current.off('new-notification', socketRef.current._onNewNotification);
+          delete socketRef.current._onNewNotification;
+        }
+      } catch (e) {
+        // ignore cleanup errors
       }
     };
   }, [fetchNotifications]);
