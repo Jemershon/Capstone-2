@@ -203,19 +203,64 @@ const connectToMongoDB = async (retries = 3) => {
         }
 
         // Recreate partial unique index on email so null/missing emails are allowed
+        // Drop any existing index that targets the `email` key to avoid
+        // IndexKeySpecsConflict when creating a new index with different options.
         try {
-          await users.dropIndex('email_1');
-          console.log('Startup migration: dropped existing email_1 index');
-        } catch (err) {
-          // If dropIndex fails because index doesn't exist, log and continue
-          console.log('Startup migration: dropIndex email_1:', err.message);
+          const existingIndexes = await users.indexes();
+          for (const idx of existingIndexes) {
+            if (idx.key && idx.key.email === 1) {
+              try {
+                await users.dropIndex(idx.name);
+                console.log(`Startup migration: dropped existing index ${idx.name} on email`);
+              } catch (dropErr) {
+                console.log(`Startup migration: failed dropping index ${idx.name}:`, dropErr.message);
+              }
+            }
+          }
+        } catch (listErr) {
+          console.log('Startup migration: could not list indexes:', listErr.message);
         }
 
-        await users.createIndex(
-          { email: 1 },
-          { unique: true, partialFilterExpression: { email: { $exists: true, $ne: null } } }
-        );
-        console.log('Startup migration: ensured partial unique index on email');
+        // Create a resilient unique index on email. Different MongoDB versions
+        // support different partial expression operators; attempt several
+        // strategies and fall back gracefully.
+        const tryCreateEmailIndex = async () => {
+          // Preferred: partial index excluding nulls (most explicit)
+          try {
+            await users.createIndex(
+              { email: 1 },
+              { unique: true, partialFilterExpression: { email: { $exists: true, $ne: null } } }
+            );
+            console.log('Startup migration: ensured partial unique index on email (\"$ne:null\")');
+            return;
+          } catch (e1) {
+            console.log('Startup migration: preferred partial index failed:', e1.message);
+          }
+
+          // Fallback: partial index where email exists (may exclude missing fields)
+          try {
+            await users.createIndex(
+              { email: 1 },
+              { unique: true, partialFilterExpression: { email: { $exists: true } } }
+            );
+            console.log('Startup migration: ensured partial unique index on email (\"$exists\")');
+            return;
+          } catch (e2) {
+            console.log('Startup migration: partial $exists index failed:', e2.message);
+          }
+
+          // Last resort: create a sparse unique index (supported on older servers)
+          try {
+            await users.createIndex({ email: 1 }, { unique: true, sparse: true });
+            console.log('Startup migration: ensured sparse unique index on email');
+            return;
+          } catch (e3) {
+            console.error('Startup migration: failed to create any email unique index:', e3.message);
+            throw e3;
+          }
+        };
+
+        await tryCreateEmailIndex();
       } catch (migErr) {
         console.error('Startup migration error:', migErr);
       }
@@ -491,8 +536,96 @@ app.post("/api/register", async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
     const user = new User({ name, username, email: email || undefined, password: hashedPassword, role });
-    await user.save();
-    res.status(201).json({ message: "User registered successfully" });
+
+    // Try to save. If a duplicate-key error occurs because of legacy documents that
+    // have `email: null` and a non-partial unique index existed, attempt an
+    // idempotent remediation: unset email:null documents and ensure a partial
+    // unique index on `email`, then retry the save once.
+    try {
+      await user.save();
+      return res.status(201).json({ message: "User registered successfully" });
+    } catch (saveErr) {
+      console.error('Register save error:', saveErr && saveErr.message ? saveErr.message : saveErr);
+
+      // Detect Mongo duplicate key error
+      if (saveErr && (saveErr.code === 11000 || (saveErr.name === 'MongoServerError' && /duplicate key/i.test(String(saveErr.message))))) {
+        try {
+          const db = mongoose.connection.db;
+          const users = db.collection('users');
+
+          console.log('Register handler remediation: unsetting legacy email:null documents');
+          const upd = await users.updateMany({ email: null }, { $unset: { email: "" } });
+          console.log(`Remediation: unset email on ${upd.modifiedCount} documents`);
+
+          // Ensure partial unique index on email to avoid duplicate-null problems in future
+          try {
+            const existingIndexes = await users.indexes();
+            for (const idx of existingIndexes) {
+              if (idx.key && idx.key.email === 1) {
+                try {
+                  await users.dropIndex(idx.name);
+                  console.log(`Remediation: dropped existing index ${idx.name} on email`);
+                } catch (dErr) {
+                  console.log(`Remediation: failed dropping index ${idx.name}:`, dErr.message);
+                }
+              }
+            }
+          } catch (listErr) {
+            console.log('Remediation: could not list indexes:', listErr.message);
+          }
+
+          const tryCreateEmailIndex = async () => {
+            try {
+              await users.createIndex(
+                { email: 1 },
+                { unique: true, partialFilterExpression: { email: { $exists: true, $ne: null } } }
+              );
+              console.log('Remediation: ensured partial unique index on email (\"$ne:null\")');
+              return;
+            } catch (e1) {
+              console.log('Remediation: preferred partial index failed:', e1.message);
+            }
+
+            try {
+              await users.createIndex(
+                { email: 1 },
+                { unique: true, partialFilterExpression: { email: { $exists: true } } }
+              );
+              console.log('Remediation: ensured partial unique index on email (\"$exists\")');
+              return;
+            } catch (e2) {
+              console.log('Remediation: partial $exists index failed:', e2.message);
+            }
+
+            try {
+              await users.createIndex({ email: 1 }, { unique: true, sparse: true });
+              console.log('Remediation: ensured sparse unique index on email');
+              return;
+            } catch (e3) {
+              console.error('Remediation: failed to create any email unique index:', e3.message);
+              throw e3;
+            }
+          };
+
+          await tryCreateEmailIndex();
+
+          // Retry save once
+          try {
+            await user.save();
+            return res.status(201).json({ message: "User registered successfully" });
+          } catch (retryErr) {
+            console.error('Register retry failed:', retryErr && retryErr.message ? retryErr.message : retryErr);
+            return res.status(500).json({ error: 'Registration failed after remediation. Please contact the administrator.' });
+          }
+        } catch (remErr) {
+          console.error('Register remediation error:', remErr && remErr.stack ? remErr.stack : remErr);
+          return res.status(500).json({ error: 'Registration failed (remediation error). Please contact the administrator.' });
+        }
+      }
+
+      // Default error flow
+      return res.status(500).json({ error: 'Registration failed' });
+    }
   } catch (err) {
     console.error("Register error:", err);
     res.status(500).json({ error: "Registration failed" });
