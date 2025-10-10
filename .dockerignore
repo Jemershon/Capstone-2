@@ -90,3 +90,11 @@ lerna-debug.log*
 # Lock files (will be regenerated)
 yarn.lock
 pnpm-lock.yaml
+
+# Ensure lockfiles required by `npm ci` are included in the Docker build context.
+# Previously package-lock.json was ignored which caused `npm ci` in the image to
+# fail because lockfiles were missing. Re-include the common lockfile locations
+# (root, backend, and frontend/react-app).
+!package-lock.json
+!backend/package-lock.json
+!frontend/react-app/package-lock.json
