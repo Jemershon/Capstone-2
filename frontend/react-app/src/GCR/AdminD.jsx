@@ -305,6 +305,8 @@ function DashboardHome() {
   const [showToast, setShowToast] = useState(false);
   const [showCreateUserModal, setShowCreateUserModal] = useState(false);
   const [showCreateClassModal, setShowCreateClassModal] = useState(false);
+  const [createdCode, setCreatedCode] = useState("");
+  const [showCreatedCodeModal, setShowCreatedCodeModal] = useState(false);
   const [userData, setUserData] = useState({ name: "", username: "", password: "", role: "student" });
   const [classData, setClassData] = useState({ name: "", section: "", code: "", teacher: "" });
   const [selectedUser, setSelectedUser] = useState(null);
@@ -400,27 +402,30 @@ function DashboardHome() {
   };
 
   const handleCreateClass = async () => {
-    if (!classData.name || !classData.section || !classData.code || !classData.teacher) {
-      setError("All fields are required");
+    if (!classData.name || !classData.section || !classData.teacher) {
+      setError("Name, section and teacher are required");
       setShowToast(true);
       return;
     }
     try {
-      await retry(() =>
+      const res = await retry(() =>
         axios.post(
           `${API_BASE_URL}/api/admin/classes`,
-          { ...classData, code: classData.code.toUpperCase() },
+          { name: classData.name, section: classData.section, bg: classData.bg, teacher: classData.teacher },
           { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
         )
       );
+      const created = res.data.cls || res.data;
+      const newCode = created.code || (created.cls && created.cls.code) || '';
       await fetchData();
       setShowCreateClassModal(false);
       setClassData({ name: "", section: "", code: "", teacher: "" });
-      setError("Class created successfully!");
-      setShowToast(true);
+      setCreatedCode(newCode);
+      setShowCreatedCodeModal(true);
+      setError("");
     } catch (err) {
       console.error("Create class error:", err.response?.data || err.message);
-      setError(err.response?.data?.error || "Failed to create class. Check code uniqueness or network.");
+      setError(err.response?.data?.error || "Failed to create class. Check network or try again.");
       setShowToast(true);
     }
   };
@@ -764,6 +769,21 @@ function DashboardHome() {
         </Modal.Footer>
       </Modal>
 
+      {/* Created Class Code Modal */}
+      <Modal show={showCreatedCodeModal} onHide={() => setShowCreatedCodeModal(false)} centered>
+        <Modal.Header closeButton>
+          <Modal.Title>Class Created</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <p className="mb-2">Share this class code with the teacher or students so they can join:</p>
+          <h4><code>{createdCode}</code></h4>
+          <div className="mt-3">
+            <Button variant="primary" onClick={() => { navigator.clipboard?.writeText(createdCode); setShowCreatedCodeModal(false); setError('Class code copied to clipboard'); setShowToast(true); }}>Copy</Button>
+            <Button variant="secondary" className="ms-2" onClick={() => setShowCreatedCodeModal(false)}>Close</Button>
+          </div>
+        </Modal.Body>
+      </Modal>
+
       {/* Class Detail Modal */}
       <Modal
         show={showClassDetailModal}
@@ -976,17 +996,7 @@ function DashboardHome() {
                 aria-required="true"
               />
             </Form.Group>
-            <Form.Group className="mb-3">
-              <Form.Label>Class Code</Form.Label>
-              <Form.Control
-                type="text"
-                value={classData.code}
-                onChange={(e) => setClassData({ ...classData, code: e.target.value })}
-                placeholder="e.g., ABC123"
-                required
-                aria-required="true"
-              />
-            </Form.Group>
+            {/* Class code is generated server-side; admins do not enter it */}
             <Form.Group className="mb-3">
               <Form.Label>Teacher Username</Form.Label>
               <Form.Control
@@ -1018,7 +1028,7 @@ function DashboardHome() {
           <Button
             className="btn-modern-primary"
             onClick={handleCreateClass}
-            disabled={!classData.name || !classData.section || !classData.code || !classData.teacher}
+            disabled={!classData.name || !classData.section || !classData.teacher}
             aria-label="Create class"
           >
             Create

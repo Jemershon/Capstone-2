@@ -410,6 +410,8 @@ function DashboardAndClasses() {
   const navigate = useNavigate();
   const [classes, setClasses] = useState([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [createdCode, setCreatedCode] = useState("");
+  const [showCreatedCodeModal, setShowCreatedCodeModal] = useState(false);
   const [classData, setClassData] = useState({ name: "", section: "", code: "", bg: "#FFF0D8" });
   const [selectedClass, setSelectedClass] = useState(null);
   const [showManageModal, setShowManageModal] = useState(false);
@@ -454,31 +456,35 @@ function DashboardAndClasses() {
   }, [fetchData]);
 
   const handleCreateClass = async () => {
-    if (!classData.name || !classData.section || !classData.code) {
-      setError("All fields are required");
+    if (!classData.name || !classData.section) {
+      setError("Name and section are required");
       setShowToast(true);
       return;
     }
     try {
-      await retry(() =>
+      const res = await retry(() =>
         axios.post(
           `${API_BASE_URL}/api/classes`,
           { 
-            ...classData, 
-            code: classData.code.toUpperCase(),
-            teacher: user.username // Use current user's username
+            name: classData.name,
+            section: classData.section,
+            bg: classData.bg,
+            teacher: user.username // backend will ignore this and use token, but keep for compatibility
           },
           { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
         )
       );
+      const created = res.data.cls || res.data;
+      const newCode = created.code || (created.cls && created.cls.code) || '';
       await fetchData();
       setShowCreateModal(false);
-      setClassData({ name: "", section: "", code: "", bg: "#FFF0D8" }); // Remove teacher field
-      setError("Class created successfully!");
-      setShowToast(true);
+      setClassData({ name: "", section: "", code: "", bg: "#FFF0D8" });
+      setCreatedCode(newCode);
+      setShowCreatedCodeModal(true);
+      setError("");
     } catch (err) {
       console.error("Create class error:", err.response?.data || err.message);
-      setError(err.response?.data?.error || "Failed to create class. Check code uniqueness or network.");
+      setError(err.response?.data?.error || "Failed to create class. Check network or try again.");
       setShowToast(true);
     }
   };
@@ -626,17 +632,7 @@ function DashboardAndClasses() {
                 aria-required="true"
               />
             </Form.Group>
-            <Form.Group className="mb-3">
-              <Form.Label>Class Code</Form.Label>
-              <Form.Control
-                type="text"
-                value={classData.code}
-                onChange={(e) => setClassData({ ...classData, code: e.target.value })}
-                placeholder="e.g., ABC123"
-                required
-                aria-required="true"
-              />
-            </Form.Group>
+            {/* Class code is generated server-side; teachers do not enter it */}
 
             <Form.Group className="mb-3">
               <Form.Label>Background Color</Form.Label>
@@ -663,12 +659,27 @@ function DashboardAndClasses() {
           <Button
             className="btn-modern-primary"
             onClick={handleCreateClass}
-            disabled={!classData.name || !classData.section || !classData.code}
+            disabled={!classData.name || !classData.section}
             aria-label="Create class"
           >
             Create
           </Button>
         </Modal.Footer>
+      </Modal>
+
+      {/* Created Class Code Modal */}
+      <Modal show={showCreatedCodeModal} onHide={() => setShowCreatedCodeModal(false)} centered>
+        <Modal.Header closeButton>
+          <Modal.Title>Class Created</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <p className="mb-2">Share this class code with your students so they can join:</p>
+          <h4><code>{createdCode}</code></h4>
+          <div className="mt-3">
+            <Button variant="primary" onClick={() => { navigator.clipboard?.writeText(createdCode); setShowCreatedCodeModal(false); setError('Class code copied to clipboard'); setShowToast(true); }}>Copy</Button>
+            <Button variant="secondary" className="ms-2" onClick={() => setShowCreatedCodeModal(false)}>Close</Button>
+          </div>
+        </Modal.Body>
       </Modal>
 
       {/* Stats Detail Modal */}

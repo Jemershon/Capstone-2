@@ -396,6 +396,24 @@ const Announcement = mongoose.model("Announcement", AnnouncementSchema);
 const ExamSubmission = mongoose.model("ExamSubmission", ExamSubmissionSchema);
 const Grade = mongoose.model("Grade", GradeSchema);
 
+// Helper: generate a short, human-friendly class code (e.g., 6 chars alphanumeric)
+function generateClassCode(length = 6) {
+  const chars = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; // exclude ambiguous chars
+  let code = '';
+  for (let i = 0; i < length; i++) code += chars.charAt(Math.floor(Math.random() * chars.length));
+  return code;
+}
+
+// Helper: generate a unique class code by checking the DB (retries up to attempts)
+async function generateUniqueClassCode(attempts = 5, length = 6) {
+  for (let i = 0; i < attempts; i++) {
+    const code = generateClassCode(length);
+    const exists = await Class.findOne({ code });
+    if (!exists) return code;
+  }
+  throw new Error('Failed to generate unique class code');
+}
+
 
 // Seed data endpoint
 app.post("/api/seed", async (req, res) => {
@@ -462,7 +480,7 @@ app.post("/api/seed", async (req, res) => {
         title: "Homework 1",
         description: "Solve problems 1-10",
         due: new Date("2025-10-01"),
-        status: "Pending",
+        status: "Assigned",
         createdBy: "teacher1",
       },
     ];
@@ -1110,15 +1128,23 @@ app.get("/api/admin/classes", authenticateToken, requireTeacherOrAdmin, async (r
 // Admin/Teacher: Create class (admin path)
 app.post("/api/admin/classes", authenticateToken, requireTeacherOrAdmin, async (req, res) => {
   try {
-    const { name, section, code, teacher, bg } = req.body;
-    if (!name || !section || !code || !teacher) {
-      return res.status(400).json({ error: "All fields are required" });
+    let { name, section, code, teacher, bg } = req.body;
+    if (!name || !section || !teacher) {
+      return res.status(400).json({ error: "Name, section and teacher are required" });
+    }
+
+    // Always generate server-side class code (do not accept client-supplied codes)
+    try {
+      code = await generateUniqueClassCode(10, 6);
+    } catch (e) {
+      return res.status(500).json({ error: 'Failed to generate class code' });
     }
     const existingClass = await Class.findOne({ code });
     if (existingClass) {
       return res.status(400).json({ error: "Class code already exists" });
     }
-    const cls = new Class({ name, section, code: code.toUpperCase(), teacher, students: [], bg });
+
+    const cls = new Class({ name, section, code, teacher, students: [], bg });
     try {
       const teacherUser = await User.findOne({ username: teacher });
       if (teacherUser && teacherUser.picture) cls.teacherPicture = teacherUser.picture;
@@ -1195,9 +1221,16 @@ app.get("/api/classes/:className", authenticateToken, async (req, res) => {
 app.post("/api/classes", authenticateToken, requireTeacherOrAdmin, async (req, res) => {
   try {
     // NOTE: we ignore any teacher field from the client and assign the logged-in user's username
-    const { name, section, code, bg } = req.body;
-    if (!name || !section || !code) {
-      return res.status(400).json({ error: "All fields are required" });
+    let { name, section, code, bg } = req.body;
+    if (!name || !section) {
+      return res.status(400).json({ error: "Name and section are required" });
+    }
+
+    // Always generate server-side class code (do not accept client-supplied codes)
+    try {
+      code = await generateUniqueClassCode(10, 6);
+    } catch (e) {
+      return res.status(500).json({ error: 'Failed to generate class code' });
     }
     // teacher is from token
     const teacherUsername = req.user.username;
