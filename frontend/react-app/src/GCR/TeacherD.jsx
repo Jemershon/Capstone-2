@@ -612,47 +612,44 @@ function DashboardAndClasses() {
         </Modal.Header>
         <Modal.Body>
           <Form>
-            <Form.Group className="mb-3">
-              <Form.Label>Class Name</Form.Label>
+            <Form.Floating className="mb-3" style={{ position: 'relative' }}>
               <Form.Control
+                id="floatingClassName"
                 type="text"
+                placeholder="Class Name"
                 value={classData.name}
                 onChange={(e) => setClassData({ ...classData, name: e.target.value })}
                 required
                 aria-required="true"
               />
-            </Form.Group>
+              <label htmlFor="floatingClassName">Class Name</label>
+            </Form.Floating>
 
-            {/* Course and Year/Section are shown under Class Name. Section input removed; year will be used as section value. */}
-            <Form.Group className="mb-3">
-              <Form.Label>Course</Form.Label>
+            <Form.Floating className="mb-3" style={{ position: 'relative' }}>
               <Form.Control
+                id="floatingCourse"
                 type="text"
+                placeholder="Course"
                 value={classData.course}
                 onChange={(e) => setClassData({ ...classData, course: e.target.value })}
                 aria-label="Course"
               />
-            </Form.Group>
-            <Form.Group className="mb-3">
-              <Form.Label>Year / Section</Form.Label>
+              <label htmlFor="floatingCourse">Course</label>
+            </Form.Floating>
+
+            <Form.Floating className="mb-3" style={{ position: 'relative' }}>
               <Form.Control
+                id="floatingYear"
                 type="text"
+                placeholder="Year / Section"
                 value={classData.year}
                 onChange={(e) => setClassData({ ...classData, year: e.target.value })}
                 aria-label="Year and Section"
               />
-            </Form.Group>
+              <label htmlFor="floatingYear">Year / Section</label>
+            </Form.Floating>
 
-            {/* Background Color moved to the bottom of the modal */}
-            <Form.Group className="mb-3">
-              <Form.Label>Background Color</Form.Label>
-              <Form.Control
-                type="color"
-                value={classData.bg}
-                onChange={(e) => setClassData({ ...classData, bg: e.target.value })}
-                aria-label="Select background color"
-              />
-            </Form.Group>
+            {/* Background color removed per user request */}
           </Form>
         </Modal.Body>
         <Modal.Footer>
