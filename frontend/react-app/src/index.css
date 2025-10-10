@@ -83,6 +83,31 @@
   z-index: 1050;
 }
 
+/* Responsive wrapper used in TeacherD for a single notifications instance */
+.notifications-responsive {
+  display: inline-block;
+}
+
+@media (min-width: 768px) {
+  /* Desktop: place the notifications at the top-right of the main content */
+  .notifications-responsive {
+    position: absolute;
+    top: 12px;
+    right: 18px;
+    z-index: 1050;
+  }
+}
+
+@media (max-width: 767.98px) {
+  /* Mobile: keep it inline so it sits next to the hamburger toggle */
+  .notifications-responsive {
+    position: relative;
+    right: auto;
+    top: auto;
+    z-index: 2000;
+  }
+}
+
 @media (max-width: 767.98px) {
   /* On mobile move it left so it sits beside the hamburger toggle */
   .notifications-fixed {

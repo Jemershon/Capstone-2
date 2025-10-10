@@ -302,6 +302,7 @@ function StudentDashboard() {
   const [isAuthenticated, setIsAuthenticated] = useState(checkAuth());
   const [loading, setLoading] = useState(true);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [lastAuthCheck, setLastAuthCheck] = useState(0); // Add auth caching
   const navigate = useNavigate();
   const location = useLocation();
@@ -425,12 +426,15 @@ function StudentDashboard() {
         </Col>
         
         {/* Mobile navbar */}
-        <div className="d-md-none position-fixed w-100" style={{top: 0, zIndex: 1000}}>
-          <Navbar expand="lg" className="modern-mobile-navbar shadow-sm">
+        <div className="d-md-none w-100" style={{position: 'relative', zIndex: 1000}}>
+          <Navbar expand="lg" className="modern-mobile-navbar shadow-sm" expanded={mobileNavOpen} onToggle={(val) => setMobileNavOpen(val)}>
             <Container fluid>
               <div className="d-flex align-items-center justify-content-between w-100">
                 <Navbar.Brand className="fw-bold text-primary fs-4">📚 Student</Navbar.Brand>
-                <div className="d-flex align-items-center mobile-toggle-group">
+                  <div className="d-flex align-items-center mobile-toggle-group">
+                  <div className="d-md-none notifications-fixed-mobile me-2">
+                    <NotificationsDropdown mobileMode={true} />
+                  </div>
                   <Navbar.Toggle aria-controls="mobile-nav" />
                 </div>
               </div>
@@ -440,6 +444,7 @@ function StudentDashboard() {
                     as={NavLink}
                     to="/student/dashboard"
                     className="mobile-nav-link"
+                    onClick={() => setMobileNavOpen(false)}
                   >
                     Dashboard
                   </Nav.Link>
@@ -447,6 +452,7 @@ function StudentDashboard() {
                     as={NavLink}
                     to="/student/profile"
                     className="mobile-nav-link"
+                    onClick={() => setMobileNavOpen(false)}
                   >
                     Profile
                   </Nav.Link>
@@ -468,13 +474,8 @@ function StudentDashboard() {
         
         {/* Main Content */}
         <Col md={10} xs={12} className="main-content-responsive" style={{ position: 'relative' }}>
-          {/* Top-right notifications (absolute so it doesn't add vertical gap) - single instance used for both desktop and mobile */}
-          {/* Desktop-only top-right (keeps original desktop placement) */}
+          {/* Single responsive notifications wrapper (desktop: top-right, mobile: inline in navbar) */}
           <div className="d-none d-md-block" style={{ position: 'absolute', top: 12, right: 18, zIndex: 1050 }}>
-            <NotificationsDropdown />
-          </div>
-          {/* Mobile/responsive notifications placement (separate) */}
-          <div className="d-md-none notifications-fixed-mobile">
             <NotificationsDropdown />
           </div>
           <Routes>

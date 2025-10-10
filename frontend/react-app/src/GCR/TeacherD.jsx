@@ -3985,6 +3985,7 @@ export default function TeacherDashboard() {
   const navigate = useNavigate();
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [showToast, setShowToast] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(checkAuth());
   const [authLoading, setAuthLoading] = useState(true);
   const [authError, setAuthError] = useState("");
@@ -4128,12 +4129,16 @@ export default function TeacherDashboard() {
           </Nav>
         </Col>
   {/* Mobile Navbar */}
-  <div className="d-md-none position-fixed w-100" style={{top: 0, zIndex: 1000}}>
-          <Navbar expand="lg" className="modern-mobile-navbar shadow-sm">
+  <div className="d-md-none w-100" style={{position: 'relative', zIndex: 1000}}>
+          <Navbar expand="lg" className="modern-mobile-navbar shadow-sm" expanded={mobileNavOpen} onToggle={(val) => setMobileNavOpen(val)}>
             <Container fluid>
               <div className="d-flex align-items-center justify-content-between w-100">
                 <Navbar.Brand className="fw-bold fs-4">🏫 Teacher</Navbar.Brand>
                 <div className="d-flex align-items-center mobile-toggle-group">
+                  {/* Mobile-only notification toggle (sits beside the hamburger) */}
+                  <div className="d-md-none notifications-fixed-mobile me-2">
+                    <NotificationsDropdown mobileMode={true} />
+                  </div>
                   <Navbar.Toggle aria-controls="mobile-nav" />
                 </div>
               </div>
@@ -4143,6 +4148,7 @@ export default function TeacherDashboard() {
                     as={NavLink}
                     to="/teacher/dashboard"
                     className="mobile-nav-link"
+                    onClick={() => setMobileNavOpen(false)}
                   >
                     Dashboard
                   </Nav.Link>
@@ -4150,6 +4156,7 @@ export default function TeacherDashboard() {
                     as={NavLink}
                     to="/teacher/grades"
                     className="mobile-nav-link"
+                    onClick={() => setMobileNavOpen(false)}
                   >
                     Grades
                   </Nav.Link>
@@ -4157,6 +4164,7 @@ export default function TeacherDashboard() {
                     as={NavLink}
                     to="/teacher/profile"
                     className="mobile-nav-link"
+                    onClick={() => setMobileNavOpen(false)}
                   >
                     Profile
                   </Nav.Link>
@@ -4183,9 +4191,7 @@ export default function TeacherDashboard() {
             <NotificationsDropdown />
           </div>
           {/* Mobile/responsive notifications placement (separate) */}
-          <div className="d-md-none notifications-fixed-mobile">
-            <NotificationsDropdown />
-          </div>
+          {/* mobile notifications are now rendered inside the navbar toggle group so remove the duplicate here */}
           <Routes>
             <Route path="dashboard" element={<DashboardAndClasses />} />
             {/* Removed global Assignments and Announcements to match per-class stream */}

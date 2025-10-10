@@ -18,7 +18,7 @@ const retry = async (fn, retries = 3, delay = 1000) => {
   }
 };
 
-function NotificationsDropdown({ inNavbar = false }) {
+function NotificationsDropdown({ inNavbar = false, mobileMode = false }) {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -104,7 +104,6 @@ function NotificationsDropdown({ inNavbar = false }) {
       }
     };
   }, [fetchNotifications]);
-  
   const handleMarkAsRead = async (notificationId) => {
     try {
       const token = getAuthToken();
@@ -207,10 +206,84 @@ function NotificationsDropdown({ inNavbar = false }) {
     }
   };
   
+  // Menu content (used inside Dropdown.Menu or inside modal body)
+  const menuContent = (
+    <>
+      <div className="d-flex justify-content-between align-items-center px-3 py-2 border-bottom">
+        <h6 className="mb-0">Notifications</h6>
+        {unreadCount > 0 && (
+          <Button
+            variant="link"
+            size="sm"
+            className="p-0 text-primary text-decoration-none"
+            onClick={handleMarkAllAsRead}
+            style={{ whiteSpace: 'nowrap', fontSize: '0.85rem' }}
+          >
+            Mark all read
+          </Button>
+        )}
+      </div>
+
+      {loading ? (
+        <div className="text-center py-3">
+          <Spinner animation="border" size="sm" />
+          <span className="ms-2">Loading...</span>
+        </div>
+      ) : notifications.length === 0 ? (
+        <div className="text-center text-muted py-3">No notifications</div>
+      ) : (
+        <>
+          {notifications.slice(0, 5).map(notification => (
+            <div key={notification._id} className={`px-3 py-2 border-bottom ${!notification.read ? 'bg-light' : ''}`} style={{cursor: 'pointer', whiteSpace: 'normal'}} onClick={() => handleMarkAsRead(notification._id)}>
+              <div className="d-flex align-items-start gap-2">
+                <div className="flex-shrink-0">
+                  <span role="img" aria-label={notification.type} style={{ fontSize: '1.2rem' }}>
+                    {getNotificationIcon(notification.type)}
+                  </span>
+                </div>
+                <div className="flex-grow-1 notification-item-content">
+                  <div className="notification-message" style={{ fontSize: '0.9rem', lineHeight: '1.4' }}>
+                    {notification.message}
+                  </div>
+                  <div className="text-muted mt-1" style={{ fontSize: '0.75rem' }}>
+                    {new Date(notification.createdAt).toLocaleString()}
+                  </div>
+                </div>
+                <Button
+                  variant="link"
+                  className="p-0 text-danger flex-shrink-0"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDeleteNotification(notification._id);
+                  }}
+                  style={{ fontSize: '1rem', lineHeight: 1 }}
+                  title="Delete notification"
+                >
+                  <i className="bi bi-x-circle-fill"></i>
+                </Button>
+              </div>
+            </div>
+          ))}
+
+          {notifications.length > 5 && (
+            <div className="text-center py-2">
+              <Button
+                variant="link"
+                size="sm"
+                onClick={() => setShowAllNotifications(true)}
+              >
+                View all notifications
+              </Button>
+            </div>
+          )}
+        </>
+      )}
+    </>
+  );
+
   return (
     <>
-      <style>
-        {`
+      <style>{`
           /* Responsive dropdown for mobile */
           @media (max-width: 576px) {
             .notifications-dropdown-menu {
@@ -257,126 +330,127 @@ function NotificationsDropdown({ inNavbar = false }) {
           .navbar .dropdown-toggle#dropdown-notifications {
             z-index: 1100 !important;
           }
+
+          /* Modal body: scrollable but hide scrollbar */
+          .notifications-modal-body {
+            max-height: 60vh;
+            overflow-y: auto !important;
+            overflow-x: hidden !important;
+            -webkit-overflow-scrolling: touch; /* smooth scrolling on iOS */
+            -ms-overflow-style: none !important; /* IE and Edge */
+            scrollbar-width: none !important; /* Firefox */
+            padding-right: 8px; /* prevent content cutoff */
+          }
+
+          .notifications-modal-body::-webkit-scrollbar {
+            width: 0 !important;
+            height: 0 !important;
+            background: transparent !important;
+          }
+
+          /* Dialog sizing: keep modal a decent size (not full-screen) */
+          .modal-dialog.notifications-modal-dialog {
+            max-width: 560px;
+            margin: 1.75rem auto;
+          }
+
+          @media (max-width: 576px) {
+            .modal-dialog.notifications-modal-dialog {
+              max-width: 92vw; /* small side margins */
+              margin: 12px auto;
+            }
+          }
+
+          /* Modal body: scrollable but hide scrollbar */
+          .notifications-modal-body {
+            max-height: 60vh;
+            overflow-y: auto !important;
+            overflow-x: hidden !important;
+            -webkit-overflow-scrolling: touch; /* smooth scrolling on iOS */
+            -ms-overflow-style: none !important; /* IE and Edge */
+            scrollbar-width: none !important; /* Firefox */
+            padding-right: 8px; /* prevent content cutoff */
+          }
+
+          .notifications-modal-body::-webkit-scrollbar {
+            width: 0 !important;
+            height: 0 !important;
+            background: transparent !important;
+          }
         `}
       </style>
-      <Dropdown>
-        <Dropdown.Toggle
-          variant={inNavbar ? 'link' : 'light'}
-          id="dropdown-notifications"
-          className={`position-relative ${inNavbar ? 'text-white' : ''}`}
-          // ensure the toggle is clickable even if other elements overlap
-          style={{ zIndex: 9999, pointerEvents: 'auto', ...(inNavbar ? { color: 'white', padding: '0.25rem 0.5rem', fontSize: '1.1rem' } : {}) }}
-          aria-haspopup="true"
-          aria-expanded={false}
-          tabIndex={0}
-        >
-          <i className="bi bi-bell" aria-hidden="true"></i>
-          {unreadCount > 0 && (
-            <Badge 
-              pill 
-              bg="danger" 
-              className="position-absolute top-0 start-100 translate-middle"
-              style={{ fontSize: inNavbar ? '0.55rem' : '0.6rem' }}
-            >
-              {unreadCount > 99 ? '99+' : unreadCount}
-            </Badge>
-          )}
-        </Dropdown.Toggle>
-        
-        <Dropdown.Menu 
-          align="end" 
-          className="notifications-dropdown-menu"
-          style={{ maxHeight: '70vh', overflowY: 'auto', overflowX: 'hidden' }}
-        >
-          <div className="d-flex justify-content-between align-items-center px-3 py-2 border-bottom">
-            <h6 className="mb-0">Notifications</h6>
+      {mobileMode ? (
+        // Mobile mode: render the bell button + show the modal (modal code below)
+        <>
+          <Button
+            variant={inNavbar ? 'link' : 'light'}
+            id="dropdown-notifications"
+            className={`position-relative ${inNavbar ? 'text-white' : ''}`}
+            style={{ zIndex: 9999, pointerEvents: 'auto', ...(inNavbar ? { color: 'white', padding: '0.25rem 0.5rem', fontSize: '1.1rem' } : {}) }}
+            aria-haspopup="dialog"
+            aria-expanded={showAllNotifications}
+            onClick={() => setShowAllNotifications(true)}
+          >
+            <i className="bi bi-bell" aria-hidden="true"></i>
             {unreadCount > 0 && (
-              <Button
-                variant="link"
-                size="sm"
-                className="p-0 text-primary text-decoration-none"
-                onClick={handleMarkAllAsRead}
-                style={{ whiteSpace: 'nowrap', fontSize: '0.85rem' }}
+              <Badge 
+                pill 
+                bg="danger" 
+                className="position-absolute top-0 start-100 translate-middle"
+                style={{ fontSize: inNavbar ? '0.55rem' : '0.6rem' }}
               >
-                Mark all read
-              </Button>
+                {unreadCount > 99 ? '99+' : unreadCount}
+              </Badge>
             )}
-          </div>
-          
-          {loading ? (
-            <div className="text-center py-3">
-              <Spinner animation="border" size="sm" />
-              <span className="ms-2">Loading...</span>
-            </div>
-          ) : notifications.length === 0 ? (
-            <div className="text-center text-muted py-3">No notifications</div>
-          ) : (
-            <>
-              {notifications.slice(0, 5).map(notification => (
-                <Dropdown.Item 
-                  key={notification._id}
-                  className={`px-3 py-2 border-bottom ${!notification.read ? 'bg-light' : ''}`}
-                  onClick={() => handleMarkAsRead(notification._id)}
-                  style={{ cursor: 'pointer', whiteSpace: 'normal' }}
-                >
-                  <div className="d-flex align-items-start gap-2">
-                    <div className="flex-shrink-0">
-                      <span role="img" aria-label={notification.type} style={{ fontSize: '1.2rem' }}>
-                        {getNotificationIcon(notification.type)}
-                      </span>
-                    </div>
-                    <div className="flex-grow-1 notification-item-content">
-                      <div className="notification-message" style={{ fontSize: '0.9rem', lineHeight: '1.4' }}>
-                        {notification.message}
-                      </div>
-                      <div className="text-muted mt-1" style={{ fontSize: '0.75rem' }}>
-                        {new Date(notification.createdAt).toLocaleString()}
-                      </div>
-                    </div>
-                    <Button
-                      variant="link"
-                      className="p-0 text-danger flex-shrink-0"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeleteNotification(notification._id);
-                      }}
-                      style={{ fontSize: '1rem', lineHeight: 1 }}
-                      title="Delete notification"
-                    >
-                      <i className="bi bi-x-circle-fill"></i>
-                    </Button>
-                  </div>
-                </Dropdown.Item>
-              ))}
-              
-              {notifications.length > 5 && (
-                <div className="text-center py-2">
-                  <Button
-                    variant="link"
-                    size="sm"
-                    onClick={() => setShowAllNotifications(true)}
-                  >
-                    View all notifications
-                  </Button>
-                </div>
-              )}
-            </>
-          )}
-        </Dropdown.Menu>
-      </Dropdown>
+          </Button>
+        </>
+      ) : (
+        <Dropdown>
+          <Dropdown.Toggle
+            variant={inNavbar ? 'link' : 'light'}
+            id="dropdown-notifications"
+            className={`position-relative ${inNavbar ? 'text-white' : ''}`}
+            // ensure the toggle is clickable even if other elements overlap
+            style={{ zIndex: 9999, pointerEvents: 'auto', ...(inNavbar ? { color: 'white', padding: '0.25rem 0.5rem', fontSize: '1.1rem' } : {}) }}
+            aria-haspopup="true"
+            aria-expanded={false}
+            tabIndex={0}
+          >
+            <i className="bi bi-bell" aria-hidden="true"></i>
+            {unreadCount > 0 && (
+              <Badge 
+                pill 
+                bg="danger" 
+                className="position-absolute top-0 start-100 translate-middle"
+                style={{ fontSize: inNavbar ? '0.55rem' : '0.6rem' }}
+              >
+                {unreadCount > 99 ? '99+' : unreadCount}
+              </Badge>
+            )}
+          </Dropdown.Toggle>
+
+          <Dropdown.Menu 
+            align="end" 
+            className="notifications-dropdown-menu"
+            style={{ maxHeight: '70vh', overflowY: 'auto', overflowX: 'hidden' }}
+          >
+            {menuContent}
+          </Dropdown.Menu>
+        </Dropdown>
+      )}
       
       <Modal
         show={showAllNotifications}
         onHide={() => setShowAllNotifications(false)}
         centered
-        scrollable
-        size="lg"
-        fullscreen="sm-down"
-      >
+        size="md"
+        dialogClassName="notifications-modal-dialog"
+  modalClassName="notifications-modal"
+  >
         <Modal.Header closeButton>
           <Modal.Title>All Notifications</Modal.Title>
         </Modal.Header>
-        <Modal.Body style={{ maxHeight: '70vh', overflowY: 'auto' }}>
+  <Modal.Body className="notifications-modal-body">
           {loading ? (
             <div className="text-center py-3">
               <Spinner animation="border" />
