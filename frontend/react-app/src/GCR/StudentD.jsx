@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Routes, Route, NavLink, useNavigate, useParams, Link } from "react-router-dom";
+import { Routes, Route, NavLink, useNavigate, useParams, Link, useLocation } from "react-router-dom";
 import axios from "axios";
 import { Container, Row, Col, Nav, Navbar, Card, Button, Table, Modal, Form, Tab, Tabs, Badge, Alert, Spinner, Toast, ListGroup, Dropdown } from "react-bootstrap";
 import { getAuthToken, getUsername, getUserRole, checkAuth, clearAuthData, API_BASE_URL } from "../api";
@@ -304,6 +304,8 @@ function StudentDashboard() {
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [lastAuthCheck, setLastAuthCheck] = useState(0); // Add auth caching
   const navigate = useNavigate();
+  const location = useLocation();
+  const isClassRoute = location.pathname.includes('/class/');
 
   useEffect(() => {
     const verifyToken = async () => {
@@ -428,8 +430,7 @@ function StudentDashboard() {
             <Container fluid>
               <div className="d-flex align-items-center justify-content-between w-100">
                 <Navbar.Brand className="fw-bold text-primary fs-4">📚 Student</Navbar.Brand>
-                <div className="d-flex align-items-center">
-                  <NotificationsDropdown />
+                <div className="d-flex align-items-center mobile-toggle-group">
                   <Navbar.Toggle aria-controls="mobile-nav" />
                 </div>
               </div>
@@ -467,8 +468,13 @@ function StudentDashboard() {
         
         {/* Main Content */}
         <Col md={10} xs={12} className="main-content-responsive" style={{ position: 'relative' }}>
-          {/* Top-right notifications (absolute so it doesn't add vertical gap) */}
-          <div style={{ position: 'absolute', top: 12, right: 18, zIndex: 1050 }}>
+          {/* Top-right notifications (absolute so it doesn't add vertical gap) - single instance used for both desktop and mobile */}
+          {/* Desktop-only top-right (keeps original desktop placement) */}
+          <div className="d-none d-md-block" style={{ position: 'absolute', top: 12, right: 18, zIndex: 1050 }}>
+            <NotificationsDropdown />
+          </div>
+          {/* Mobile/responsive notifications placement (separate) */}
+          <div className="d-md-none notifications-fixed-mobile">
             <NotificationsDropdown />
           </div>
           <Routes>

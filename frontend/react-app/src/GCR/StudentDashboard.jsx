@@ -207,8 +207,8 @@ function StudentDashboard() {
         
         {/* Main Content */}
         <Col md={10} className="main-content-responsive" style={{ position: 'relative' }}>
-          {/* Account-level notifications (absolute so it doesn't add vertical gap) */}
-          <div style={{ position: 'absolute', top: 12, right: 18, zIndex: 1050 }}>
+          {/* Account-level notifications (absolute so it doesn't add vertical gap) - hide on small screens */}
+          <div className="d-none d-md-block" style={{ position: 'absolute', top: 12, right: 18, zIndex: 1050 }}>
             <NotificationsDropdown />
           </div>
           <Routes>

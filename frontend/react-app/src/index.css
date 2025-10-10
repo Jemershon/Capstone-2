@@ -68,4 +68,75 @@
   .btn {
     white-space: nowrap !important;
   }
+
+  /* Ensure mobile navbar and its children are clickable and above overlays */
+  .modern-mobile-navbar, .modern-mobile-navbar * {
+    pointer-events: auto !important;
+    z-index: 2000 !important;
+  }
+
+/* Position the shared notifications component responsively */
+.notifications-fixed {
+  position: absolute;
+  top: 12px;
+  right: 18px;
+  z-index: 1050;
 }
+
+@media (max-width: 767.98px) {
+  /* On mobile move it left so it sits beside the hamburger toggle */
+  .notifications-fixed {
+    right: 68px; /* nudge left slightly from the right edge (adjustable) */
+    top: 10px;
+    padding-right: 6px;
+    padding-left: 6px;
+    z-index: 2000;
+  }
+
+  /* Slightly pull the toggle group left so it isn't flush-right */
+  .mobile-toggle-group {
+    margin-right: 8px; /* push it a little away from the right edge */
+  }
+  /* Add a small gap between the notification and the hamburger inside the group */
+  .mobile-toggle-group .dropdown,
+  .mobile-toggle-group #dropdown-notifications {
+    margin-right: 8px;
+  }
+}
+
+/* Style the notifications toggle to blend into the mobile navbar */
+@media (max-width: 767.98px) {
+  .modern-mobile-navbar .dropdown-toggle#dropdown-notifications,
+  .d-md-none .dropdown-toggle#dropdown-notifications,
+  .notifications-fixed-mobile .dropdown-toggle#dropdown-notifications {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    color: white !important;
+    padding: 0.25rem 0.5rem !important;
+    font-size: 1.1rem !important;
+  }
+
+  .modern-mobile-navbar .dropdown-toggle#dropdown-notifications .bi-bell,
+  .d-md-none .dropdown-toggle#dropdown-notifications .bi-bell {
+    color: white !important;
+  }
+
+  /* Ensure badge remains visible on dark background */
+  .modern-mobile-navbar .dropdown-toggle#dropdown-notifications .badge,
+  .notifications-fixed-mobile .dropdown-toggle#dropdown-notifications .badge {
+    transform: translate(8px, -6px) !important;
+  }
+}
+
+/* Mobile-only notifications placement (next to hamburger) */
+@media (max-width: 767.98px) {
+  .notifications-fixed-mobile {
+    position: absolute;
+    top: 10px;
+    right: 68px; /* nudged left from the far right */
+    z-index: 2000;
+  }
+}
+}
+

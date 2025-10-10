@@ -18,7 +18,7 @@ const retry = async (fn, retries = 3, delay = 1000) => {
   }
 };
 
-function NotificationsDropdown() {
+function NotificationsDropdown({ inNavbar = false }) {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -247,17 +247,36 @@ function NotificationsDropdown() {
             max-width: 100%;
             overflow: hidden;
           }
+          /* Ensure navbar bell is clickable and above the toggle */
+          .navbar .dropdown-toggle#dropdown-notifications {
+            pointer-events: auto !important;
+          }
+          .navbar .dropdown-toggle#dropdown-notifications .bi-bell {
+            padding: 6px !important;
+          }
+          .navbar .dropdown-toggle#dropdown-notifications {
+            z-index: 1100 !important;
+          }
         `}
       </style>
       <Dropdown>
-        <Dropdown.Toggle variant="light" id="dropdown-notifications" className="position-relative">
-          <i className="bi bi-bell"></i>
+        <Dropdown.Toggle
+          variant={inNavbar ? 'link' : 'light'}
+          id="dropdown-notifications"
+          className={`position-relative ${inNavbar ? 'text-white' : ''}`}
+          // ensure the toggle is clickable even if other elements overlap
+          style={{ zIndex: 9999, pointerEvents: 'auto', ...(inNavbar ? { color: 'white', padding: '0.25rem 0.5rem', fontSize: '1.1rem' } : {}) }}
+          aria-haspopup="true"
+          aria-expanded={false}
+          tabIndex={0}
+        >
+          <i className="bi bi-bell" aria-hidden="true"></i>
           {unreadCount > 0 && (
             <Badge 
               pill 
               bg="danger" 
               className="position-absolute top-0 start-100 translate-middle"
-              style={{ fontSize: '0.6rem' }}
+              style={{ fontSize: inNavbar ? '0.55rem' : '0.6rem' }}
             >
               {unreadCount > 99 ? '99+' : unreadCount}
             </Badge>

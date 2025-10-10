@@ -22,6 +22,7 @@ import {
   ListGroup,
   Badge
 } from "react-bootstrap";
+import { useLocation } from 'react-router-dom';
 
 // Import components
 import NotificationsDropdown from "./components/NotificationsDropdown";
@@ -3979,6 +3980,8 @@ function Profile() {
 
 // ================= Teacher Dashboard =================
 export default function TeacherDashboard() {
+  const location = useLocation();
+  const isClassRoute = location.pathname.includes('/teacher/class/');
   const navigate = useNavigate();
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [showToast, setShowToast] = useState(false);
@@ -4124,14 +4127,13 @@ export default function TeacherDashboard() {
             </Nav.Link>
           </Nav>
         </Col>
-        {/* Mobile Navbar */}
-        <div className="d-md-none">
+  {/* Mobile Navbar */}
+  <div className="d-md-none position-fixed w-100" style={{top: 0, zIndex: 1000}}>
           <Navbar expand="lg" className="modern-mobile-navbar shadow-sm">
             <Container fluid>
               <div className="d-flex align-items-center justify-content-between w-100">
                 <Navbar.Brand className="fw-bold fs-4">🏫 Teacher</Navbar.Brand>
-                <div className="d-flex align-items-center">
-                  <NotificationsDropdown />
+                <div className="d-flex align-items-center mobile-toggle-group">
                   <Navbar.Toggle aria-controls="mobile-nav" />
                 </div>
               </div>
@@ -4175,8 +4177,13 @@ export default function TeacherDashboard() {
         </div>
         {/* Main Content */}
         <Col md={10} xs={12} className="main-content-responsive" style={{ position: 'relative' }}>
-          {/* Top-right notifications (absolute so it doesn't add vertical gap) */}
-          <div style={{ position: 'absolute', top: 12, right: 18, zIndex: 1050 }}>
+          {/* Top-right notifications (absolute so it doesn't add vertical gap) - single instance used for both desktop and mobile */}
+          {/* Desktop-only top-right (keeps original desktop placement) */}
+          <div className="d-none d-md-block" style={{ position: 'absolute', top: 12, right: 18, zIndex: 1050 }}>
+            <NotificationsDropdown />
+          </div>
+          {/* Mobile/responsive notifications placement (separate) */}
+          <div className="d-md-none notifications-fixed-mobile">
             <NotificationsDropdown />
           </div>
           <Routes>

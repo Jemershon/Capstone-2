@@ -484,12 +484,12 @@ app.post("/api/seed", async (req, res) => {
     await Exam.deleteMany({});
     await Grade.deleteMany({});
 
-    const hashedPassword = await bcrypt.hash("password123", 10);
+    const hashedPassword = await bcrypt.hash("password456", 10);
     const users = [
       {
         name: "Admin User",
-        username: "admin1",
-        email: "admin1@example.com",
+        username: "admin123",
+        email: "admin123@example.com",
         password: hashedPassword,
         role: "Admin",
       },
