@@ -831,6 +831,7 @@ function TeacherClassStream() {
   console.log('TeacherClassStream initialized with className:', className);
   const [announcements, setAnnouncements] = useState([]);
   const [message, setMessage] = useState("");
+  const [showMaterialsModal, setShowMaterialsModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [posting, setPosting] = useState(false);
   const [error, setError] = useState("");
@@ -884,6 +885,37 @@ function TeacherClassStream() {
       setLoading(false);
     }
   }, [className]);
+
+  const handleMaterialCreated = useCallback(async (material) => {
+    try {
+      console.debug('handleMaterialCreated received material:', material);
+      // Transform material into an announcement-like object to show in stream
+      const safeTitle = material && (material.title || material.name || material.originalName || 'Untitled Material');
+      const safeDescription = material && (material.description || material.summary || '');
+
+      const newAnnouncement = {
+        teacher: getUsername() || 'You',
+        class: className,
+        date: (material && (material.createdAt || material.date)) || new Date().toISOString(),
+        message: `New material: ${safeTitle} ${safeDescription ? '- ' + safeDescription : ''}`,
+        attachments: material && material.type === 'file' ? [{ originalName: safeTitle, filePath: material.content, fileSize: material.fileSize || 0 }] : [],
+        materialRef: material || null,
+      };
+
+      // Post to backend so students see it
+      await axios.post(`${API_BASE_URL}/api/announcements`, newAnnouncement, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      });
+
+      // Refresh announcements from backend
+      await fetchAnnouncements();
+      setShowMaterialsModal(false);
+      setShowToast(true);
+      setSuccessMessage('Material posted to stream.');
+    } catch (err) {
+      console.error('handleMaterialCreated error', err);
+    }
+  }, [className, fetchAnnouncements]);
   
   // Fetch class exams
   const fetchExams = useCallback(async () => {
@@ -1482,6 +1514,9 @@ function TeacherClassStream() {
                 <Button variant="outline-primary" onClick={() => setShowExamModal(true)} aria-label="Create exam for this class">
                   + Create Exam
                 </Button>
+                <Button type="button" variant="outline-secondary" onClick={() => { console.log('Stream Add Material clicked'); setShowMaterialsModal(true); }} aria-label="Add material for this class">
+                  + Add Material
+                </Button>
               </div>
             </Form>
           </Card>
@@ -1554,6 +1589,59 @@ function TeacherClassStream() {
                           </div>
                         </div>
                       ))}
+                    </div>
+                  )}
+                  
+                  {/* Display materialRef if present */}
+                  {a.materialRef && (
+                    <div className="mt-3">
+                      <div className="fw-bold mb-2">Material:</div>
+                      <Card className="mb-2">
+                        <Card.Body>
+                          <h6 className="text-center">{a.materialRef.title}</h6>
+                          {a.materialRef.description && (
+                            <p className="text-muted small text-center">{a.materialRef.description}</p>
+                          )}
+                          {a.materialRef.type === 'file' && a.materialRef.content && (
+                            <div className="d-flex gap-2">
+                              <Button
+                                variant="outline-primary"
+                                size="sm"
+                                className="flex-grow-1"
+                                onClick={() => window.open(
+                                  a.materialRef.content.startsWith('http') ? a.materialRef.content : `${API_BASE_URL}/${a.materialRef.content}`,
+                                  '_blank'
+                                )}
+                              >
+                                View
+                              </Button>
+                              <Button
+                                variant="outline-secondary"
+                                size="sm"
+                                className="flex-grow-1"
+                                as="a"
+                                href={a.materialRef.content.startsWith('http') ? a.materialRef.content : `${API_BASE_URL}/${a.materialRef.content}`}
+                                target="_blank"
+                                download
+                              >
+                                Download
+                              </Button>
+                            </div>
+                          )}
+                          {(a.materialRef.type === 'video' || a.materialRef.type === 'link') && a.materialRef.content && (
+                            <Button
+                              variant="outline-primary"
+                              size="sm"
+                              className="w-100"
+                              as="a"
+                              href={a.materialRef.content}
+                              target="_blank"
+                            >
+                              Open
+                            </Button>
+                          )}
+                        </Card.Body>
+                      </Card>
                     </div>
                   )}
                   
@@ -2268,9 +2356,14 @@ function TeacherClassStream() {
         </div>
       )}
 
-      {activeTab === "materials" && (
-        <Materials className={className} />
-      )}
+      {/* Always mount Materials so the Add Material button in Stream can open its modal. Hide its main content unless the Materials tab is active. */}
+      <Materials
+        className={className}
+        showCreateModal={showMaterialsModal}
+        onShowCreateModalChange={setShowMaterialsModal}
+        onMaterialCreated={handleMaterialCreated}
+        hideContent={activeTab !== 'materials'}
+      />
 
       {/* Exam Creation Modal */}
       <Modal

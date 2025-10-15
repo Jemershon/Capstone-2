@@ -403,6 +403,7 @@ const AnnouncementSchema = new mongoose.Schema(
     date: Date,
     message: String,
     examId: { type: mongoose.Schema.Types.ObjectId, ref: "Exam" },
+    materialRef: { type: mongoose.Schema.Types.Mixed }, // Reference to material object
     likes: { type: Number, default: 0 },
     attachments: [{
       filename: String,
@@ -1673,7 +1674,7 @@ app.get("/api/announcements", authenticateToken, async (req, res) => {
 // Changes: server will set teacher = req.user.username and date = now if not provided
 app.post("/api/announcements", authenticateToken, requireTeacherOrAdmin, async (req, res) => {
   try {
-    let { message, date, teacher, class: className, examId, attachments } = req.body;
+    let { message, date, teacher, class: className, examId, attachments, materialRef } = req.body;
 
     // Normalize className
     if (!message || !className) {
@@ -1703,7 +1704,8 @@ app.post("/api/announcements", authenticateToken, requireTeacherOrAdmin, async (
       class: className, 
       examId: examId || null, 
       likes: 0,
-      attachments: attachments || []
+      attachments: attachments || [],
+      materialRef
     });
     await announcement.save();
     

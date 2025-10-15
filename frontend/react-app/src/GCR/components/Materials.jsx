@@ -19,7 +19,7 @@ const retry = async (fn, retries = 3, delay = 1000) => {
   }
 };
 
-function Materials({ className }) {
+function Materials({ className, showCreateModal: externalShowCreateModal, onShowCreateModalChange, onMaterialCreated, hideContent = false }) {
   const [materials, setMaterials] = useState([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [materialData, setMaterialData] = useState({
@@ -54,6 +54,13 @@ function Materials({ className }) {
   useEffect(() => {
     fetchMaterials();
   }, [fetchMaterials]);
+
+  // If parent controls the modal, sync it
+  useEffect(() => {
+    if (externalShowCreateModal !== undefined && externalShowCreateModal !== null) {
+      setShowCreateModal(Boolean(externalShowCreateModal));
+    }
+  }, [externalShowCreateModal]);
   
   const handleCreateMaterial = async () => {
     // Reset error state
@@ -136,7 +143,20 @@ function Materials({ className }) {
         )
       );
       
+      // Call the callback if provided
+      if (onMaterialCreated) {
+        onMaterialCreated({
+          ...materialData,
+          content,
+          class: className,
+          _id: Date.now(), // temporary ID
+          createdAt: new Date().toISOString()
+        });
+      }
+      
       setShowCreateModal(false);
+  // notify parent if it's controlling the modal
+  if (onShowCreateModalChange) onShowCreateModalChange(false);
       setMaterialData({
         title: '',
         description: '',
@@ -192,72 +212,77 @@ function Materials({ className }) {
       </div>
     );
   }
-  
+
   return (
     <div>
-      <h4 className="fw-bold mb-3 d-flex justify-content-between align-items-center">
-        <span>Class Materials</span>
-        <Button
-          size="sm"
-          variant="outline-primary"
-          onClick={() => setShowCreateModal(true)}
-          aria-label="Add material"
-        >
-          + Add Material
-        </Button>
-      </h4>
-      
-      {error && (
-        <Toast
-          show={showToast}
-          onClose={() => setShowToast(false)}
-          delay={5000}
-          autohide
-          bg={error.includes('successfully') ? 'success' : 'danger'}
-          style={{ position: 'fixed', top: '20px', right: '20px', zIndex: 10000 }}
-        >
-          <Toast.Body className="text-white">{error}</Toast.Body>
-        </Toast>
-      )}
-      
-      <Tab.Container defaultActiveKey="all">
-        <Nav variant="tabs" className="mb-3">
-          <Nav.Item>
-            <Nav.Link eventKey="all">All</Nav.Link>
-          </Nav.Item>
-          <Nav.Item>
-            <Nav.Link eventKey="links">Links</Nav.Link>
-          </Nav.Item>
-          <Nav.Item>
-            <Nav.Link eventKey="documents">Documents</Nav.Link>
-          </Nav.Item>
-          <Nav.Item>
-            <Nav.Link eventKey="videos">Videos</Nav.Link>
-          </Nav.Item>
-        </Nav>
-        
-        <Tab.Content>
-          <Tab.Pane eventKey="all">
-            <ListGroup>
-              {materials.length === 0 ? (
-                <Alert variant="light" className="text-center">No materials available for this class yet.</Alert>
-              ) : (
-                materials.map(material => (
-                  <ListGroup.Item 
-                    key={material._id}
-                    className="d-flex justify-content-between align-items-center"
-                  >
-                    <div>
-                      <h5 className="mb-1">{material.title}</h5>
-                      <div className="text-muted mb-1">{material.description}</div>
-                      <div className="d-flex align-items-center">
-                        <small className="text-muted me-2">
-                          {new Date(material.createdAt).toLocaleDateString()}
-                        </small>
-                        <span className="badge bg-info text-dark me-2">{material.type}</span>
-                        {material.type === 'link' || material.type === 'video' ? (
-                          <a 
-                            href={material.content}
+      {!hideContent && (
+        <>
+          <h4 className="fw-bold mb-3 d-flex justify-content-between align-items-center">
+            <span>Class Materials</span>
+            <Button
+              size="sm"
+              variant="outline-primary"
+              onClick={() => {
+                setShowCreateModal(true);
+                if (onShowCreateModalChange) onShowCreateModalChange(true);
+              }}
+              aria-label="Add material"
+            >
+              + Add Material
+            </Button>
+          </h4>
+
+          {error && (
+            <Toast
+              show={showToast}
+              onClose={() => setShowToast(false)}
+              delay={5000}
+              autohide
+              bg={error.includes('successfully') ? 'success' : 'danger'}
+              style={{ position: 'fixed', top: '20px', right: '20px', zIndex: 10000 }}
+            >
+              <Toast.Body className="text-white">{error}</Toast.Body>
+            </Toast>
+          )}
+
+          <Tab.Container defaultActiveKey="all">
+            <Nav variant="tabs" className="mb-3">
+              <Nav.Item>
+                <Nav.Link eventKey="all">All</Nav.Link>
+              </Nav.Item>
+              <Nav.Item>
+                <Nav.Link eventKey="links">Links</Nav.Link>
+              </Nav.Item>
+              <Nav.Item>
+                <Nav.Link eventKey="documents">Documents</Nav.Link>
+              </Nav.Item>
+              <Nav.Item>
+                <Nav.Link eventKey="videos">Videos</Nav.Link>
+              </Nav.Item>
+            </Nav>
+
+            <Tab.Content>
+              <Tab.Pane eventKey="all">
+                <ListGroup>
+                  {materials.length === 0 ? (
+                    <Alert variant="light" className="text-center">No materials available for this class yet.</Alert>
+                  ) : (
+                    materials.map(material => (
+                      <ListGroup.Item 
+                        key={material._id}
+                        className="d-flex justify-content-between align-items-center"
+                      >
+                        <div>
+                          <h5 className="mb-1">{material.title}</h5>
+                          <div className="text-muted mb-1">{material.description}</div>
+                          <div className="d-flex align-items-center">
+                            <small className="text-muted me-2">
+                              {new Date(material.createdAt).toLocaleDateString()}
+                            </small>
+                            <span className="badge bg-info text-dark me-2">{material.type}</span>
+                            {material.type === 'link' || material.type === 'video' ? (
+                              <a 
+                                href={material.content}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="btn btn-sm btn-outline-primary"
@@ -405,8 +430,11 @@ function Materials({ className }) {
             </ListGroup>
           </Tab.Pane>
         </Tab.Content>
-      </Tab.Container>
-      
+          </Tab.Container>
+        </>
+      )}
+
+      {/* Modal is rendered regardless of hideContent so parent can open it */}
       <Modal
         show={showCreateModal}
         onHide={() => {
@@ -418,6 +446,7 @@ function Materials({ className }) {
             content: '',
           });
           setFileToUpload(null);
+          if (onShowCreateModalChange) onShowCreateModalChange(false);
         }}
         centered
       >
@@ -500,6 +529,7 @@ function Materials({ className }) {
                 content: '',
               });
               setFileToUpload(null);
+              if (onShowCreateModalChange) onShowCreateModalChange(false);
             }}
           >
             Cancel

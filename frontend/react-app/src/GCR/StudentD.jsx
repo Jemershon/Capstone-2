@@ -1591,6 +1591,58 @@ function StudentClassStream() {
                             ))}
                           </div>
                         )}
+                          {/* Display materialRef if present */}
+                          {announcement.materialRef && (
+                            <div className="mt-3">
+                              <div className="fw-bold mb-2">Material:</div>
+                              <Card className="mb-2">
+                                <Card.Body>
+                                  <h6 className="text-center">{announcement.materialRef.title}</h6>
+                                  {announcement.materialRef.description && (
+                                    <p className="text-muted small text-center">{announcement.materialRef.description}</p>
+                                  )}
+                                  {announcement.materialRef.type === 'file' && announcement.materialRef.content && (
+                                    <div className="d-flex gap-2">
+                                      <Button
+                                        variant="outline-primary"
+                                        size="sm"
+                                        className="flex-grow-1"
+                                        onClick={() => window.open(
+                                          announcement.materialRef.content.startsWith('http') ? announcement.materialRef.content : `${API_BASE_URL}/${announcement.materialRef.content}`,
+                                          '_blank'
+                                        )}
+                                      >
+                                        View
+                                      </Button>
+                                      <Button
+                                        variant="outline-secondary"
+                                        size="sm"
+                                        className="flex-grow-1"
+                                        as="a"
+                                        href={announcement.materialRef.content.startsWith('http') ? announcement.materialRef.content : `${API_BASE_URL}/${announcement.materialRef.content}`}
+                                        target="_blank"
+                                        download
+                                      >
+                                        Download
+                                      </Button>
+                                    </div>
+                                  )}
+                                  {(announcement.materialRef.type === 'video' || announcement.materialRef.type === 'link') && announcement.materialRef.content && (
+                                    <Button
+                                      variant="outline-primary"
+                                      size="sm"
+                                      className="w-100"
+                                      as="a"
+                                      href={announcement.materialRef.content}
+                                      target="_blank"
+                                    >
+                                      Open
+                                    </Button>
+                                  )}
+                                </Card.Body>
+                              </Card>
+                            </div>
+                          )}
                         
                         {announcement.examId && (
                           <Badge bg="info" className="me-2">Exam Posted</Badge>
@@ -1815,7 +1867,11 @@ function StudentClassStream() {
                                 variant="outline-primary"
                                 size="sm"
                                 className="flex-grow-1"
-                                onClick={() => handleFilePreview(material.url, material.title, null)}
+                                onClick={() => handleFilePreview(
+                                  material.content.startsWith('http') ? material.content : `${API_BASE_URL}/${material.content}`,
+                                  material.title,
+                                  null
+                                )}
                               >
                                 View
                               </Button>
@@ -1824,7 +1880,7 @@ function StudentClassStream() {
                                 size="sm"
                                 className="flex-grow-1"
                                 as="a"
-                                href={material.url}
+                                href={material.content.startsWith('http') ? material.content : `${API_BASE_URL}/${material.content}`}
                                 target="_blank"
                                 download
                               >
@@ -1838,7 +1894,7 @@ function StudentClassStream() {
                               size="sm"
                               className="w-100"
                               as="a"
-                              href={material.url}
+                              href={material.content}
                               target="_blank"
                             >
                               Open
