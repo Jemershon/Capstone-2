@@ -349,16 +349,6 @@ const connectToMongoDB = async (retries = 3) => {
 connectToMongoDB();
 
 // Schemas
-const ClassSchema = new mongoose.Schema({
-  name: String,
-  section: String,
-  code: { type: String, unique: true },
-  teacher: String,
-  teacherPicture: String,
-  students: [{ type: String }],
-  bg: { type: String, default: "#FFF0D8" },
-});
-
 const AssignmentSchema = new mongoose.Schema(
   {
     class: String,
@@ -441,7 +431,6 @@ const GradeSchema = new mongoose.Schema({
   feedback: String,
 });
 
-const Class = mongoose.model("Class", ClassSchema);
 const Assignment = mongoose.model("Assignment", AssignmentSchema);
 const Announcement = mongoose.model("Announcement", AnnouncementSchema);
 // Exam model imported from models/Exam.js
