@@ -92,6 +92,14 @@ router.post("/forgot-password", async (req, res) => {
     });
     console.log("Transporter created");
 
+    // Verify transporter (helpful to surface SMTP/auth issues early)
+    try {
+      await transporter.verify();
+      console.log("Transporter verification successful");
+    } catch (verifyErr) {
+      console.warn("Transporter verification failed:", verifyErr && verifyErr.message ? verifyErr.message : verifyErr);
+    }
+
     // Email content
     const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
     const mailOptions = {
@@ -109,8 +117,16 @@ router.post("/forgot-password", async (req, res) => {
     };
 
     console.log("Sending email...");
-    await transporter.sendMail(mailOptions);
-    console.log("Email sent successfully");
+    try {
+      await transporter.sendMail(mailOptions);
+      console.log("Email sent successfully");
+    } catch (sendErr) {
+      // Log the full error (stack when available) but don't fail the request
+      console.error("Failed to send reset email:", sendErr && sendErr.stack ? sendErr.stack : sendErr);
+      // Optionally, you could add monitoring/alerting here (Sentry, etc.)
+    }
+
+    // Always return the generic message so we don't reveal account existence
     res.json({ message: "If an account with that email exists, we've sent password reset instructions." });
 
   } catch (err) {
