@@ -58,12 +58,14 @@ router.post("/login", async (req, res) => {
 // Forgot Password
 router.post("/forgot-password", async (req, res) => {
   try {
+    console.log("Forgot password request received:", req.body);
     const { email } = req.body;
     if (!email) {
       return res.status(400).json({ error: "Email is required" });
     }
 
     const user = await User.findOne({ email });
+    console.log("User found:", !!user);
     if (!user) {
       // Don't reveal if email exists for security
       return res.json({ message: "If an account with that email exists, we've sent password reset instructions." });
@@ -72,11 +74,13 @@ router.post("/forgot-password", async (req, res) => {
     // Generate reset token
     const resetToken = crypto.randomBytes(32).toString("hex");
     const resetTokenExpiry = Date.now() + 3600000; // 1 hour
+    console.log("Generated reset token");
 
     // Save token to user
     user.resetToken = resetToken;
     user.resetTokenExpiry = resetTokenExpiry;
     await user.save();
+    console.log("Token saved to user");
 
     // Create transporter
     const transporter = nodemailer.createTransport({
@@ -86,6 +90,7 @@ router.post("/forgot-password", async (req, res) => {
         pass: process.env.EMAIL_PASS
       }
     });
+    console.log("Transporter created");
 
     // Email content
     const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
@@ -103,7 +108,9 @@ router.post("/forgot-password", async (req, res) => {
       `
     };
 
+    console.log("Sending email...");
     await transporter.sendMail(mailOptions);
+    console.log("Email sent successfully");
     res.json({ message: "If an account with that email exists, we've sent password reset instructions." });
 
   } catch (err) {

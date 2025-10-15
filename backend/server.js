@@ -13,6 +13,10 @@
 
 import dotenv from "dotenv";
 dotenv.config();
+
+// Debug: Check if environment variables are loaded
+console.log('EMAIL_USER loaded:', process.env.EMAIL_USER ? 'YES' : 'NO');
+console.log('EMAIL_PASS loaded:', process.env.EMAIL_PASS ? 'YES' : 'NO');
 // Force redeploy to pick up new environment variables
 import express from "express";
 import mongoose from "mongoose";
