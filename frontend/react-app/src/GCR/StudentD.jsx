@@ -2465,13 +2465,34 @@ function StudentProfile() {
       const username = getUsername();
       
       // Fetch student's enrolled classes
-      const response = await axios.get(`${API_BASE_URL}/api/student-classes/${username}`, {
+      const classesResponse = await axios.get(`${API_BASE_URL}/api/student-classes/${username}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
-      const classes = response.data || [];
-      const totalMaterials = classes.reduce((sum, cls) => sum + (cls.materials?.length || 0), 0);
-      const totalExams = classes.reduce((sum, cls) => sum + (cls.exams?.length || 0), 0);
+      const classes = classesResponse.data || [];
+      
+      // Fetch materials and exams for all classes
+      let totalMaterials = 0;
+      let totalExams = 0;
+      
+      for (const cls of classes) {
+        try {
+          // Fetch materials for this class
+          const materialsResponse = await axios.get(`${API_BASE_URL}/api/materials?className=${encodeURIComponent(cls.name)}`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          totalMaterials += materialsResponse.data?.length || 0;
+          
+          // Fetch exams for this class
+          const examsResponse = await axios.get(`${API_BASE_URL}/api/exams?className=${encodeURIComponent(cls.name)}`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          totalExams += examsResponse.data?.length || 0;
+        } catch (err) {
+          console.warn(`Failed to fetch data for class ${cls.name}:`, err);
+          // Continue with other classes
+        }
+      }
       
       setStats({
         totalClasses: classes.length,

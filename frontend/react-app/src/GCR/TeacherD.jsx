@@ -3776,7 +3776,8 @@ function Profile() {
   const [stats, setStats] = useState({
     totalClasses: 0,
     totalStudents: 0,
-    totalExams: 0
+    totalExams: 0,
+    totalMaterials: 0
   });
 
   const navigate = useNavigate();
@@ -3801,14 +3802,41 @@ function Profile() {
           })
         );
         
+        // Filter classes taught by this teacher
+        const teacherClasses = (classesRes.data || []).filter(cls => cls.teacher === profileRes.data.username);
+        
         // Calculate statistics
-        const classes = classesRes.data || [];
-        const totalStudents = classes.reduce((sum, cls) => sum + (cls.students?.length || 0), 0);
-        const totalExams = classes.reduce((sum, cls) => sum + (cls.exams?.length || 0), 0);
+        const totalStudents = teacherClasses.reduce((sum, cls) => sum + (cls.students?.length || 0), 0);
+        
+        // Fetch exams and materials for all teacher's classes
+        let totalExams = 0;
+        let totalMaterials = 0;
+        for (const cls of teacherClasses) {
+          try {
+            const examsRes = await retry(() =>
+              axios.get(`${API_BASE_URL}/api/exams?className=${encodeURIComponent(cls.name)}`, {
+                headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+              })
+            );
+            totalExams += examsRes.data?.length || 0;
+            
+            const materialsRes = await retry(() =>
+              axios.get(`${API_BASE_URL}/api/materials?className=${encodeURIComponent(cls.name)}`, {
+                headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+              })
+            );
+            totalMaterials += materialsRes.data?.length || 0;
+          } catch (err) {
+            console.warn(`Failed to fetch data for class ${cls.name}:`, err);
+            // Continue with other classes
+          }
+        }
+        
         setStats({
-          totalClasses: classes.length,
+          totalClasses: teacherClasses.length,
           totalStudents: totalStudents,
-          totalExams: totalExams
+          totalExams: totalExams,
+          totalMaterials: totalMaterials
         });
       } catch (statsErr) {
         console.warn("Failed to load teacher stats, but profile loaded successfully:", statsErr);
@@ -3816,7 +3844,8 @@ function Profile() {
         setStats({
           totalClasses: 0,
           totalStudents: 0,
-          totalExams: 0
+          totalExams: 0,
+          totalMaterials: 0
         });
       }
       
@@ -3990,11 +4019,18 @@ function Profile() {
                     <small className="text-muted">Students</small>
                   </div>
                 </div>
-                <div className="col-12">
+                <div className="col-6">
                   <div className="text-center p-3 bg-warning bg-opacity-10 rounded">
                     <i className="bi bi-clipboard-check-fill text-warning fs-3"></i>
                     <h3 className="fw-bold text-warning mb-0">{stats.totalExams}</h3>
                     <small className="text-muted">Exams Created</small>
+                  </div>
+                </div>
+                <div className="col-6">
+                  <div className="text-center p-3 bg-info bg-opacity-10 rounded">
+                    <i className="bi bi-book-fill text-info fs-3"></i>
+                    <h3 className="fw-bold text-info mb-0">{stats.totalMaterials || 0}</h3>
+                    <small className="text-muted">Materials</small>
                   </div>
                 </div>
               </div>
