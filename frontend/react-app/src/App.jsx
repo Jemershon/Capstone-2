@@ -8,12 +8,14 @@ import LandingPage from "./GCR/MainPage";
 import AdminDashboard from "./GCR/AdminD";
 import StudentDashboard from "./GCR/StudentD"; 
 import TeacherDashboard from "./GCR/TeacherD";
+import ResetPassword from "./GCR/ResetPassword";
 
 function App() {
   return (
     <Router>
       <Routes>    
         <Route path="/" element={<LandingPage />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/admin/*" element={<AdminDashboard />} />
         <Route path="/student/*" element={<StudentDashboard />} />
         <Route path="/teacher/*" element={<TeacherDashboard />} />

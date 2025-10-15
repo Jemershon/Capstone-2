@@ -12,3 +12,8 @@ ALLOWED_FILE_TYPES=pdf,doc,docx,ppt,pptx,xls,xlsx,txt,zip,rar,jpg,jpeg,png,mp4,m
 # CLOUDINARY_CLOUD_NAME=your-cloudinary-cloud-name
 # CLOUDINARY_API_KEY=your-cloudinary-api-key
 # CLOUDINARY_API_SECRET=your-cloudinary-api-secret
+
+# Email configuration for password reset
+EMAIL_USER=adanjemershon@gmail.com
+EMAIL_PASS=fmzvwqjyncbdqena
+FRONTEND_URL=https://goals-ccs.vercel.app

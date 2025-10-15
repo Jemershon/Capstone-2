@@ -561,6 +561,10 @@ export default function LandingPage() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [gsiPending, setGsiPending] = useState(false);
+  const [showForgotPasswordModal, setShowForgotPasswordModal] = useState(false);
+  const [forgotPasswordEmail, setForgotPasswordEmail] = useState("");
+  const [forgotPasswordLoading, setForgotPasswordLoading] = useState(false);
+  const [forgotPasswordMessage, setForgotPasswordMessage] = useState("");
   
 
   // Inject mobile styles
@@ -780,6 +784,26 @@ export default function LandingPage() {
       setShowToast(true);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async (e) => {
+    e.preventDefault();
+    if (!forgotPasswordEmail) {
+      setForgotPasswordMessage("Email is required");
+      return;
+    }
+    setForgotPasswordLoading(true);
+    try {
+      const res = await axios.post(`${API_BASE_URL}/api/forgot-password`, {
+        email: forgotPasswordEmail,
+      });
+      setForgotPasswordMessage(res.data.message);
+    } catch (err) {
+      console.error("Forgot password error:", err);
+      setForgotPasswordMessage("Failed to send reset email. Please try again.");
+    } finally {
+      setForgotPasswordLoading(false);
     }
   };
 
@@ -1079,6 +1103,21 @@ export default function LandingPage() {
                 <i className={`bi ${showPassword ? 'bi-eye-slash' : 'bi-eye'}`}></i>
               </Button>
             </Form.Floating>
+            {isLogin && (
+              <div className="text-end mb-3">
+                <small>
+                  <span
+                    className="text-primary"
+                    style={{ cursor: "pointer" }}
+                    onClick={() => setShowForgotPasswordModal(true)}
+                    role="button"
+                    aria-label="Forgot password"
+                  >
+                    Forgot Password?
+                  </span>
+                </small>
+              </div>
+            )}
             {!isLogin && (
               <Form.Select
                 className="mb-3"
@@ -1149,6 +1188,104 @@ export default function LandingPage() {
               )}
             </small>
           </div>
+        </Modal.Body>
+      </Modal>
+
+      {/* Forgot Password Modal */}
+      <Modal
+        show={showForgotPasswordModal}
+        onHide={() => {
+          setShowForgotPasswordModal(false);
+          setForgotPasswordEmail("");
+          setForgotPasswordMessage("");
+        }}
+        centered
+      >
+        <Modal.Header closeButton>
+          <Modal.Title>Forgot Password</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <p>Enter your email address and we'll send you a link to reset your password.</p>
+          <Form onSubmit={handleForgotPassword}>
+            <Form.Floating className="mb-3">
+              <Form.Control
+                id="floatingForgotEmail"
+                type="email"
+                placeholder="Email"
+                value={forgotPasswordEmail}
+                onChange={(e) => setForgotPasswordEmail(e.target.value)}
+                required
+                aria-required="true"
+              />
+              <label htmlFor="floatingForgotEmail">Email</label>
+            </Form.Floating>
+            {forgotPasswordMessage && (
+              <div className={`alert ${forgotPasswordMessage.includes("Failed") ? "alert-danger" : "alert-success"} mb-3`}>
+                {forgotPasswordMessage}
+              </div>
+            )}
+            <Button
+              type="submit"
+              className="w-100"
+              disabled={forgotPasswordLoading}
+              aria-label="Send reset email"
+            >
+              {forgotPasswordLoading ? (
+                <Spinner animation="border" size="sm" aria-label="Sending" />
+              ) : (
+                "Send Reset Email"
+              )}
+            </Button>
+          </Form>
+        </Modal.Body>
+      </Modal>
+
+      {/* Forgot Password Modal */}
+      <Modal
+        show={showForgotPasswordModal}
+        onHide={() => {
+          setShowForgotPasswordModal(false);
+          setForgotPasswordEmail("");
+          setForgotPasswordMessage("");
+        }}
+        centered
+      >
+        <Modal.Header closeButton>
+          <Modal.Title>Forgot Password</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <p>Enter your email address and we'll send you a link to reset your password.</p>
+          <Form onSubmit={handleForgotPassword}>
+            <Form.Floating className="mb-3">
+              <Form.Control
+                id="floatingForgotEmail"
+                type="email"
+                placeholder="Email"
+                value={forgotPasswordEmail}
+                onChange={(e) => setForgotPasswordEmail(e.target.value)}
+                required
+                aria-required="true"
+              />
+              <label htmlFor="floatingForgotEmail">Email</label>
+            </Form.Floating>
+            {forgotPasswordMessage && (
+              <div className={`alert ${forgotPasswordMessage.includes("Failed") ? "alert-danger" : "alert-success"} mb-3`}>
+                {forgotPasswordMessage}
+              </div>
+            )}
+            <Button
+              type="submit"
+              className="w-100"
+              disabled={forgotPasswordLoading}
+              aria-label="Send reset email"
+            >
+              {forgotPasswordLoading ? (
+                <Spinner animation="border" size="sm" aria-label="Sending" />
+              ) : (
+                "Send Reset Email"
+              )}
+            </Button>
+          </Form>
         </Modal.Body>
       </Modal>
 
