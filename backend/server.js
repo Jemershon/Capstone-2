@@ -27,6 +27,8 @@ import { setupSocketIO } from "./socket.js";
 
 // Import middleware and routes
 import { authenticateToken, requireAdmin, requireTeacherOrAdmin, requireStudent } from "./middlewares/auth.js";
+import authRoutes from "./routes/auth.js";
+import classesRoutes from "./routes/classes.js";
 import materialsRoutes, { setupMaterialsModels } from "./routes/materials.js";
 import commentsRoutes from "./routes/comments.js";
 import notificationsRoutes from "./routes/notifications.js";
@@ -2185,6 +2187,8 @@ setupMaterialsModels({
 });
 
 // Use route modules
+app.use("/api", authRoutes);
+app.use("/api", classesRoutes);
 app.use("/api", materialsRoutes);
 app.use("/api", commentsRoutes);
 app.use("/api", notificationsRoutes);
