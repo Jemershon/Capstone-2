@@ -6,6 +6,9 @@ const userSchema = new mongoose.Schema({
   email: { type: String, unique: true, sparse: true },
   password: String,
   role: { type: String, enum: ["Student", "Teacher", "Admin"], default: "Student" },
+  googleId: { type: String, index: true, sparse: true },
+  picture: String,
+  creditPoints: { type: Number, default: 0, min: 0, max: 10 }, // Max 10 credit points
   resetToken: String,
   resetTokenExpiry: Date,
 }, {

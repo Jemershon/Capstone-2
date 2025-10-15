@@ -38,6 +38,8 @@ import examsRoutes, { setupModels } from "./routes/exams.js";
 import reactionsRoutes from "./routes/reactions.js";
 import Exam from "./models/Exam.js";
 import Notification from "./models/Notification.js";
+import User from "./models/User.js";
+import Class from "./models/Class.js";
 
 // Fix __dirname for ES Modules
 const __filename = fileURLToPath(import.meta.url);
@@ -347,17 +349,6 @@ const connectToMongoDB = async (retries = 3) => {
 connectToMongoDB();
 
 // Schemas
-const UserSchema = new mongoose.Schema({
-  name: String,
-  username: { type: String, unique: true },
-  email: { type: String, unique: true },
-  password: String,
-  googleId: { type: String, index: true, sparse: true },
-  picture: String,
-  role: { type: String, enum: ["Student", "Teacher", "Admin"], default: "Student" },
-  creditPoints: { type: Number, default: 0, min: 0, max: 10 }, // Max 10 credit points
-});
-
 const ClassSchema = new mongoose.Schema({
   name: String,
   section: String,
@@ -450,7 +441,6 @@ const GradeSchema = new mongoose.Schema({
   feedback: String,
 });
 
-const User = mongoose.model("User", UserSchema);
 const Class = mongoose.model("Class", ClassSchema);
 const Assignment = mongoose.model("Assignment", AssignmentSchema);
 const Announcement = mongoose.model("Announcement", AnnouncementSchema);
