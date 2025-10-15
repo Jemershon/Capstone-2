@@ -7,6 +7,39 @@ import User from "../models/User.js";
 
 const router = express.Router();
 
+// Debug endpoint: attempts to verify transporter and send a test email.
+// Use this after deploying to confirm Railway SMTP config. Return detailed
+// transporter verification result (for debugging only).
+router.post('/debug/send-test-email', async (req, res) => {
+  try {
+    const { to } = req.body || {};
+    if (!to) return res.status(400).json({ error: 'Missing `to` address in body' });
+
+    const nodemailer = await import('nodemailer');
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS }
+    });
+
+    const verifyResult = await transporter.verify().then(() => ({ ok: true })).catch(e => ({ ok: false, error: e && e.message ? e.message : String(e) }));
+
+    let sendResult = null;
+    if (verifyResult.ok) {
+      try {
+        await transporter.sendMail({ from: process.env.EMAIL_USER, to, subject: 'Test Email', text: 'This is a test email from debug endpoint.' });
+        sendResult = { ok: true };
+      } catch (sendErr) {
+        sendResult = { ok: false, error: sendErr && sendErr.message ? sendErr.message : String(sendErr) };
+      }
+    }
+
+    return res.json({ verifyResult, sendResult });
+  } catch (err) {
+    console.error('Debug send-test-email error:', err && err.stack ? err.stack : err);
+    return res.status(500).json({ error: 'Debug endpoint failed', details: err && err.message ? err.message : String(err) });
+  }
+});
+
 // Register
 router.post("/register", async (req, res) => {
   try {
