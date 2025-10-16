@@ -7,39 +7,6 @@ import User from "../models/User.js";
 
 const router = express.Router();
 
-// Debug endpoint: attempts to verify transporter and send a test email.
-// Use this after deploying to confirm Railway SMTP config. Return detailed
-// transporter verification result (for debugging only).
-router.post('/debug/send-test-email', async (req, res) => {
-  try {
-    const { to } = req.body || {};
-    if (!to) return res.status(400).json({ error: 'Missing `to` address in body' });
-
-    const nodemailer = await import('nodemailer');
-    const transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS }
-    });
-
-    const verifyResult = await transporter.verify().then(() => ({ ok: true })).catch(e => ({ ok: false, error: e && e.message ? e.message : String(e) }));
-
-    let sendResult = null;
-    if (verifyResult.ok) {
-      try {
-        await transporter.sendMail({ from: process.env.EMAIL_USER, to, subject: 'Test Email', text: 'This is a test email from debug endpoint.' });
-        sendResult = { ok: true };
-      } catch (sendErr) {
-        sendResult = { ok: false, error: sendErr && sendErr.message ? sendErr.message : String(sendErr) };
-      }
-    }
-
-    return res.json({ verifyResult, sendResult });
-  } catch (err) {
-    console.error('Debug send-test-email error:', err && err.stack ? err.stack : err);
-    return res.status(500).json({ error: 'Debug endpoint failed', details: err && err.message ? err.message : String(err) });
-  }
-});
-
 // Register
 router.post("/register", async (req, res) => {
   try {
@@ -115,23 +82,22 @@ router.post("/forgot-password", async (req, res) => {
     await user.save();
     console.log("Token saved to user");
 
-    // Create transporter
+
+    // Create transporter with explicit timeouts so SMTP problems don't hang requests
     const transporter = nodemailer.createTransport({
-      service: "gmail",
+      host: 'smtp.gmail.com',
+      port: 465,
+      secure: true,
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS
-      }
+      },
+      // timeouts (ms) - keep small to avoid long blocking
+      connectionTimeout: 5000,
+      greetingTimeout: 5000,
+      socketTimeout: 5000
     });
-    console.log("Transporter created");
-
-    // Verify transporter (helpful to surface SMTP/auth issues early)
-    try {
-      await transporter.verify();
-      console.log("Transporter verification successful");
-    } catch (verifyErr) {
-      console.warn("Transporter verification failed:", verifyErr && verifyErr.message ? verifyErr.message : verifyErr);
-    }
+    console.log("Transporter created (non-blocking)");
 
     // Email content
     const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
@@ -149,17 +115,17 @@ router.post("/forgot-password", async (req, res) => {
       `
     };
 
-    console.log("Sending email...");
+    // Fire-and-forget sendMail with internal logging to avoid blocking the response.
+    // Use then/catch instead of await so the HTTP response is immediate.
     try {
-      await transporter.sendMail(mailOptions);
-      console.log("Email sent successfully");
-    } catch (sendErr) {
-      // Log the full error (stack when available) but don't fail the request
-      console.error("Failed to send reset email:", sendErr && sendErr.stack ? sendErr.stack : sendErr);
-      // Optionally, you could add monitoring/alerting here (Sentry, etc.)
+      transporter.sendMail(mailOptions)
+        .then(info => console.log('Background email sent:', info && info.messageId ? info.messageId : info))
+        .catch(err => console.error('Background email send failed:', err && err.stack ? err.stack : err));
+    } catch (bgErr) {
+      console.error('Failed to start background sendMail:', bgErr && bgErr.stack ? bgErr.stack : bgErr);
     }
 
-    // Always return the generic message so we don't reveal account existence
+    // Always return success message immediately to avoid account enumeration and client hang
     res.json({ message: "If an account with that email exists, we've sent password reset instructions." });
 
   } catch (err) {
@@ -203,3 +169,41 @@ router.post("/reset-password", async (req, res) => {
 });
 
 export default router;
+
+// Debug endpoint: POST /api/debug/send-test-email
+// Body: { to: 'recipient@example.com' }
+// Useful after deployment to verify SMTP works and to inspect error messages in logs.
+router.post('/debug/send-test-email', async (req, res) => {
+  try {
+    const { to } = req.body || {};
+    if (!to) return res.status(400).json({ error: 'Missing `to` address in body' });
+
+    // Create transporter
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS }
+    });
+
+    // Wrap verify in a timeout so the endpoint doesn't hang
+    const verifyPromise = transporter.verify().then(() => ({ ok: true })).catch(e => ({ ok: false, error: e && e.message ? e.message : String(e) }));
+    const timeoutPromise = new Promise(resolve => setTimeout(() => resolve({ ok: false, error: 'verify timeout' }), 7000));
+    const verifyResult = await Promise.race([verifyPromise, timeoutPromise]);
+
+    let sendResult = null;
+    if (verifyResult.ok) {
+      // send with a small timeout wrapper
+      try {
+        const sendPromise = transporter.sendMail({ from: process.env.EMAIL_USER, to, subject: 'Test Email', text: 'This is a test email from debug endpoint.' }).then(() => ({ ok: true })).catch(e => ({ ok: false, error: e && e.message ? e.message : String(e) }));
+        const sendTimeout = new Promise(resolve => setTimeout(() => resolve({ ok: false, error: 'send timeout' }), 7000));
+        sendResult = await Promise.race([sendPromise, sendTimeout]);
+      } catch (sendErr) {
+        sendResult = { ok: false, error: sendErr && sendErr.message ? sendErr.message : String(sendErr) };
+      }
+    }
+
+    return res.json({ verifyResult, sendResult });
+  } catch (err) {
+    console.error('Debug send-test-email error:', err && err.stack ? err.stack : err);
+    return res.status(500).json({ error: 'Debug endpoint failed', details: err && err.message ? err.message : String(err) });
+  }
+});
