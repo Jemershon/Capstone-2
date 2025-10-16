@@ -235,7 +235,12 @@ router.post('/debug/send-test-email', async (req, res) => {
         });
         sendResult = { ok: true, via: 'sendgrid', status: r.status };
       } catch (sgErr) {
-        sendResult = { ok: false, via: 'sendgrid', error: sgErr && sgErr.message ? sgErr.message : String(sgErr) };
+        // If axios returned a response, capture status and data for better diagnostics
+        if (sgErr && sgErr.response) {
+          sendResult = { ok: false, via: 'sendgrid', status: sgErr.response.status, body: sgErr.response.data };
+        } else {
+          sendResult = { ok: false, via: 'sendgrid', error: sgErr && sgErr.message ? sgErr.message : String(sgErr) };
+        }
       }
     }
 
