@@ -2,7 +2,6 @@ import express from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import nodemailer from "nodemailer";
-import sgMail from '@sendgrid/mail';
 import crypto from "crypto";
 import User from "../models/User.js";
 
@@ -127,6 +126,7 @@ router.post("/forgot-password", async (req, res) => {
           // Try SendGrid fallback
           if (process.env.SENDGRID_API_KEY) {
             try {
+              const sgMail = (await import('@sendgrid/mail')).default;
               sgMail.setApiKey(process.env.SENDGRID_API_KEY);
               const msg = { to: email, from: process.env.EMAIL_USER, subject: mailOptions.subject, html: mailOptions.html };
               await sgMail.send(msg);
