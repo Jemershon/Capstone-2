@@ -11,6 +11,10 @@ const userSchema = new mongoose.Schema({
   creditPoints: { type: Number, default: 0, min: 0, max: 10 }, // Max 10 credit points
   resetToken: String,
   resetTokenExpiry: Date,
+  // OTP reset fields (email-based)
+  resetOTPHash: String,
+  resetOTPExpiry: Date,
+  resetOTPAttempts: { type: Number, default: 0 },
 }, {
   timestamps: true // This adds createdAt and updatedAt fields automatically
 });

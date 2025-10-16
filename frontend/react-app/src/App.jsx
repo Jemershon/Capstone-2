@@ -9,6 +9,8 @@ import AdminDashboard from "./GCR/AdminD";
 import StudentDashboard from "./GCR/StudentD"; 
 import TeacherDashboard from "./GCR/TeacherD";
 import ResetPassword from "./GCR/ResetPassword";
+import RequestOTP from "./GCR/RequestOTP";
+import VerifyOTP from "./GCR/VerifyOTP";
 
 function App() {
   return (
@@ -16,6 +18,8 @@ function App() {
       <Routes>    
         <Route path="/" element={<LandingPage />} />
         <Route path="/reset-password" element={<ResetPassword />} />
+  <Route path="/request-reset-otp" element={<RequestOTP />} />
+  <Route path="/verify-reset-otp" element={<VerifyOTP />} />
         <Route path="/admin/*" element={<AdminDashboard />} />
         <Route path="/student/*" element={<StudentDashboard />} />
         <Route path="/teacher/*" element={<TeacherDashboard />} />

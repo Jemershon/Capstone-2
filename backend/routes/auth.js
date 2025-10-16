@@ -1,7 +1,7 @@
 import express from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import nodemailer from "nodemailer";
+// removed nodemailer; use SendGrid API for email delivery
 import axios from 'axios';
 import crypto from "crypto";
 import User from "../models/User.js";
@@ -84,62 +84,34 @@ router.post("/forgot-password", async (req, res) => {
     console.log("Token saved to user");
 
 
-    // Create transporter with explicit timeouts so SMTP problems don't hang requests
-    const transporter = nodemailer.createTransport({
-      host: 'smtp.gmail.com',
-      port: 465,
-      secure: true,
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS
-      },
-      // timeouts (ms) - keep small to avoid long blocking
-      connectionTimeout: 5000,
-      greetingTimeout: 5000,
-      socketTimeout: 5000
-    });
-    console.log("Transporter created (non-blocking)");
-
     // Email content
     const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
-    const mailOptions = {
-      from: process.env.EMAIL_USER,
-      to: email,
-      subject: "Password Reset Request",
-      html: `
+    const mailHtml = `
         <h2>Password Reset Request</h2>
         <p>You requested a password reset for your account.</p>
         <p>Click the link below to reset your password:</p>
         <a href="${resetUrl}" style="background-color: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Reset Password</a>
         <p>This link will expire in 1 hour.</p>
         <p>If you didn't request this, please ignore this email.</p>
-      `
-    };
+      `;
 
-    // Fire-and-forget sendMail with internal logging to avoid blocking the response.
-    // Use then/catch instead of await so the HTTP response is immediate. If Gmail SMTP
-    // times out or fails, fall back to SendGrid if configured.
-    try {
-      transporter.sendMail(mailOptions)
-        .then(info => console.log('Background email sent (Gmail):', info && info.messageId ? info.messageId : info))
-        .catch(async err => {
-          console.error('Background email send failed (Gmail):', err && err.stack ? err.stack : err);
-          // Try SendGrid fallback
-          if (process.env.SENDGRID_API_KEY) {
-            try {
-              const sgMail = (await import('@sendgrid/mail')).default;
-              sgMail.setApiKey(process.env.SENDGRID_API_KEY);
-              const msg = { to: email, from: process.env.EMAIL_USER, subject: mailOptions.subject, html: mailOptions.html };
-              await sgMail.send(msg);
-              console.log('Fallback email sent via SendGrid');
-            } catch (sgErr) {
-              console.error('SendGrid fallback failed:', sgErr && sgErr.stack ? sgErr.stack : sgErr);
-            }
-          }
-        });
-    } catch (bgErr) {
-      console.error('Failed to start background sendMail:', bgErr && bgErr.stack ? bgErr.stack : bgErr);
-    }
+    // Try SendGrid API if configured (non-blocking). If not configured, just log the reset URL so devs can use it.
+    (async () => {
+      if (process.env.SENDGRID_API_KEY) {
+        try {
+          await axios.post('https://api.sendgrid.com/v3/mail/send', {
+            personalizations: [{ to: [{ email }], subject: 'Password Reset Request' }],
+            from: { email: process.env.EMAIL_USER },
+            content: [{ type: 'text/html', value: mailHtml }]
+          }, { headers: { Authorization: `Bearer ${process.env.SENDGRID_API_KEY}`, 'Content-Type': 'application/json' }, timeout: 7000 });
+          console.log('Background email sent via SendGrid to', email);
+        } catch (sgErr) {
+          console.error('SendGrid send failed:', sgErr && sgErr.response ? sgErr.response.data : sgErr && sgErr.message ? sgErr.message : sgErr);
+        }
+      } else {
+        console.log('No mail provider configured; reset URL for', email, resetUrl);
+      }
+    })();
 
     // Always return success message immediately to avoid account enumeration and client hang
     res.json({ message: "If an account with that email exists, we've sent password reset instructions." });
@@ -184,6 +156,102 @@ router.post("/reset-password", async (req, res) => {
   }
 });
 
+// Request OTP via email
+// Body: { email }
+router.post('/request-reset-otp', async (req, res) => {
+  try {
+    const { email } = req.body || {};
+    if (!email) return res.status(400).json({ error: 'Email is required' });
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      // Don't reveal existence
+      return res.json({ message: 'If an account with that email exists, an OTP was sent.' });
+    }
+
+    // Generate 6-digit OTP
+    const otp = ('' + Math.floor(100000 + Math.random() * 900000));
+    const otpExpiry = Date.now() + 10 * 60 * 1000; // 10 minutes
+    const otpHash = await bcrypt.hash(otp, 10);
+
+    user.resetOTPHash = otpHash;
+    user.resetOTPExpiry = otpExpiry;
+    user.resetOTPAttempts = 0;
+    await user.save();
+
+    const mailHtml = `<p>Your verification code is: <strong>${otp}</strong></p><p>This code expires in 10 minutes.</p>`;
+
+    // Send via SendGrid API if configured; otherwise log OTP to server (dev)
+    (async () => {
+      if (process.env.SENDGRID_API_KEY) {
+        try {
+          await axios.post('https://api.sendgrid.com/v3/mail/send', {
+            personalizations: [{ to: [{ email: user.email }], subject: 'Your verification code' }],
+            from: { email: process.env.EMAIL_USER },
+            content: [{ type: 'text/html', value: mailHtml }]
+          }, { headers: { Authorization: `Bearer ${process.env.SENDGRID_API_KEY}`, 'Content-Type': 'application/json' }, timeout: 7000 });
+          console.log('OTP email sent via SendGrid to', user.email);
+        } catch (sgErr) {
+          console.error('SendGrid send failed for OTP:', sgErr && sgErr.response ? sgErr.response.data : sgErr && sgErr.message ? sgErr.message : sgErr);
+        }
+      } else {
+        console.log('DEV OTP for', user.email, otp);
+      }
+    })();
+
+    return res.json({ message: 'If an account with that email exists, an OTP was sent.' });
+  } catch (err) {
+    console.error('request-reset-otp error:', err && err.stack ? err.stack : err);
+    return res.status(500).json({ error: 'Failed to request OTP' });
+  }
+});
+
+// Verify OTP and reset password
+// Body: { email, otp, newPassword }
+router.post('/verify-reset-otp', async (req, res) => {
+  try {
+    const { email, otp, newPassword } = req.body || {};
+    if (!email || !otp || !newPassword) return res.status(400).json({ error: 'Email, OTP and new password are required' });
+
+    const user = await User.findOne({ email });
+    if (!user || !user.resetOTPHash || !user.resetOTPExpiry) {
+      return res.status(400).json({ error: 'Invalid or expired OTP' });
+    }
+
+    if (Date.now() > user.resetOTPExpiry) {
+      // Clear expired OTP
+      user.resetOTPHash = undefined; user.resetOTPExpiry = undefined; user.resetOTPAttempts = 0;
+      await user.save();
+      return res.status(400).json({ error: 'Invalid or expired OTP' });
+    }
+
+    // Enforce attempt limit
+    if ((user.resetOTPAttempts || 0) >= 5) {
+      return res.status(429).json({ error: 'Too many attempts. Try again later.' });
+    }
+
+    const match = await bcrypt.compare(otp, user.resetOTPHash);
+    if (!match) {
+      user.resetOTPAttempts = (user.resetOTPAttempts || 0) + 1;
+      await user.save();
+      return res.status(400).json({ error: 'Invalid OTP' });
+    }
+
+    // OTP valid -> reset password
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    user.password = hashedPassword;
+    // clear OTP and reset tokens
+    user.resetOTPHash = undefined; user.resetOTPExpiry = undefined; user.resetOTPAttempts = 0;
+    user.resetToken = undefined; user.resetTokenExpiry = undefined;
+    await user.save();
+
+    return res.json({ message: 'Password reset successfully' });
+  } catch (err) {
+    console.error('verify-reset-otp error:', err && err.stack ? err.stack : err);
+    return res.status(500).json({ error: 'Failed to verify OTP' });
+  }
+});
+
 export default router;
 
 // Debug endpoint: POST /api/debug/send-test-email
@@ -195,53 +263,28 @@ router.post('/debug/send-test-email', async (req, res) => {
     if (!to) return res.status(400).json({ error: 'Missing `to` address in body' });
 
     // Create transporter
-    const transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS }
-    });
-
-    // Wrap verify in a timeout so the endpoint doesn't hang
-    const verifyPromise = transporter.verify().then(() => ({ ok: true })).catch(e => ({ ok: false, error: e && e.message ? e.message : String(e) }));
-    const timeoutPromise = new Promise(resolve => setTimeout(() => resolve({ ok: false, error: 'verify timeout' }), 7000));
-    const verifyResult = await Promise.race([verifyPromise, timeoutPromise]);
-
+    // Try SendGrid API (if configured) or log when not available
+    let verifyResult = { ok: false, error: 'no smtp provider' };
     let sendResult = null;
-    if (verifyResult.ok) {
-      // send with a small timeout wrapper
+    if (process.env.SENDGRID_API_KEY) {
       try {
-        const sendPromise = transporter.sendMail({ from: process.env.EMAIL_USER, to, subject: 'Test Email', text: 'This is a test email from debug endpoint.' }).then(() => ({ ok: true })).catch(e => ({ ok: false, error: e && e.message ? e.message : String(e) }));
-        const sendTimeout = new Promise(resolve => setTimeout(() => resolve({ ok: false, error: 'send timeout' }), 7000));
-        sendResult = await Promise.race([sendPromise, sendTimeout]);
-      } catch (sendErr) {
-        sendResult = { ok: false, error: sendErr && sendErr.message ? sendErr.message : String(sendErr) };
-      }
-    }
-
-    // If Gmail verify failed or sendResult is not ok, try SendGrid API (if configured)
-    if ((!verifyResult.ok || (sendResult && !sendResult.ok)) && process.env.SENDGRID_API_KEY) {
-      try {
-        const sgBody = {
+        const r = await axios.post('https://api.sendgrid.com/v3/mail/send', {
           personalizations: [{ to: [{ email: to }] }],
           from: { email: process.env.EMAIL_USER },
           subject: 'Test Email',
           content: [{ type: 'text/plain', value: 'This is a test email from debug endpoint via SendGrid.' }]
-        };
-        const r = await axios.post('https://api.sendgrid.com/v3/mail/send', sgBody, {
-          headers: {
-            Authorization: `Bearer ${process.env.SENDGRID_API_KEY}`,
-            'Content-Type': 'application/json'
-          },
-          timeout: 7000
-        });
+        }, { headers: { Authorization: `Bearer ${process.env.SENDGRID_API_KEY}`, 'Content-Type': 'application/json' }, timeout: 7000 });
         sendResult = { ok: true, via: 'sendgrid', status: r.status };
       } catch (sgErr) {
-        // If axios returned a response, capture status and data for better diagnostics
         if (sgErr && sgErr.response) {
           sendResult = { ok: false, via: 'sendgrid', status: sgErr.response.status, body: sgErr.response.data };
         } else {
           sendResult = { ok: false, via: 'sendgrid', error: sgErr && sgErr.message ? sgErr.message : String(sgErr) };
         }
       }
+    } else {
+      console.log('No mail provider configured on host; debug endpoint will not send mail. Requested to:', to);
+      sendResult = { ok: false, error: 'no-mail-provider' };
     }
 
     return res.json({ verifyResult, sendResult });

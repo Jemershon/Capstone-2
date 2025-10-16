@@ -60,17 +60,22 @@ export function setupSocketIO(httpServer) {
     socket.on("join-class", (className) => {
       if (socket.user) {
         // Create a room name with class: prefix for better organization
-        const roomName = `class:${className}`;
-        socket.join(roomName);
-        console.log(`User ${socket.user.username} joined room ${roomName}`);
+        const prefixed = `class:${className}`;
+        const unprefixed = `${className}`;
+        // Join both prefixed and unprefixed rooms for backwards compatibility
+        socket.join(prefixed);
+        socket.join(unprefixed);
+        console.log(`User ${socket.user.username} joined rooms ${prefixed} and ${unprefixed}`);
       }
     });
     
     // Leave a class room
     socket.on("leave-class", (className) => {
-      const roomName = `class:${className}`;
-      socket.leave(roomName);
-      console.log(`User ${socket.user?.username} left room ${roomName}`);
+      const prefixed = `class:${className}`;
+      const unprefixed = `${className}`;
+      socket.leave(prefixed);
+      socket.leave(unprefixed);
+      console.log(`User ${socket.user?.username} left rooms ${prefixed} and ${unprefixed}`);
     });
     
     // Handle disconnection

@@ -14,6 +14,20 @@
 import dotenv from "dotenv";
 dotenv.config();
 
+// Lifecycle logging to help diagnose unexpected exits
+process.on('beforeExit', (code) => {
+  console.error('Process beforeExit, code=', code);
+});
+process.on('exit', (code) => {
+  console.error('Process exit, code=', code);
+});
+process.on('uncaughtException', (err) => {
+  console.error('UNCAUGHT EXCEPTION (top-level):', err && err.stack ? err.stack : err);
+});
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('UNHANDLED REJECTION (top-level):', reason, promise);
+});
+
 // Debug: Check if environment variables are loaded
 console.log('EMAIL_USER loaded:', process.env.EMAIL_USER ? 'YES' : 'NO');
 console.log('EMAIL_PASS loaded:', process.env.EMAIL_PASS ? 'YES' : 'NO');
@@ -178,6 +192,24 @@ app.get('/api/test', (req, res) => {
   });
 });
 
+// Debug: Emit a test socket event to a class room
+app.post('/api/debug/emit-test', (req, res) => {
+  try {
+    const { className = 'TEST_CLASS', event = 'test-event', payload = { ok: true, ts: new Date().toISOString() } } = req.body || {};
+    if (!app.io) {
+      return res.status(500).json({ error: 'Socket.IO not initialized' });
+    }
+    // Emit to both prefixed and unprefixed rooms for compatibility
+    app.io.to(`class:${className}`).emit(event, payload);
+    app.io.to(`${className}`).emit(event, payload);
+    console.log(`Debug emit: event=${event} to class:${className}`);
+    res.json({ status: 'emitted', className, event, payload });
+  } catch (err) {
+    console.error('Debug emit error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Health check endpoint for Railway
 app.get('/health', (req, res) => {
   res.status(200).json({
@@ -195,6 +227,24 @@ app.get('/', (req, res) => {
     status: 'running',
     timestamp: new Date().toISOString()
   });
+});
+
+// Debug endpoint: emit a test event to a room or user
+app.post('/api/debug/emit-test', (req, res) => {
+  try {
+    const { room, event = 'test-event', payload = { hello: 'world' } } = req.body || {};
+    if (!room) return res.status(400).json({ error: 'room is required in body' });
+    if (!app.io && !global.io) {
+      return res.status(500).json({ error: 'Socket.IO not initialized' });
+    }
+    const ioToUse = app.io || global.io;
+    console.log(`Debug emit to ${room} event=${event}`);
+    ioToUse.to(room).emit(event, payload);
+    return res.json({ ok: true, room, event, payload });
+  } catch (err) {
+    console.error('Debug emit failed:', err);
+    return res.status(500).json({ error: 'Emit failed', message: err.message });
+  }
 });
 
 // Auth test route (protected)
@@ -2580,8 +2630,11 @@ app.get("/api/debug/classes", async (req, res) => {
 // Create HTTP server
 const httpServer = createServer(app);
 
-// Setup Socket.io and make it globally available
-global.io = setupSocketIO(httpServer);
+// Setup Socket.io and make it globally available and attached to Express app
+const ioInstance = setupSocketIO(httpServer);
+global.io = ioInstance;
+// Attach to Express app so routes can access via req.app.io
+app.io = ioInstance;
 
 // Error handling middleware
 app.use((err, req, res, next) => {
@@ -2642,3 +2695,18 @@ httpServer.listen(PORT, '0.0.0.0', () => {
   // Single clear startup message so it's obvious when the backend is running
   console.warn(`Backend running on port ${PORT}`);
 });
+
+// Temporary development keep-alive and diagnostic logs to help debugging
+if (NODE_ENV === 'development') {
+  console.log('Development keep-alive enabled to aid debugging. PID:', process.pid);
+  // Prevent Node from exiting while we debug unexpected terminations
+  const _keepAlive = setInterval(() => {
+    // noop - keeps the event loop active
+  }, 1_000_000);
+  // Expose a way to clear it if needed
+  process.on('SIGINT', () => {
+    clearInterval(_keepAlive);
+    console.log('Cleared development keep-alive, exiting');
+    process.exit(0);
+  });
+}
