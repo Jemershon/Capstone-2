@@ -234,12 +234,15 @@ function NotificationsDropdown({ inNavbar = false, mobileMode = false }) {
       ) : (
         <>
           {notifications.slice(0, 5).map(notification => (
-            <div key={notification._id} className={`px-3 py-2 border-bottom ${!notification.read ? 'bg-light' : ''}`} style={{cursor: 'pointer', whiteSpace: 'normal'}} onClick={() => handleMarkAsRead(notification._id)}>
+            <div key={notification._id} className={`px-3 py-2 border-bottom notification-item ${!notification.read ? 'bg-unread-notification' : ''}`} style={{cursor: 'pointer', whiteSpace: 'normal'}} onClick={() => handleMarkAsRead(notification._id)}>
               <div className="d-flex align-items-start gap-2">
-                <div className="flex-shrink-0">
+                <div className="flex-shrink-0 position-relative">
                   <span role="img" aria-label={notification.type} style={{ fontSize: '1.2rem' }}>
                     {getNotificationIcon(notification.type)}
                   </span>
+                  {!notification.read && (
+                    <span className="unread-dot" style={{position:'absolute',top:0,right:-6,width:8,height:8,borderRadius:'50%',background:'#ffc107',border:'1px solid #fff'}}></span>
+                  )}
                 </div>
                 <div className="flex-grow-1 notification-item-content">
                   <div className="notification-message" style={{ fontSize: '0.9rem', lineHeight: '1.4' }}>
@@ -284,6 +287,13 @@ function NotificationsDropdown({ inNavbar = false, mobileMode = false }) {
   return (
     <>
       <style>{`
+        .bg-unread-notification {
+          background-color: #fffbe6 !important;
+          border-left: 4px solid #ffc107 !important;
+        }
+        .unread-dot {
+          display: inline-block;
+        }
           /* Responsive dropdown for mobile */
           @media (max-width: 576px) {
             .notifications-dropdown-menu {
@@ -463,12 +473,15 @@ function NotificationsDropdown({ inNavbar = false, mobileMode = false }) {
               {notifications.map(notification => (
                 <ListGroup.Item 
                   key={notification._id}
-                  className={`d-flex py-3 ${!notification.read ? 'bg-light' : ''}`}
+                  className={`d-flex py-3 notification-item ${!notification.read ? 'bg-unread-notification' : ''}`}
                 >
-                  <div className="me-2 flex-shrink-0">
+                  <div className="me-2 flex-shrink-0 position-relative">
                     <span role="img" aria-label={notification.type} style={{ fontSize: '1.5rem' }}>
                       {getNotificationIcon(notification.type)}
                     </span>
+                    {!notification.read && (
+                      <span className="unread-dot" style={{position:'absolute',top:0,right:-8,width:10,height:10,borderRadius:'50%',background:'#ffc107',border:'1px solid #fff'}}></span>
+                    )}
                   </div>
                   <div className="flex-grow-1 notification-message" style={{ minWidth: 0 }}>
                     <div className="mb-1">{notification.message}</div>
