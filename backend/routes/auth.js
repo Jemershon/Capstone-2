@@ -2,6 +2,7 @@ import express from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import nodemailer from "nodemailer";
+import axios from 'axios';
 import crypto from "crypto";
 import User from "../models/User.js";
 
@@ -213,6 +214,28 @@ router.post('/debug/send-test-email', async (req, res) => {
         sendResult = await Promise.race([sendPromise, sendTimeout]);
       } catch (sendErr) {
         sendResult = { ok: false, error: sendErr && sendErr.message ? sendErr.message : String(sendErr) };
+      }
+    }
+
+    // If Gmail verify failed or sendResult is not ok, try SendGrid API (if configured)
+    if ((!verifyResult.ok || (sendResult && !sendResult.ok)) && process.env.SENDGRID_API_KEY) {
+      try {
+        const sgBody = {
+          personalizations: [{ to: [{ email: to }] }],
+          from: { email: process.env.EMAIL_USER },
+          subject: 'Test Email',
+          content: [{ type: 'text/plain', value: 'This is a test email from debug endpoint via SendGrid.' }]
+        };
+        const r = await axios.post('https://api.sendgrid.com/v3/mail/send', sgBody, {
+          headers: {
+            Authorization: `Bearer ${process.env.SENDGRID_API_KEY}`,
+            'Content-Type': 'application/json'
+          },
+          timeout: 7000
+        });
+        sendResult = { ok: true, via: 'sendgrid', status: r.status };
+      } catch (sgErr) {
+        sendResult = { ok: false, via: 'sendgrid', error: sgErr && sgErr.message ? sgErr.message : String(sgErr) };
       }
     }
 
