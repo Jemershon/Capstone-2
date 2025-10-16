@@ -2,6 +2,7 @@ import express from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import nodemailer from "nodemailer";
+import sgMail from '@sendgrid/mail';
 import crypto from "crypto";
 import User from "../models/User.js";
 
@@ -116,11 +117,25 @@ router.post("/forgot-password", async (req, res) => {
     };
 
     // Fire-and-forget sendMail with internal logging to avoid blocking the response.
-    // Use then/catch instead of await so the HTTP response is immediate.
+    // Use then/catch instead of await so the HTTP response is immediate. If Gmail SMTP
+    // times out or fails, fall back to SendGrid if configured.
     try {
       transporter.sendMail(mailOptions)
-        .then(info => console.log('Background email sent:', info && info.messageId ? info.messageId : info))
-        .catch(err => console.error('Background email send failed:', err && err.stack ? err.stack : err));
+        .then(info => console.log('Background email sent (Gmail):', info && info.messageId ? info.messageId : info))
+        .catch(async err => {
+          console.error('Background email send failed (Gmail):', err && err.stack ? err.stack : err);
+          // Try SendGrid fallback
+          if (process.env.SENDGRID_API_KEY) {
+            try {
+              sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+              const msg = { to: email, from: process.env.EMAIL_USER, subject: mailOptions.subject, html: mailOptions.html };
+              await sgMail.send(msg);
+              console.log('Fallback email sent via SendGrid');
+            } catch (sgErr) {
+              console.error('SendGrid fallback failed:', sgErr && sgErr.stack ? sgErr.stack : sgErr);
+            }
+          }
+        });
     } catch (bgErr) {
       console.error('Failed to start background sendMail:', bgErr && bgErr.stack ? bgErr.stack : bgErr);
     }
