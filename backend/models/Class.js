@@ -5,6 +5,7 @@ const classSchema = new mongoose.Schema({
   section: String,
   course: String, // e.g., BSIT
   year: String,   // e.g., 4-2
+  room: String,
   code: { type: String, unique: true },
   teacher: String,
   students: [{ type: String }],

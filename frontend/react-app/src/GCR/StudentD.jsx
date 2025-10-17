@@ -729,7 +729,10 @@ function StudentMainDashboard() {
                 <div className="d-flex align-items-center justify-content-between mb-2">
                   <div>
                     <Card.Title className="fw-bold">{cls.name}</Card.Title>
-                    <Card.Subtitle className="mb-2 text-muted">{cls.section}</Card.Subtitle>
+                    <div className="mb-2 text-muted" style={{ lineHeight: 1.25 }}>
+                      <div>{(cls.course ? `${cls.course}` : '')}{cls.year ? ` ${cls.year}` : ''}{!cls.course && !cls.year && cls.section ? `${cls.section}` : ''}</div>
+                      <div>Room: {cls.room || ''}</div>
+                    </div>
                   </div>
                   {cls.teacherPicture && (
                     <img
@@ -740,10 +743,10 @@ function StudentMainDashboard() {
                   )}
                 </div>
                 <p className="mb-1">
-                  <strong>Teacher:</strong> {cls.teacher}
+                  <strong>Class code:</strong> {cls.code}
                 </p>
                 <p className="mb-0">
-                  <strong>Class Code:</strong> {cls.code}
+                  <strong>Students:</strong> {(cls.students || []).length}
                 </p>
               </Card.Body>
               <Card.Footer className="d-flex justify-content-end align-items-center">

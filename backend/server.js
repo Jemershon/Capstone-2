@@ -1223,7 +1223,7 @@ app.get("/api/admin/classes", authenticateToken, requireTeacherOrAdmin, async (r
 // Admin/Teacher: Create class (admin path)
 app.post("/api/admin/classes", authenticateToken, requireTeacherOrAdmin, async (req, res) => {
   try {
-  let { name, section, code, teacher, bg, course, year } = req.body;
+  let { name, section, code, teacher, bg, course, year, room } = req.body;
     // Accept either section or year (year may contain year-section like '4-2')
     if (!name || !(section || year) || !teacher) {
       return res.status(400).json({ error: "Name, year/section and teacher are required" });
@@ -1242,7 +1242,7 @@ app.post("/api/admin/classes", authenticateToken, requireTeacherOrAdmin, async (
       return res.status(400).json({ error: "Class code already exists" });
     }
 
-  const cls = new Class({ name, section, course, year, code, teacher, students: [], bg });
+  const cls = new Class({ name, section, course, year, code, teacher, students: [], bg, room });
     try {
       const teacherUser = await User.findOne({ username: teacher });
       if (teacherUser && teacherUser.picture) cls.teacherPicture = teacherUser.picture;
@@ -1319,7 +1319,7 @@ app.get("/api/classes/:className", authenticateToken, async (req, res) => {
 app.post("/api/classes", authenticateToken, requireTeacherOrAdmin, async (req, res) => {
   try {
     // NOTE: we ignore any teacher field from the client and assign the logged-in user's username
-  let { name, section, code, bg, course, year } = req.body;
+  let { name, section, code, bg, course, year, room } = req.body;
     // Accept either section or year
     if (!name || !(section || year)) {
       return res.status(400).json({ error: "Name and year/section are required" });
@@ -1339,7 +1339,7 @@ app.post("/api/classes", authenticateToken, requireTeacherOrAdmin, async (req, r
     if (existingClass) {
       return res.status(400).json({ error: "Class code already exists" });
     }
-  const cls = new Class({ name, section, course, year, code: code.toUpperCase(), teacher: teacherUsername, students: [], bg });
+  const cls = new Class({ name, section, course, year, code: code.toUpperCase(), teacher: teacherUsername, students: [], bg, room });
     try {
       const teacherUser = await User.findOne({ username: teacherUsername });
       if (teacherUser && teacherUser.picture) cls.teacherPicture = teacherUser.picture;

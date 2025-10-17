@@ -413,7 +413,7 @@ function DashboardAndClasses() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [createdCode, setCreatedCode] = useState("");
   const [showCreatedCodeModal, setShowCreatedCodeModal] = useState(false);
-  const [classData, setClassData] = useState({ name: "", section: "", code: "", bg: "#FFF0D8", course: "", year: "" });
+  const [classData, setClassData] = useState({ name: "", section: "", code: "", bg: "#FFF0D8", course: "", year: "", room: "" });
   const [selectedClass, setSelectedClass] = useState(null);
   const [showManageModal, setShowManageModal] = useState(false);
   const [user, setUser] = useState({ username: "" });
@@ -472,6 +472,7 @@ function DashboardAndClasses() {
             bg: classData.bg,
             course: classData.course,
             year: classData.year,
+            room: classData.room,
             teacher: user.username // backend will ignore this and use token, but keep for compatibility
           },
           { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
@@ -481,7 +482,7 @@ function DashboardAndClasses() {
       const newCode = created.code || (created.cls && created.cls.code) || '';
       await fetchData();
       setShowCreateModal(false);
-  setClassData({ name: "", section: "", code: "", bg: "#FFF0D8", course: "", year: "" });
+  setClassData({ name: "", section: "", code: "", bg: "#FFF0D8", course: "", year: "", room: "" });
       setCreatedCode(newCode);
       setShowCreatedCodeModal(true);
       setError("");
@@ -550,7 +551,10 @@ function DashboardAndClasses() {
                 <div className="d-flex align-items-center justify-content-between">
                   <div>
                     <Card.Title className="fw-bold">{cls.name}</Card.Title>
-                    <Card.Subtitle className="mb-2 text-muted">{(cls.course ? `${cls.course} ` : '')}{cls.year ? `${cls.year} · ` : ''}{cls.section}</Card.Subtitle>
+                    <div className="mb-2 text-muted" style={{ lineHeight: 1.25 }}>
+                      <div>{(cls.course ? `${cls.course}` : '')}{cls.year ? ` ${cls.year}` : ''}{!cls.course && !cls.year && cls.section ? `${cls.section}` : ''}</div>
+                      <div>Room: {cls.room || ''}</div>
+                    </div>
                   </div>
                   {cls.teacherPicture && (
                     <img
@@ -561,10 +565,10 @@ function DashboardAndClasses() {
                   )}
                 </div>
                 <p className="mb-1">
-                  <strong>Class Code:</strong> {cls.code}
+                  <strong>Class code:</strong> {cls.code}
                 </p>
                 <p className="mb-0">
-                  <strong>Students:</strong> {cls.students.length}
+                  <strong>Students:</strong> {(cls.students || []).length}
                 </p>
               </Card.Body>
               <Card.Footer className="d-flex justify-content-end align-items-center">
@@ -648,6 +652,18 @@ function DashboardAndClasses() {
                 aria-label="Year and Section"
               />
               <label htmlFor="floatingYear">Year / Section</label>
+            </Form.Floating>
+
+            <Form.Floating className="mb-3" style={{ position: 'relative' }}>
+              <Form.Control
+                id="floatingRoom"
+                type="text"
+                placeholder="Room"
+                value={classData.room}
+                onChange={(e) => setClassData({ ...classData, room: e.target.value })}
+                aria-label="Room"
+              />
+              <label htmlFor="floatingRoom">Room</label>
             </Form.Floating>
 
             {/* Background color removed per user request */}
