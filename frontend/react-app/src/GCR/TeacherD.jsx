@@ -855,8 +855,7 @@ function TeacherClassStream() {
   const [classInfo, setClassInfo] = useState(null);
   const [students, setStudents] = useState([]);
   const [exams, setExams] = useState([]);
-  const [showInviteModal, setShowInviteModal] = useState(false);
-  const [inviteEmail, setInviteEmail] = useState('');
+  // Invite modal removed: invite functionality deprecated
   const [showRemoveModal, setShowRemoveModal] = useState(false);
   const [studentToRemove, setStudentToRemove] = useState(null);
   
@@ -2320,9 +2319,8 @@ function TeacherClassStream() {
           </Card>
 
           <Card>
-            <Card.Header className="d-flex justify-content-between align-items-center">
+            <Card.Header className="d-flex align-items-center">
               <h5 className="mb-0">Students ({students.length})</h5>
-              <Button variant="outline-primary" size="sm" onClick={() => setShowInviteModal(true)}>Invite Students</Button>
             </Card.Header>
             <Card.Body>
               {students.length === 0 ? (
@@ -2542,64 +2540,7 @@ function TeacherClassStream() {
         </Modal.Footer>
       </Modal>
       
-      {/* Invite Students Modal */}
-      <Modal
-        size="md"
-        centered
-        show={showInviteModal}
-        onHide={() => setShowInviteModal(false)}
-      >
-        <Modal.Header closeButton>
-          <Modal.Title>Invite Students to {className}</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          <Form>
-            <Form.Group className="mb-3">
-              <Form.Label>Student Email</Form.Label>
-              <Form.Control
-                type="email"
-                placeholder="Enter email address"
-                value={inviteEmail}
-                onChange={(e) => setInviteEmail(e.target.value)}
-              />
-              <Form.Text className="text-muted">
-                Enter the email address of the student you want to invite to this class.
-              </Form.Text>
-            </Form.Group>
-          </Form>
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowInviteModal(false)}>Cancel</Button>
-          <Button 
-            variant="primary" 
-            onClick={async () => {
-              try {
-                if (!inviteEmail) {
-                  setError('Email is required');
-                  setShowToast(true);
-                  return;
-                }
-                
-                // Simulate sending invitation - in a real app, this would send an email
-                console.log(`Sending invitation to ${inviteEmail} for class ${className}`);
-                
-                // Add code here to actually send invitation via API
-                // For now we'll just show a success message
-                setInviteEmail('');
-                setShowInviteModal(false);
-                setError('Invitation sent successfully!');
-                setShowToast(true);
-              } catch (err) {
-                console.error('Error sending invitation:', err);
-                setError('Failed to send invitation. Please try again.');
-                setShowToast(true);
-              }
-            }}
-          >
-            Send Invitation
-          </Button>
-        </Modal.Footer>
-      </Modal>
+      {/* Invite Students functionality removed */}
 
       {/* Remove Student Confirmation Modal */}
       <Modal 
