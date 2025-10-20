@@ -14,7 +14,7 @@ services:
     branch: main
     env:
       NODE_ENV: production
-    rootDirectory: backend
-    buildCommand: npm ci --no-audit --no-fund
-    startCommand: npm start
+  rootDirectory: backend
+  buildCommand: bash -lc 'if [ -f ./server.js ]; then echo "server in current dir"; elif [ -f backend/server.js ]; then cd backend; fi; npm ci --no-audit --no-fund'
+  startCommand: bash -lc 'if [ -f ./server.js ]; then echo "server in current dir"; elif [ -f backend/server.js ]; then cd backend; fi; npm start'
     plan: starter
