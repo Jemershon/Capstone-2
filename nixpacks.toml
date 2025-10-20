@@ -2,7 +2,7 @@
 nixPkgs = ['nodejs_22']
 
 [phases.install]
-cmds = ['cd backend && npm install --omit=dev --no-audit --no-fund']
+cmds = ['cd backend && npm install --no-audit --no-fund']
 
 [start]
 cmd = 'cd backend && node server.js'
