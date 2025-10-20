@@ -14,6 +14,7 @@ services:
     branch: main
     env:
       NODE_ENV: production
-    buildCommand: cd backend && npm ci --no-audit --no-fund
-    startCommand: cd backend && npm start
+    rootDirectory: backend
+    buildCommand: npm ci --no-audit --no-fund
+    startCommand: npm start
     plan: starter
