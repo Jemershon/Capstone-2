@@ -1,12 +1,2 @@
-[build]
-builder = "NIXPACKS"
-# Install backend and frontend dependencies, then build the frontend
-buildCommand = "cd backend && npm ci && cd ../frontend/react-app && npm ci && npm run build"
-
-[deploy]
-# Start using the repo-level start script which launches the backend
-startCommand = "npm start"
-healthcheckPath = "/api/test"
-healthcheckTimeout = 600
-restartPolicyType = "ON_FAILURE"
-restartPolicyMaxRetries = 3
+# DEPRECATED - Railway configuration removed. Using Render instead.
+# This file is kept for reference. Delete it when ready.

@@ -210,22 +210,13 @@ app.post('/api/debug/emit-test', (req, res) => {
   }
 });
 
-// Health check endpoint for Railway
+// Health check endpoint
 app.get('/health', (req, res) => {
   res.status(200).json({
     status: 'healthy',
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
     database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected'
-  });
-});
-
-// Railway healthcheck endpoint (alternative)
-app.get('/', (req, res) => {
-  res.json({
-    message: 'Capstone-2 Backend API',
-    status: 'running',
-    timestamp: new Date().toISOString()
   });
 });
 
@@ -925,8 +916,6 @@ app.get('/api/google-env-check', (req, res) => {
     nodeEnv: NODE_ENV
   });
 });
-
-// Forgot-password / reset-password endpoints removed per request
 
 // Token verification endpoint
 app.get("/api/verify-token", authenticateToken, async (req, res) => {
@@ -1768,7 +1757,7 @@ app.post("/api/announcements", authenticateToken, requireTeacherOrAdmin, async (
           cls.students.forEach(studentUsername => {
             req.app.io.to(`user:${studentUsername}`).emit('new-notification', {
               type: 'announcement',
-              message: `New announcement in ${className}: "${message.substring(0, 50)}${message.length > 50 ? '...' : ''}"}`,
+              message: `New announcement in ${className}: "${message.substring(0, 50)}${message.length > 50 ? '...' : ''}"`,
               class: className,
               sender: req.user.username
             });
@@ -2220,6 +2209,17 @@ setupMaterialsModels({
 });
 
 // Use route modules
+app.use("/api", authRoutes);
+app.use("/api", classesRoutes);
+app.use("/api", materialsRoutes);
+app.use("/api", commentsRoutes);
+app.use("/api", notificationsRoutes);
+app.use("/api", testNotificationsRoutes);
+app.use("/api", uploadRoutes);
+app.use("/api", reactionsRoutes);
+app.use("/api/exams", examsRoutes);
+
+// Student: Submit exam answers
 app.use("/api", authRoutes);
 app.use("/api", classesRoutes);
 app.use("/api", materialsRoutes);

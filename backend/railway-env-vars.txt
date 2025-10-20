@@ -1,19 +1,2 @@
-# COPY THESE ENVIRONMENT VARIABLES TO RAILWAY DASHBOARD
-
-NODE_ENV=production
-PORT=4000
-MONGODB_URI=mongodb+srv://jamesborromeo3_db_user:styfqE3CYTtf7o6Y@cluster0.gje6jlr.mongodb.net/notetify?retryWrites=true&w=majority&appName=Cluster0
-JWT_SECRET=capstone2-super-secure-jwt-secret-key-32-chars-minimum-random-string-2025
-CORS_ORIGIN=https://goals-ccs.vercel.app
-MAX_FILE_SIZE=25
-ALLOWED_FILE_TYPES=pdf,doc,docx,ppt,pptx,xls,xlsx,txt,zip,rar,jpg,jpeg,png,mp4,mov,mp3,wav
-
-# Optional Cloudinary (for file uploads in production - can skip for now)
-# CLOUDINARY_CLOUD_NAME=your-cloudinary-cloud-name
-# CLOUDINARY_API_KEY=your-cloudinary-api-key
-# CLOUDINARY_API_SECRET=your-cloudinary-api-secret
-
-# Email configuration for password reset
-EMAIL_USER=adanjemershon@gmail.com
-EMAIL_PASS=fmzvwqjyncbdqena
-FRONTEND_URL=https://goals-ccs.vercel.app
+# DEPRECATED - Railway environment variables moved to Render.
+# This file is kept for reference. Delete it when ready.
