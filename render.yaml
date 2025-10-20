@@ -3,7 +3,7 @@ services:
     name: capstone-frontend
     repo: https://github.com/Jemershon/Capstone-2
     branch: main
-  buildCommand: cd frontend/react-app && npm ci --no-audit --no-fund && npm run build
+    buildCommand: cd frontend/react-app && npm ci --no-audit --no-fund && npm run build
     publishPath: frontend/react-app/dist
     env:
       VITE_API_URL: "https://capstone-backend.onrender.com"
