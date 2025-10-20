@@ -76,6 +76,28 @@ const customStyles = `
     overflow: hidden;
   }
 
+  /* Desktop: position action buttons at the bottom-right of the card */
+  @media (min-width: 768px) {
+    .admin-user-card {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .admin-user-card .card-action-btns {
+      position: absolute;
+      right: 12px;
+      bottom: 12px;
+      display: flex !important;
+      gap: 8px;
+    }
+
+    /* Make sure card body has enough bottom padding to avoid overlap */
+    .admin-user-card .card-body {
+      padding-bottom: 56px;
+    }
+  }
+
   .admin-user-card:hover {
     transform: translateY(-5px);
     box-shadow: 0 12px 40px rgba(102, 126, 234, 0.3);
@@ -257,6 +279,31 @@ const customStyles = `
       padding: 10px !important;
       margin: 0 !important;
     }
+
+    /* Ensure admin cards place action buttons below content on small screens to avoid overlap */
+    .admin-user-card .d-flex.align-items-start.mb-2 {
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .admin-user-card .d-flex.align-items-start.mb-2 > .d-flex.flex-grow-1 {
+      order: 1;
+      min-width: 0; /* allow text to truncate instead of pushing actions */
+    }
+
+    .admin-user-card .card-action-btns {
+      order: 2;
+      width: 100%;
+      margin-top: 8px;
+      display: flex !important;
+      flex-direction: row !important;
+      gap: 8px;
+      justify-content: flex-end;
+    }
+
+    .admin-user-card .card-action-btns .btn {
+      margin-left: 0;
+    }
     
     .dashboard-content > * {
       margin-top: 10px !important;
@@ -266,6 +313,32 @@ const customStyles = `
     .dashboard-content > h1:first-child,
     .dashboard-content > h2:first-child {
       margin-top: 0 !important;
+    }
+
+    /* Make card headers stack controls on small screens so Create User button is visible/clickable */
+    .modern-card-header.d-flex {
+      flex-direction: column !important;
+      align-items: stretch !important;
+      gap: 8px;
+    }
+
+    .modern-card-header .d-flex.align-items-center.gap-3 {
+      width: 100%;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .modern-card-header .form-control.form-control-sm,
+    .modern-card-header .form-select {
+      width: 100% !important;
+      min-width: 0;
+    }
+
+    .modern-card-header > .btn {
+      align-self: flex-end;
+      z-index: 10;
     }
     
     .card, .container {
@@ -301,6 +374,9 @@ const retry = async (fn, retries = 3, delay = 1000) => {
 function DashboardHome() {
   const [classes, setClasses] = useState([]);
   const [users, setUsers] = useState([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [roleFilter, setRoleFilter] = useState("all");
+  const [sortMode, setSortMode] = useState('az');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showToast, setShowToast] = useState(false);
@@ -412,15 +488,23 @@ function DashboardHome() {
       const res = await retry(() =>
         axios.post(
           `${API_BASE_URL}/api/admin/classes`,
-          { name: classData.name, section: classData.section || classData.year, bg: classData.bg, course: classData.course, year: classData.year, teacher: classData.teacher },
+          { 
+            name: classData.name,
+            section: classData.section || classData.year,
+            bg: classData.bg,
+            course: classData.course,
+            year: classData.year,
+            room: classData.room,
+            teacher: classData.teacher
+          },
           { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
         )
       );
       const created = res.data.cls || res.data;
       const newCode = created.code || (created.cls && created.cls.code) || '';
       await fetchData();
-      setShowCreateClassModal(false);
-  setClassData({ name: "", section: "", code: "", teacher: "", course: "", year: "" });
+    setShowCreateClassModal(false);
+  setClassData({ name: "", section: "", code: "", teacher: "", course: "", year: "", bg: "#FFF0D8", room: "" });
       setCreatedCode(newCode);
       setShowCreatedCodeModal(true);
       setError("");
@@ -447,6 +531,26 @@ function DashboardHome() {
       setShowToast(true);
     }
   };
+
+  // Derived users list after applying search and role filter
+  const displayedUsers = users
+    .filter(u => {
+      if (!searchQuery) return true;
+      const q = searchQuery.toLowerCase();
+      return (u.username || '').toLowerCase().includes(q) || (u.email || '').toLowerCase().includes(q) || (u.name || '').toLowerCase().includes(q);
+    })
+    .filter(u => {
+      // if the select is used for sorting (az/za) treat it as no role filter
+      if (roleFilter === 'all' || roleFilter === 'az' || roleFilter === 'za') return true;
+      return (u.role || '').toLowerCase() === roleFilter;
+    })
+    .sort((a, b) => {
+      if (sortMode === 'az') return (a.username || '').localeCompare(b.username || '');
+      if (sortMode === 'za') return (b.username || '').localeCompare(a.username || '');
+      // default: keep admins on top, then teachers, then students — stable sort when same role
+      const rank = (r) => r === 'admin' ? 0 : r === 'teacher' ? 1 : 2;
+      return rank(a.role) - rank(b.role) || ((a.username || '').localeCompare(b.username || ''));
+    });
 
   if (loading) {
     return (
@@ -475,16 +579,8 @@ function DashboardHome() {
       <Row>
         <Col md={6}>
           <Card className="mb-4 modern-card">
-            <Card.Header className="modern-card-header d-flex justify-content-between align-items-center">
-              All Classes ({classes.length})
-              <Button
-                variant="outline-primary"
-                size="sm"
-                onClick={() => setShowCreateClassModal(true)}
-                aria-label="Create new class"
-              >
-                + Create Class
-              </Button>
+            <Card.Header className="modern-card-header d-flex align-items-center">
+              <div>All Classes ({classes.length})</div>
             </Card.Header>
             <Card.Body style={{ maxHeight: "500px", overflowY: "auto" }}>
               {classes.length === 0 ? (
@@ -509,24 +605,25 @@ function DashboardHome() {
                             <div className="bg-primary text-white rounded-circle p-2 me-2" style={{ width: "40px", height: "40px", display: "flex", alignItems: "center", justifyContent: "center" }}>
                               <i className="bi bi-book"></i>
                             </div>
-                            <div className="flex-grow-1">
+                            <div className="flex-grow-1 d-flex flex-column">
                               <h6 className="mb-0 fw-bold">{cls.name}</h6>
                               <small className="text-muted">{cls.section}</small>
                             </div>
-                            <Button
-                              variant="outline-danger"
-                              size="sm"
-                              className="ms-2"
-                              onClick={async (e) => {
-                                e.stopPropagation();
-                                if (window.confirm(`Are you sure you want to delete class "${cls.name}"?`)) {
-                                  await handleDeleteClass(cls._id || cls.id);
-                                }
-                              }}
-                              aria-label={`Delete class ${cls.name}`}
-                            >
-                              <i className="bi bi-trash"></i>
-                            </Button>
+                            <div className="card-action-btns d-flex">
+                              <Button
+                                variant="outline-danger"
+                                size="sm"
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  if (window.confirm(`Are you sure you want to delete class "${cls.name}"?`)) {
+                                    await handleDeleteClass(cls._id || cls.id);
+                                  }
+                                }}
+                                aria-label={`Delete class ${cls.name}`}
+                              >
+                                <i className="bi bi-trash"></i>
+                              </Button>
+                            </div>
                           </div>
                           <div className="mt-2">
                             <small className="text-muted d-block">
@@ -548,7 +645,26 @@ function DashboardHome() {
         <Col md={6}>
           <Card className="mb-4 modern-card">
             <Card.Header className="modern-card-header d-flex justify-content-between align-items-center">
-              All Users ({users.length})
+              <div className="d-flex align-items-center gap-3">
+                <div>All Users ({users.length})</div>
+                <input
+                  type="text"
+                  placeholder="Search users..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  aria-label="Search users"
+                  className="form-control form-control-sm"
+                  style={{ width: '220px' }}
+                />
+                <Form.Select size="sm" value={roleFilter} onChange={(e) => { const v = e.target.value; setRoleFilter(v); if (v === 'az' || v === 'za') setSortMode(v); }} style={{ width: '220px' }} aria-label="Sort by or filter by role">
+                  <option value="all">Sort by</option>
+                  <option value="student">Students</option>
+                  <option value="teacher">Teachers</option>
+                  <option value="admin">Admins</option>
+                  <option value="az">A → Z</option>
+                  <option value="za">Z → A</option>
+                </Form.Select>
+              </div>
               <Button
                 variant="outline-primary"
                 size="sm"
@@ -559,14 +675,14 @@ function DashboardHome() {
               </Button>
             </Card.Header>
             <Card.Body style={{ maxHeight: "500px", overflowY: "auto" }}>
-              {users.length === 0 ? (
+              {displayedUsers.length === 0 ? (
                 <div className="text-center text-muted py-4">
                   <i className="bi bi-person-x fs-1 d-block mb-2"></i>
-                  <p>No users found. Create a user to get started!</p>
+                  <p>No users found. Try a different search or create a user to get started!</p>
                 </div>
               ) : (
                 <Row>
-                  {users.map((user) => (
+                  {displayedUsers.map((user) => (
                     <Col key={user._id || user.id} xs={12} sm={6} lg={4} className="mb-3">
                       <Card 
                         className="h-100 admin-user-card"
@@ -581,26 +697,27 @@ function DashboardHome() {
                             <div className={`${user.role === 'teacher' ? 'bg-success' : user.role === 'admin' ? 'bg-danger' : 'bg-info'} text-white rounded-circle p-2 me-2`} style={{ width: "40px", height: "40px", display: "flex", alignItems: "center", justifyContent: "center" }}>
                               <i className="bi bi-person-fill"></i>
                             </div>
-                            <div className="flex-grow-1">
+                            <div className="flex-grow-1 d-flex flex-column">
                               <h6 className="mb-0 fw-bold">{user.username}</h6>
                               <small className={`badge ${user.role === 'teacher' ? 'bg-success' : user.role === 'admin' ? 'bg-danger' : 'bg-info'}`}>
                                 {user.role}
                               </small>
                             </div>
-                            <Button
-                              variant="outline-danger"
-                              size="sm"
-                              className="ms-2"
-                              onClick={async (e) => {
-                                e.stopPropagation();
-                                if (window.confirm(`Are you sure you want to delete user "${user.username}"?`)) {
-                                  await handleDeleteUser(user._id || user.id);
-                                }
-                              }}
-                              aria-label={`Delete user ${user.username}`}
-                            >
-                              <i className="bi bi-trash"></i>
-                            </Button>
+                            <div className="card-action-btns d-flex">
+                              <Button
+                                variant="outline-danger"
+                                size="sm"
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  if (window.confirm(`Are you sure you want to delete user "${user.username}"?`)) {
+                                    await handleDeleteUser(user._id || user.id);
+                                  }
+                                }}
+                                aria-label={`Delete user ${user.username}`}
+                              >
+                                <i className="bi bi-trash"></i>
+                              </Button>
+                            </div>
                           </div>
                           <div className="mt-2">
                             <small className="text-muted d-block text-truncate">
@@ -653,11 +770,10 @@ function DashboardHome() {
                               <small className="text-muted d-block">Role: {gUser.role}</small>
                               <small className="text-muted d-block">Google ID: <code style={{fontSize: '0.75rem'}}>{gUser.googleId}</code></small>
                             </div>
-                            <div className="ms-2 d-flex flex-column">
+                            <div className="card-action-btns d-flex">
                               <Button
                                 variant="outline-danger"
                                 size="sm"
-                                className="mb-2"
                                 onClick={async () => {
                                   if (window.confirm(`Are you sure you want to delete user "${gUser.username}"?`)) {
                                     await handleDeleteUser(gUser._id || gUser.id);
@@ -965,7 +1081,7 @@ function DashboardHome() {
         show={showCreateClassModal}
         onHide={() => {
           setShowCreateClassModal(false);
-          setClassData({ name: "", section: "", code: "", teacher: "" });
+          setClassData({ name: "", section: "", code: "", teacher: "", course: "", year: "", bg: "#FFF0D8", room: "" });
           setError("");
         }}
         centered
@@ -975,16 +1091,18 @@ function DashboardHome() {
         </Modal.Header>
         <Modal.Body>
           <Form>
-            <Form.Group className="mb-3">
-              <Form.Label>Class Name</Form.Label>
+            <Form.Floating className="mb-3" style={{ position: 'relative' }}>
               <Form.Control
+                id="floatingClassNameAdmin"
                 type="text"
+                placeholder="Class Name"
                 value={classData.name}
                 onChange={(e) => setClassData({ ...classData, name: e.target.value })}
                 required
                 aria-required="true"
               />
-            </Form.Group>
+              <label htmlFor="floatingClassNameAdmin">Class Name</label>
+            </Form.Floating>
 
             {/* Teacher username stays here */}
             <Form.Group className="mb-3">
@@ -1001,35 +1119,43 @@ function DashboardHome() {
               </Form.Text>
             </Form.Group>
 
-            <Form.Group className="mb-3">
-              <Form.Label>Course</Form.Label>
+            <Form.Floating className="mb-3" style={{ position: 'relative' }}>
               <Form.Control
+                id="floatingCourseAdmin"
                 type="text"
+                placeholder="Course"
                 value={classData.course}
                 onChange={(e) => setClassData({ ...classData, course: e.target.value })}
                 aria-label="Course"
               />
-            </Form.Group>
-            <Form.Group className="mb-3">
-              <Form.Label>Year / Section</Form.Label>
+              <label htmlFor="floatingCourseAdmin">Course</label>
+            </Form.Floating>
+
+            <Form.Floating className="mb-3" style={{ position: 'relative' }}>
               <Form.Control
+                id="floatingYearAdmin"
                 type="text"
+                placeholder="Year / Section"
                 value={classData.year}
                 onChange={(e) => setClassData({ ...classData, year: e.target.value })}
                 aria-label="Year and Section"
               />
-            </Form.Group>
+              <label htmlFor="floatingYearAdmin">Year / Section</label>
+            </Form.Floating>
 
-            {/* Background Color moved to the bottom */}
-            <Form.Group className="mb-3">
-              <Form.Label>Background Color</Form.Label>
+            <Form.Floating className="mb-3" style={{ position: 'relative' }}>
               <Form.Control
-                type="color"
-                value={classData.bg}
-                onChange={(e) => setClassData({ ...classData, bg: e.target.value })}
-                aria-label="Background color"
+                id="floatingRoomAdmin"
+                type="text"
+                placeholder="Room"
+                value={classData.room}
+                onChange={(e) => setClassData({ ...classData, room: e.target.value })}
+                aria-label="Room"
               />
-            </Form.Group>
+              <label htmlFor="floatingRoomAdmin">Room</label>
+            </Form.Floating>
+
+            {/* Background color removed to match Teacher modal UI */}
           </Form>
         </Modal.Body>
         <Modal.Footer>
@@ -1037,7 +1163,7 @@ function DashboardHome() {
             variant="secondary"
             onClick={() => {
               setShowCreateClassModal(false);
-              setClassData({ name: "", section: "", code: "", teacher: "" });
+              setClassData({ name: "", section: "", code: "", teacher: "", course: "", year: "", bg: "#FFF0D8", room: "" });
               setError("");
             }}
             aria-label="Cancel create class"
