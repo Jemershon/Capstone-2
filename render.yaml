@@ -1,0 +1,19 @@
+services:
+  - type: static
+    name: capstone-frontend
+    repo: https://github.com/Jemershon/Capstone-2
+    branch: main
+    buildCommand: cd frontend/react-app && npm ci --omit=dev --no-audit --no-fund && npm run build
+    publishPath: frontend/react-app/dist
+    env:
+      VITE_API_URL: "https://capstone-backend.onrender.com"
+
+  - type: web
+    name: capstone-backend
+    repo: https://github.com/Jemershon/Capstone-2
+    branch: main
+    env:
+      NODE_ENV: production
+    buildCommand: cd backend && npm ci --omit=dev --no-audit --no-fund
+    startCommand: cd backend && npm start
+    plan: starter
