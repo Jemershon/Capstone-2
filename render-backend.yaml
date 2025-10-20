@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: capstone-backend
+    repo: https://github.com/Jemershon/Capstone-2
+    branch: main
+    rootDirectory: backend
+    buildCommand: npm ci --no-audit --no-fund
+    startCommand: npm start
+    env:
+      # Do NOT store secret values here. Set them in the Render dashboard or via the Render API.
+      # Example env keys your service expects (set values in Render UI):
+      # MONGODB_URI: ''
+      # JWT_SECRET: ''
+      # GOOGLE_CLIENT_ID: ''
+      # CLOUDINARY_URL: ''
+      # EMAIL_USER: ''
+      # EMAIL_PASS: ''
+      # CORS_ORIGIN: ''
+      NODE_ENV: production
+    healthCheckPath: /health
+    plan: starter
