@@ -78,7 +78,17 @@ function normalizeOrigin(raw) {
   return raw.trim().replace(/\/+$/g, '');
 }
 
-const CORS_ORIGIN = normalizeOrigin(process.env.CORS_ORIGIN) || "http://localhost:5173";
+// Support a single origin or a comma-separated list in the CORS_ORIGIN env var.
+// Examples:
+//  - CORS_ORIGIN=https://ccsgoals.me
+//  - CORS_ORIGIN=https://ccsgoals.me,https://www.ccsgoals.me
+const rawCorsEnv = process.env.CORS_ORIGIN || "http://localhost:5173";
+const CORS_ORIGIN = normalizeOrigin(rawCorsEnv);
+// Build a list of normalized origins from the env value (split on commas)
+const CORS_ORIGIN_LIST = String(rawCorsEnv)
+  .split(',')
+  .map(s => normalizeOrigin(s))
+  .filter(Boolean);
 
 // Middleware
 app.use(express.json({ limit: '50mb' }));
@@ -100,8 +110,9 @@ const corsOptions = {
     // Allow requests with no origin (mobile apps, Postman, etc.)
     if (!origin) return callback(null, true);
     
+    // Start from the configured list (supports multiple values)
     const allowedOrigins = [
-      CORS_ORIGIN,
+      ...CORS_ORIGIN_LIST,
       "http://localhost:5173",
       "http://localhost:5174",
       "http://localhost:3000"

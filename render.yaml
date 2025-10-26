@@ -5,6 +5,9 @@ services:
     branch: main
     buildCommand: cd frontend/react-app && npm ci --no-audit --no-fund && npm run build
     publishPath: frontend/react-app/dist
+    domains:
+      - ccsgoals.me
+      - www.ccsgoals.me
     env:
       VITE_API_URL: "https://capstone-backend.onrender.com"
 
