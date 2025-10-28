@@ -11,8 +11,13 @@ export function setupSocketIO(httpServer) {
   const normalize = (u) => (typeof u === 'string' ? u.trim().replace(/\/+$/g, '') : u);
   const envOrigin = normalize(process.env.CORS_ORIGIN);
   const allowedOrigins = new Set([
-  envOrigin || 'https://ccsgoals.me',
-  'https://goals-ccs.onrender.com'
+    envOrigin || 'https://ccsgoals.me',
+    'https://ccsgoals.me',
+    'https://goals-ccs.onrender.com',
+    'http://localhost:5173',
+    'http://localhost:3000',
+    'http://127.0.0.1:5173',
+    'http://127.0.0.1:3000'
   ].filter(Boolean));
 
   const vercelRegex = /^https:\/\/([a-z0-9-]+\.)?vercel\.app$/i;
