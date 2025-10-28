@@ -387,7 +387,7 @@ const connectToMongoDB = async (retries = 3) => {
           console.error("🚨 All MongoDB connection attempts failed in production.");
           console.error("⚠️ Server will continue running but database operations will fail");
           console.error("💡 Please check your MONGODB_URI environment variable");
-          // Don't exit in production - let Railway healthcheck pass
+
         } else {
           console.warn("⚠️ Continuing without MongoDB in development mode");
         }

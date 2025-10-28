@@ -1,2 +1,2 @@
-# DEPRECATED - Railway environment variables moved to Render.
+
 # This file is kept for reference. Delete it when ready.

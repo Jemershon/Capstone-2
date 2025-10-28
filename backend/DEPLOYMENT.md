@@ -39,10 +39,6 @@ ALLOWED_FILE_TYPES=pdf,doc,docx,ppt,pptx,xls,xlsx,txt,zip,rar,jpg,jpeg,png,mp4,m
 ## Deployment Platforms
 
 ### Option 1: Railway (Recommended)
-1. Create account at railway.app
-2. Connect your GitHub repository
-3. Add environment variables in Railway dashboard
-4. Deploy automatically
 
 ### Option 2: Render
 1. Create account at render.com
