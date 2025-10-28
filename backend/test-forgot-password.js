@@ -5,7 +5,7 @@ const data = JSON.stringify({
 });
 
 const options = {
-  hostname: 'localhost',
+  hostname: 'goals-ccs.onrender.com',
   port: 4000,
   path: '/api/forgot-password',
   method: 'POST',

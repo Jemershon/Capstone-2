@@ -8,7 +8,7 @@ const sendTest = async () => {
     console.log('Using token:', token.substring(0, 20) + '...');
     // Check GET /api/notifications
     try {
-      const getRes = await axios.get('http://localhost:4000/api/notifications', {
+  const getRes = await axios.get('https://goals-ccs.onrender.com/api/notifications', {
         headers: { Authorization: `Bearer ${token}` }
       });
       console.log('GET /api/notifications status:', getRes.status);
@@ -18,7 +18,7 @@ const sendTest = async () => {
     }
 
     // Send test notification
-    const res = await axios.post('http://localhost:4000/api/test-notification', { message: 'Test notification from CLI' }, {
+  const res = await axios.post('https://goals-ccs.onrender.com/api/test-notification', { message: 'Test notification from CLI' }, {
       headers: {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json'

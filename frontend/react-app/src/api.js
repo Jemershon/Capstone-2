@@ -5,7 +5,7 @@ const rawApiBase = (typeof import.meta !== 'undefined' && import.meta.env && imp
   ? import.meta.env.VITE_API_URL
   : (typeof process !== 'undefined' && process.env && process.env.REACT_APP_API_URL)
     ? process.env.REACT_APP_API_URL
-    : 'http://localhost:4000';
+  : 'https://goals-ccs.onrender.com';
 
 // Normalize the API base to an absolute URL. Browsers treat values without a
 // protocol as relative paths (which causes the current origin to be prepended).

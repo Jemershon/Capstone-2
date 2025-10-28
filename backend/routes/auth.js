@@ -95,15 +95,15 @@ router.post("/forgot-password", async (req, res) => {
         <p>If you didn't request this, please ignore this email.</p>
       `;
 
-    // Use Resend if configured, fallback to logging reset URL
+    // Use SendGrid if configured, fallback to logging reset URL
     (async () => {
-      if (process.env.RESEND_API_KEY) {
+      if (process.env.SENDGRID_API_KEY) {
         try {
-          const { sendPasswordResetEmail } = await import('../services/resendService.js');
+          const { sendPasswordResetEmail } = await import('../services/sendgridService.js');
           await sendPasswordResetEmail(email, resetUrl);
-          console.log('Background email sent via Resend to', email);
-        } catch (resendErr) {
-          console.error('Resend send failed:', resendErr && resendErr.response ? resendErr.response.data : resendErr && resendErr.message ? resendErr.message : resendErr);
+          console.log('Background email sent via SendGrid to', email);
+        } catch (sgErr) {
+          console.error('SendGrid send failed:', sgErr && sgErr.response ? sgErr.response.data : sgErr && sgErr.message ? sgErr.message : sgErr);
         }
       } else {
         console.log('No mail provider configured; reset URL for', email, resetUrl);

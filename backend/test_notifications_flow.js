@@ -1,7 +1,7 @@
 import jwt from 'jsonwebtoken';
 import axios from 'axios';
 
-const API = 'http://localhost:4000';
+const API = 'https://goals-ccs.onrender.com';
 const secret = process.env.JWT_SECRET || 'devsecret123';
 
 async function runForUser(username, role) {

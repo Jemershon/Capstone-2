@@ -6,7 +6,7 @@ dotenv.config();
 
 async function checkUsers() {
   try {
-    await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/notetify');
+  await mongoose.connect(process.env.MONGODB_URI || 'mongodb+srv://<your-production-uri>');
     const users = await User.find({}, 'username email role');
     console.log('Users in database:');
     console.log('Total users:', users.length);

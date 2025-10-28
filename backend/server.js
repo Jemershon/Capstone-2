@@ -68,7 +68,7 @@ const app = express();
 
 // Environment configuration with defaults
 const PORT = process.env.PORT || 4000;
-const MONGODB_URI = process.env.MONGODB_URI || "mongodb://localhost:27017/notetify";
+const MONGODB_URI = process.env.MONGODB_URI || "mongodb+srv://<your-production-uri>";
 const JWT_SECRET = process.env.JWT_SECRET || "fallback-secret-change-in-production";
 const NODE_ENV = process.env.NODE_ENV || "development";
 // Normalize CORS origin env value: trim trailing slashes so values like
@@ -82,7 +82,7 @@ function normalizeOrigin(raw) {
 // Examples:
 //  - CORS_ORIGIN=https://ccsgoals.me
 //  - CORS_ORIGIN=https://ccsgoals.me,https://www.ccsgoals.me
-const rawCorsEnv = process.env.CORS_ORIGIN || "http://localhost:5173";
+const rawCorsEnv = process.env.CORS_ORIGIN || "https://ccsgoals.me";
 const CORS_ORIGIN = normalizeOrigin(rawCorsEnv);
 // Build a list of normalized origins from the env value (split on commas)
 const CORS_ORIGIN_LIST = String(rawCorsEnv)
@@ -113,9 +113,8 @@ const corsOptions = {
     // Start from the configured list (supports multiple values)
     const allowedOrigins = [
       ...CORS_ORIGIN_LIST,
-      "http://localhost:5173",
-      "http://localhost:5174",
-      "http://localhost:3000"
+  "https://ccsgoals.me",
+  "https://goals-ccs.onrender.com"
     ];
     
     // In production, add your deployed frontend URL

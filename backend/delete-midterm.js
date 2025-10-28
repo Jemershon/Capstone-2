@@ -30,7 +30,7 @@ async function deleteMidtermExam() {
   try {
     // Connect to MongoDB
     console.log('Connecting to MongoDB...');
-    await mongoose.connect(process.env.MONGODB_URI || "mongodb://localhost:27017/notetify", {
+  await mongoose.connect(process.env.MONGODB_URI || "mongodb+srv://<your-production-uri>", {
       useNewUrlParser: true,
       useUnifiedTopology: true,
     });

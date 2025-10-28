@@ -1,7 +1,7 @@
 import { io } from 'socket.io-client';
 import jwt from 'jsonwebtoken';
 
-const API_URL = process.env.API_URL || 'http://localhost:4000';
+const API_URL = process.env.API_URL || 'https://goals-ccs.onrender.com';
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-change-in-production';
 
 async function run() {
