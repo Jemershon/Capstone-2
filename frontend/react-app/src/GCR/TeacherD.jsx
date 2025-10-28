@@ -625,6 +625,7 @@ function DashboardAndClasses() {
                 onChange={(e) => setClassData({ ...classData, name: e.target.value })}
                 required
                 aria-required="true"
+                placeholder="e.g., Capstone"
               />
             </Form.Group>
 
@@ -635,6 +636,7 @@ function DashboardAndClasses() {
                 value={classData.course}
                 onChange={(e) => setClassData({ ...classData, course: e.target.value })}
                 aria-label="Program"
+                placeholder="e.g., BSIT"
               />
             </Form.Group>
 
@@ -642,7 +644,7 @@ function DashboardAndClasses() {
               <Form.Label>Year / Section</Form.Label>
               <Form.Control
                 type="text"
-                placeholder="4-2"
+                placeholder="e.g., 4-2"
                 value={classData.year}
                 onChange={(e) => setClassData({ ...classData, year: e.target.value })}
                 aria-label="Year and Section"

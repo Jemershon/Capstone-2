@@ -113,8 +113,12 @@ const corsOptions = {
     // Start from the configured list (supports multiple values)
     const allowedOrigins = [
       ...CORS_ORIGIN_LIST,
-  "https://ccsgoals.me",
-  "https://goals-ccs.onrender.com"
+      "https://ccsgoals.me",
+      "https://goals-ccs.onrender.com",
+      "http://localhost:5173",
+      "http://localhost:3000",
+      "http://127.0.0.1:5173",
+      "http://127.0.0.1:3000"
     ];
     
     // In production, add your deployed frontend URL
