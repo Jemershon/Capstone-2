@@ -95,18 +95,15 @@ router.post("/forgot-password", async (req, res) => {
         <p>If you didn't request this, please ignore this email.</p>
       `;
 
-    // Try SendGrid API if configured (non-blocking). If not configured, just log the reset URL so devs can use it.
+    // Use Resend if configured, fallback to logging reset URL
     (async () => {
-      if (process.env.SENDGRID_API_KEY) {
+      if (process.env.RESEND_API_KEY) {
         try {
-          await axios.post('https://api.sendgrid.com/v3/mail/send', {
-            personalizations: [{ to: [{ email }], subject: 'Password Reset Request' }],
-            from: { email: process.env.EMAIL_USER },
-            content: [{ type: 'text/html', value: mailHtml }]
-          }, { headers: { Authorization: `Bearer ${process.env.SENDGRID_API_KEY}`, 'Content-Type': 'application/json' }, timeout: 7000 });
-          console.log('Background email sent via SendGrid to', email);
-        } catch (sgErr) {
-          console.error('SendGrid send failed:', sgErr && sgErr.response ? sgErr.response.data : sgErr && sgErr.message ? sgErr.message : sgErr);
+          const { sendPasswordResetEmail } = await import('../services/resendService.js');
+          await sendPasswordResetEmail(email, resetUrl);
+          console.log('Background email sent via Resend to', email);
+        } catch (resendErr) {
+          console.error('Resend send failed:', resendErr && resendErr.response ? resendErr.response.data : resendErr && resendErr.message ? resendErr.message : resendErr);
         }
       } else {
         console.log('No mail provider configured; reset URL for', email, resetUrl);

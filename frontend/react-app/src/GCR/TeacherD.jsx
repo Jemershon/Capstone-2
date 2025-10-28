@@ -617,54 +617,37 @@ function DashboardAndClasses() {
         </Modal.Header>
         <Modal.Body>
           <Form>
-            <Form.Floating className="mb-3" style={{ position: 'relative' }}>
+            <Form.Group className="mb-3" controlId="course">
+              <Form.Label>Course</Form.Label>
               <Form.Control
-                id="floatingClassName"
                 type="text"
-                placeholder="Class Name"
                 value={classData.name}
                 onChange={(e) => setClassData({ ...classData, name: e.target.value })}
                 required
                 aria-required="true"
               />
-              <label htmlFor="floatingClassName">Class Name</label>
-            </Form.Floating>
+            </Form.Group>
 
-            <Form.Floating className="mb-3" style={{ position: 'relative' }}>
+            <Form.Group className="mb-3" controlId="program">
+              <Form.Label>Program</Form.Label>
               <Form.Control
-                id="floatingCourse"
                 type="text"
-                placeholder="Course"
                 value={classData.course}
                 onChange={(e) => setClassData({ ...classData, course: e.target.value })}
-                aria-label="Course"
+                aria-label="Program"
               />
-              <label htmlFor="floatingCourse">Course</label>
-            </Form.Floating>
+            </Form.Group>
 
-            <Form.Floating className="mb-3" style={{ position: 'relative' }}>
+            <Form.Group className="mb-3" controlId="year">
+              <Form.Label>Year / Section</Form.Label>
               <Form.Control
-                id="floatingYear"
                 type="text"
-                placeholder="Year / Section"
+                placeholder="4-2"
                 value={classData.year}
                 onChange={(e) => setClassData({ ...classData, year: e.target.value })}
                 aria-label="Year and Section"
               />
-              <label htmlFor="floatingYear">Year / Section</label>
-            </Form.Floating>
-
-            <Form.Floating className="mb-3" style={{ position: 'relative' }}>
-              <Form.Control
-                id="floatingRoom"
-                type="text"
-                placeholder="Room"
-                value={classData.room}
-                onChange={(e) => setClassData({ ...classData, room: e.target.value })}
-                aria-label="Room"
-              />
-              <label htmlFor="floatingRoom">Room</label>
-            </Form.Floating>
+            </Form.Group>
 
             {/* Background color removed per user request */}
           </Form>
