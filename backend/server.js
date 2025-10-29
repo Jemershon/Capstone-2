@@ -472,6 +472,12 @@ const ExamSubmissionSchema = new mongoose.Schema(
     ],
     rawScore: Number,
     finalScore: Number,
+  // Whether this submission requires manual grading (captured at submission time)
+  manualGrading: { type: Boolean, default: false },
+  // Timestamp when a teacher graded this submission (used to disambiguate zero scores)
+  gradedAt: { type: Date, default: null },
+  // Whether the teacher has "returned" the grade to the student (visible to student)
+  returned: { type: Boolean, default: false },
     totalQuestions: { type: Number, default: 0 },
     // Capture class context at submission time so grading can reference course/year
     className: String,
@@ -1896,14 +1902,18 @@ app.get("/api/leaderboard", authenticateToken, requireTeacherOrAdmin, async (req
     const classNames = classes.map(cls => cls.name);
     
     // Get all exams for these classes
+    // Include manualGrading flag so we can exclude manual-graded exams from the leaderboard
     const exams = await Exam.find({ class: { $in: classNames } })
-      .select("title class due");
+      .select("title class due manualGrading");
     
     // Get all exam submissions for these exams
     const examIds = exams.map(exam => exam._id);
-    const submissions = await ExamSubmission.find({ examId: { $in: examIds } })
-      .populate('examId', 'title class due')
+    let submissions = await ExamSubmission.find({ examId: { $in: examIds } })
+      .populate('examId', 'title class due manualGrading')
       .sort({ finalScore: -1, submittedAt: 1 });
+
+    // Exclude submissions for exams that require manual grading
+    submissions = submissions.filter(sub => !(sub.examId && sub.examId.manualGrading === true));
     
     // Get user data for student names and sections
     const studentUsernames = [...new Set(submissions.map(sub => sub.student))];

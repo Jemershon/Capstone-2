@@ -10,6 +10,7 @@ const ExamCreator = ({ className, onExamCreated }) => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [dueDate, setDueDate] = useState('');
+  const [manualGrading, setManualGrading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -52,6 +53,7 @@ const ExamCreator = ({ className, onExamCreated }) => {
         className: className,    // Also include 'className' field as backup
         createdBy: username || 'unknown-user',
         due: dueDate || null,    // Add due date to exam data
+        manualGrading,
         questions: [
           {
             text: 'Test question',
@@ -119,7 +121,7 @@ const ExamCreator = ({ className, onExamCreated }) => {
         {error && <Alert variant="danger">{error}</Alert>}
         {success && <Alert variant="success">{success}</Alert>}
 
-        <Form onSubmit={handleSubmit}>
+  <Form onSubmit={handleSubmit}>
           <Form.Group className="mb-3">
             <Form.Label>Title</Form.Label>
             <Form.Control
@@ -154,6 +156,18 @@ const ExamCreator = ({ className, onExamCreated }) => {
             </Form.Text>
           </Form.Group>
 
+          <Form.Group className="mb-3">
+            <Form.Check
+              type="checkbox"
+              id="manualGradingCheckbox"
+              label="Manual Grading (I will check this exam myself)"
+              checked={manualGrading}
+              onChange={e => setManualGrading(e.target.checked)}
+            />
+            <Form.Text className="text-muted">
+              If checked, the system will NOT auto-grade this exam. You will grade submissions manually.
+            </Form.Text>
+          </Form.Group>
           <Form.Group className="mb-3">
             <Form.Text className="text-muted">
               This will create a basic exam for class: <strong>{className}</strong>

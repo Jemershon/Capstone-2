@@ -29,6 +29,7 @@ import NotificationsDropdown from "./components/NotificationsDropdown";
 import Materials from "./components/Materials";
 import Comments from "./components/Comments";
 import ExamCreator from "./components/ExamCreator";
+import ManualGradingPanel from "./components/ManualGradingPanel";
 
 // Add custom styles for responsive design and modern UI
 const customStyles = `
@@ -2396,6 +2397,7 @@ function TeacherClassStream() {
                 placeholder="Exam instructions or description"
               />
             </Form.Group>
+
             <Form.Group className="mb-3">
               <Form.Label>Due Date</Form.Label>
               <Form.Control
@@ -2406,6 +2408,19 @@ function TeacherClassStream() {
               />
               <Form.Text className="text-muted">
                 Students will earn +1 credit point for early submission, -2 for late submission
+              </Form.Text>
+            </Form.Group>
+
+            <Form.Group className="mb-3">
+              <Form.Check
+                type="checkbox"
+                id="manualGradingCheckbox"
+                label="Manual Grading (I will check this exam myself)"
+                checked={!!examData.manualGrading}
+                onChange={e => setExamData({ ...examData, manualGrading: e.target.checked })}
+              />
+              <Form.Text className="text-muted">
+                If checked, the system will NOT auto-grade this exam. You will grade submissions manually.
               </Form.Text>
             </Form.Group>
 
@@ -2503,9 +2518,6 @@ function TeacherClassStream() {
                           onChange={(e) => handleQuestionChange(i, "correctAnswer", e.target.value)}
                           placeholder="Correct answer (optional)"
                         />
-                        <Form.Text className="text-muted">
-                          Leave blank for manual grading
-                        </Form.Text>
                       </Form.Group>
                     )}
                     
@@ -3472,15 +3484,9 @@ function Grades() {
     <div className="dashboard-content">
       <div className="d-flex justify-content-between align-items-center mb-4">
         <h2 className="fw-bold mb-0">🏆 Student Leaderboard</h2>
-        <div className="d-flex gap-2">
-          <Button variant="outline-danger" size="sm" onClick={handleClearAllSubmissions}>
-            🗑️ Clear All
-          </Button>
-          <Button variant="outline-secondary" size="sm" onClick={fetchLeaderboardData}>
-            🔄 Refresh
-          </Button>
-        </div>
       </div>
+
+  {/* Manual grading panel (separate component) - moved below leaderboard */}
 
       {/* Auto-cleanup notice */}
       <Alert variant="info" className="mb-3">
@@ -3601,9 +3607,14 @@ function Grades() {
         <Card>
           <Card.Header className="bg-light">
             <div className="d-flex justify-content-between align-items-center">
-              <h5 className="mb-0">
-                🎯 Showing {currentData.length} submission{currentData.length !== 1 ? 's' : ''}
-              </h5>
+              <div className="d-flex align-items-center gap-2">
+                <h5 className="mb-0">
+                  🎯 Showing {currentData.length} submission{currentData.length !== 1 ? 's' : ''}
+                </h5>
+                <Button variant="outline-danger" size="sm" onClick={handleClearAllSubmissions}>
+                  🗑️ Clear All
+                </Button>
+              </div>
               <div className="d-flex align-items-center gap-3">
                 <small className="text-muted">
                   Updated: {new Date().toLocaleTimeString()}
@@ -3699,6 +3710,9 @@ function Grades() {
           </div>
         </Card>
       )}
+      {/* Place Manual Grading panel under the leaderboard as requested */}
+      <div className="my-4" />
+      <ManualGradingPanel />
     </div>
   );
 }

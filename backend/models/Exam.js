@@ -14,7 +14,8 @@ const ExamSchema = new mongoose.Schema(
         correctAnswer: { type: String, default: "" },
       },
     ],
-    createdBy: String,
+  createdBy: String,
+  manualGrading: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

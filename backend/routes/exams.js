@@ -76,6 +76,225 @@ router.get('/', authenticateToken, async (req, res) => {
   }
 });
 
+// Teacher: Grade a manual exam submission
+router.post('/manual/:examId/submissions/:submissionId/grade', authenticateToken, requireTeacherOrAdmin, async (req, res) => {
+  try {
+    const exam = await Exam.findById(req.params.examId);
+    if (!exam) return res.status(404).json({ error: 'Exam not found' });
+    if (!exam.manualGrading) return res.status(400).json({ error: 'Exam is not set for manual grading' });
+    if (req.user.role === 'Teacher' && exam.createdBy !== req.user.username) {
+      return res.status(403).json({ error: 'Not authorized' });
+    }
+    const { finalScore, feedback } = req.body;
+    if (typeof finalScore !== 'number') return res.status(400).json({ error: 'finalScore must be a number' });
+  const submission = await ExamSubmission.findById(req.params.submissionId);
+    if (!submission) return res.status(404).json({ error: 'Submission not found' });
+    submission.finalScore = finalScore;
+    submission.feedback = feedback || '';
+    submission.gradedAt = new Date();
+    // Do NOT create Grade entry yet; teacher must 'return' the grade to make it visible to students
+    // returned remains false until the teacher explicitly returns the grade
+    await submission.save();
+    res.json({ message: 'Grade saved (not returned)', finalScore, feedback });
+  } catch (err) {
+    console.error('Error grading manual exam submission:', err);
+    res.status(500).json({ error: 'Failed to grade manual exam submission' });
+  }
+});
+// Teacher: Get all submissions for a manual grading exam (with student answers and correct answers)
+router.get('/manual/:examId/submissions', authenticateToken, requireTeacherOrAdmin, async (req, res) => {
+  try {
+    const exam = await Exam.findById(req.params.examId);
+    if (!exam) return res.status(404).json({ error: 'Exam not found' });
+    if (!exam.manualGrading) return res.status(400).json({ error: 'Exam is not set for manual grading' });
+    if (req.user.role === 'Teacher' && exam.createdBy !== req.user.username) {
+      return res.status(403).json({ error: 'Not authorized' });
+    }
+  const submissions = await ExamSubmission.find({ examId: exam._id });
+    // Attach correct answers to each submission for teacher reference
+    const result = submissions.map(sub => ({
+      _id: sub._id,
+      student: sub.student,
+      answers: sub.answers,
+      rawScore: sub.rawScore,
+      finalScore: sub.finalScore,
+      returned: !!sub.returned,
+      feedback: sub.feedback,
+      gradedAt: sub.gradedAt || null,
+      manualGrading: sub.manualGrading || false,
+      questions: exam.questions.map(q => ({ text: q.text, correctAnswer: q.correctAnswer, type: q.type, options: q.options }))
+    }));
+    res.json(result);
+  } catch (err) {
+    console.error('Error fetching manual exam submissions:', err);
+    res.status(500).json({ error: 'Failed to fetch manual exam submissions' });
+  }
+});
+// Teacher: Get all manual grading exams and their submissions
+router.get('/manual/list', authenticateToken, requireTeacherOrAdmin, async (req, res) => {
+  try {
+    // Only show exams created by this teacher with manualGrading enabled
+    const exams = await Exam.find({ createdBy: req.user.username, manualGrading: true }).sort({ createdAt: -1 });
+    // For each exam, count submissions
+    const examList = await Promise.all(exams.map(async exam => {
+      const submissionsCount = await ExamSubmission.countDocuments({ examId: exam._id });
+      return {
+        _id: exam._id,
+        title: exam.title,
+        class: exam.class,
+        due: exam.due,
+        submissionsCount
+      };
+    }));
+    res.json(examList);
+  } catch (err) {
+    console.error('Error fetching manual grading exams:', err);
+    res.status(500).json({ error: 'Failed to fetch manual grading exams' });
+  }
+});
+
+// Teacher: Return a graded submission (make grade visible to the student)
+router.post('/manual/:examId/submissions/:submissionId/return', authenticateToken, requireTeacherOrAdmin, async (req, res) => {
+  try {
+    const exam = await Exam.findById(req.params.examId);
+    if (!exam) return res.status(404).json({ error: 'Exam not found' });
+    if (!exam.manualGrading) return res.status(400).json({ error: 'Exam is not set for manual grading' });
+    if (req.user.role === 'Teacher' && exam.createdBy !== req.user.username) {
+      return res.status(403).json({ error: 'Not authorized' });
+    }
+
+    const submission = await ExamSubmission.findById(req.params.submissionId);
+    if (!submission) return res.status(404).json({ error: 'Submission not found' });
+
+    // Must be graded before returning
+    if (typeof submission.finalScore !== 'number' || !submission.gradedAt) {
+      return res.status(400).json({ error: 'Submission has not been graded yet' });
+    }
+
+    // Create or update Grade entry (this makes it visible to students via /api/student/grades)
+    let gradeEntry = await Grade.findOne({ class: exam.class, student: submission.student });
+    if (!gradeEntry) {
+      gradeEntry = new Grade({ class: exam.class, student: submission.student });
+    }
+    gradeEntry.grade = `${submission.finalScore}/${exam.questions.length}`;
+    gradeEntry.feedback = submission.feedback || '';
+    await gradeEntry.save();
+
+    // Mark submission as returned
+    submission.returned = true;
+    await submission.save();
+
+    // Create a notification to the student
+    try {
+      const notif = new Notification({
+        recipient: submission.student,
+        sender: req.user.username,
+        type: 'grade',
+        message: `Your grade for \"${exam.title}\" is ${submission.finalScore}/${exam.questions.length}`,
+        referenceId: exam._id,
+        class: exam.class,
+        read: false,
+        createdAt: new Date()
+      });
+      await notif.save();
+
+      // Emit socket events if available
+      if (req.app.io) {
+        req.app.io.to(`user:${submission.student}`).emit('grade-returned', {
+          examId: exam._id,
+          examTitle: exam.title,
+          finalScore: submission.finalScore,
+          feedback: submission.feedback || ''
+        });
+        req.app.io.to(`user:${submission.student}`).emit('new-notification', {
+          type: 'grade',
+          message: notif.message,
+          class: exam.class,
+          sender: req.user.username
+        });
+      }
+    } catch (notifErr) {
+      console.error('Failed to create/emit notification on grade return:', notifErr);
+    }
+
+    res.json({ message: 'Grade returned to student', finalScore: submission.finalScore });
+  } catch (err) {
+    console.error('Error returning grade:', err);
+    res.status(500).json({ error: 'Failed to return grade' });
+  }
+});
+
+// Teacher: Return ALL graded submissions for an exam (bulk return)
+router.post('/manual/:examId/submissions/return-all', authenticateToken, requireTeacherOrAdmin, async (req, res) => {
+  try {
+    const exam = await Exam.findById(req.params.examId);
+    if (!exam) return res.status(404).json({ error: 'Exam not found' });
+    if (!exam.manualGrading) return res.status(400).json({ error: 'Exam is not set for manual grading' });
+    if (req.user.role === 'Teacher' && exam.createdBy !== req.user.username) {
+      return res.status(403).json({ error: 'Not authorized' });
+    }
+
+    // Find submissions that have been graded but not returned
+    const submissions = await ExamSubmission.find({ examId: exam._id, gradedAt: { $ne: null }, returned: false });
+    let returnedCount = 0;
+    for (const submission of submissions) {
+      try {
+        // Create/update grade entry
+        let gradeEntry = await Grade.findOne({ class: exam.class, student: submission.student });
+        if (!gradeEntry) gradeEntry = new Grade({ class: exam.class, student: submission.student });
+        gradeEntry.grade = `${submission.finalScore}/${exam.questions.length}`;
+        gradeEntry.feedback = submission.feedback || '';
+        await gradeEntry.save();
+
+        // Mark submission as returned
+        submission.returned = true;
+        await submission.save();
+
+        // Create notification
+        try {
+          const notif = new Notification({
+            recipient: submission.student,
+            sender: req.user.username,
+            type: 'grade',
+            message: `Your grade for \"${exam.title}\" is ${submission.finalScore}/${exam.questions.length}`,
+            referenceId: exam._id,
+            class: exam.class,
+            read: false,
+            createdAt: new Date()
+          });
+          await notif.save();
+
+          if (req.app.io) {
+            req.app.io.to(`user:${submission.student}`).emit('grade-returned', {
+              examId: exam._id,
+              examTitle: exam.title,
+              finalScore: submission.finalScore,
+              feedback: submission.feedback || ''
+            });
+            req.app.io.to(`user:${submission.student}`).emit('new-notification', {
+              type: 'grade',
+              message: notif.message,
+              class: exam.class,
+              sender: req.user.username
+            });
+          }
+        } catch (notifErr) {
+          console.error('Failed to create/emit notification for submission', submission._id, notifErr);
+        }
+
+        returnedCount++;
+      } catch (innerErr) {
+        console.error('Failed to return grade for submission', submission._id, innerErr);
+      }
+    }
+
+    res.json({ message: `Returned ${returnedCount} grades`, returned: returnedCount });
+  } catch (err) {
+    console.error('Error bulk returning grades:', err);
+    res.status(500).json({ error: 'Failed to return grades' });
+  }
+});
+
 // Get a specific exam by ID
 router.get('/:id', authenticateToken, async (req, res) => {
   try {
@@ -99,7 +318,7 @@ router.post('/', authenticateToken, requireTeacherOrAdmin, async (req, res) => {
       body: req.body
     });
     
-    const { title, description, class: className, questions, createdBy, due } = req.body;
+  const { title, description, class: className, questions, createdBy, due, manualGrading } = req.body;
     
     if (!title) {
       console.log('Validation error: Title is required');
@@ -125,6 +344,7 @@ router.post('/', authenticateToken, requireTeacherOrAdmin, async (req, res) => {
       questions,
       createdBy: createdBy || req.user.username,
       due: due ? new Date(due) : null,
+      manualGrading: !!manualGrading,
     });
     
     await exam.save();
@@ -325,34 +545,48 @@ router.post('/:id/submit', authenticateToken, requireStudent, async (req, res) =
       return res.status(400).json({ error: 'You have already submitted this exam' });
     }
     
-    // Score raw
     let rawScore = 0;
     const total = exam.questions.length;
-    for (const ans of answers || []) {
-      const q = exam.questions[ans.questionIndex];
-      if (!q) continue;
-      if (q.type === 'multiple' && q.correctAnswer && ans.answer === q.correctAnswer) rawScore++;
-      if (q.type === 'short' && q.correctAnswer && ans.answer?.trim().toLowerCase() === q.correctAnswer.trim().toLowerCase()) rawScore++;
+    let finalScore = null;
+    let creditsToUse = 0;
+    let gradeEntry = null;
+    let feedback = '';
+    if (exam.manualGrading) {
+      // For manual grading, do not auto-grade or assign credits
+      feedback = 'Pending manual grading by teacher.';
+      finalScore = null; // Always null until graded
+      creditsToUse = 0;
+    } else {
+      for (const ans of answers || []) {
+        const q = exam.questions[ans.questionIndex];
+        if (!q) continue;
+        if (q.type === 'multiple' && q.correctAnswer && ans.answer === q.correctAnswer) rawScore++;
+        if (q.type === 'short' && q.correctAnswer && ans.answer?.trim().toLowerCase() === q.correctAnswer.trim().toLowerCase()) rawScore++;
+      }
+      // Determine early/late and adjust credit points
+      const now = new Date();
+      const user = await User.findOne({ username: req.user.username });
+      if (!user) return res.status(404).json({ error: 'User not found' });
+      let creditDelta = 0;
+      if (exam.due) {
+        if (now < new Date(exam.due)) creditDelta = 1; else creditDelta = -2;
+      }
+      user.creditPoints = Math.max(0, (user.creditPoints || 0) + creditDelta);
+      // Fill missing points using available credits
+      const missing = Math.max(0, total - rawScore);
+      creditsToUse = Math.min(user.creditPoints, missing);
+      finalScore = rawScore + creditsToUse;
+      user.creditPoints = Math.max(0, user.creditPoints - creditsToUse);
+      await user.save();
+      feedback = `Exam: ${exam.title} (raw ${rawScore}/${total}, +${creditsToUse} credits)`;
+      gradeEntry = new Grade({ 
+        class: exam.class, 
+        student: req.user.username, 
+        grade: `${finalScore}/${total}`, 
+        feedback
+      });
+      await gradeEntry.save();
     }
-    
-    // Determine early/late and adjust credit points
-    const now = new Date();
-    const user = await User.findOne({ username: req.user.username });
-    if (!user) return res.status(404).json({ error: 'User not found' });
-    
-    let creditDelta = 0;
-    if (exam.due) {
-      if (now < new Date(exam.due)) creditDelta = 1; else creditDelta = -2;
-    }
-    user.creditPoints = Math.max(0, (user.creditPoints || 0) + creditDelta);
-    
-    // Fill missing points using available credits
-    const missing = Math.max(0, total - rawScore);
-    const creditsToUse = Math.min(user.creditPoints, missing);
-    const finalScore = rawScore + creditsToUse;
-    user.creditPoints = Math.max(0, user.creditPoints - creditsToUse);
-    await user.save();
-
     const submission = new ExamSubmission({ 
       examId: exam._id, 
       student: req.user.username, 
@@ -363,26 +597,19 @@ router.post('/:id/submit', authenticateToken, requireStudent, async (req, res) =
       className: cls.name || exam.class,
       classCourse: cls.course || '',
       classYear: cls.year || '',
-      creditsUsed: creditsToUse 
+      creditsUsed: creditsToUse,
+      manualGrading: !!exam.manualGrading,
+      gradedAt: null,
+      returned: false
     });
     await submission.save();
-    
-    // Create grade entry for this exam with breakdown
-    const gradeEntry = new Grade({ 
-      class: exam.class, 
-      student: req.user.username, 
-      grade: `${finalScore}/${total}`, 
-      feedback: `Exam: ${exam.title} (raw ${rawScore}/${total}, +${creditsToUse} credits)` 
-    });
-    await gradeEntry.save();
-    
     res.json({ 
-      message: 'Submission recorded', 
+      message: exam.manualGrading ? 'Submission recorded, pending manual grading.' : 'Submission recorded', 
       rawScore, 
       finalScore, 
       total, 
       creditsUsed: creditsToUse, 
-      creditBalance: user.creditPoints 
+      creditBalance: exam.manualGrading ? undefined : (await User.findOne({ username: req.user.username })).creditPoints
     });
   } catch (err) {
     console.error('Submit exam error:', err);
