@@ -170,7 +170,7 @@ export default function ManualGradingPanel({ token }) {
         </Modal>
 
         {/* Grading modal */}
-        <Modal show={!!selectedSubmission} onHide={() => setSelectedSubmission(null)} centered>
+  <Modal show={!!selectedSubmission} onHide={() => setSelectedSubmission(null)} centered size="xl" dialogClassName="mx-auto">
           <Modal.Header closeButton>
             <Modal.Title>Grade: {selectedSubmission && selectedSubmission.student}</Modal.Title>
           </Modal.Header>
@@ -208,7 +208,9 @@ export default function ManualGradingPanel({ token }) {
                   <Form.Control as="textarea" rows={2} value={gradingFeedback} onChange={(e) => setGradingFeedback(e.target.value)} />
                 </Form.Group>
                 <div className="d-flex gap-2">
-                  <Button onClick={saveGrade} disabled={gradeLoading}>{gradeLoading ? 'Saving...' : 'Save Grade'}</Button>
+                  <Button onClick={saveGrade} disabled={gradeLoading} style={{ minWidth: '140px', fontWeight: 'bold' }}>
+                    {gradeLoading ? 'Saving...' : 'Save Grade'}
+                  </Button>
                   <Button variant="secondary" onClick={() => setSelectedSubmission(null)}>Cancel</Button>
                 </div>
               </div>
