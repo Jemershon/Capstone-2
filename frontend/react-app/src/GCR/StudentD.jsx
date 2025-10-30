@@ -731,7 +731,7 @@ function StudentMainDashboard() {
                     <Card.Title className="fw-bold">{cls.name}</Card.Title>
                     <div className="mb-2 text-muted" style={{ lineHeight: 1.25 }}>
                       <div>{(cls.course ? `${cls.course}` : '')}{cls.year ? ` ${cls.year}` : ''}{!cls.course && !cls.year && cls.section ? `${cls.section}` : ''}</div>
-                      <div>Room: {cls.room || ''}</div>
+                      {cls.schedule && <div>Schedule: {cls.schedule}</div>}
                     </div>
                   </div>
                   {cls.teacherPicture && (

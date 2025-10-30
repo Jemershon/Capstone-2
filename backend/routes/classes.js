@@ -20,7 +20,7 @@ router.get("/classes", async (req, res) => {
 // Add class
 router.post("/classes", async (req, res) => {
   try {
-    const { name, section, code, teacher, bg, room } = req.body;
+    const { name, section, code, teacher, bg, schedule } = req.body;
     if (!name || !section || !code || !teacher) {
       return res.status(400).json({ error: "All fields are required" });
     }
@@ -28,7 +28,7 @@ router.post("/classes", async (req, res) => {
     if (existingClass) {
       return res.status(400).json({ error: "Class code already exists" });
     }
-    const cls = new Class({ name, section, code: code.toUpperCase(), teacher, students: [], bg, room });
+    const cls = new Class({ name, section, code: code.toUpperCase(), teacher, students: [], bg, schedule });
     await cls.save();
     res.status(201).json({ message: "Class created successfully" });
   } catch (err) {

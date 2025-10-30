@@ -414,7 +414,7 @@ function DashboardAndClasses() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [createdCode, setCreatedCode] = useState("");
   const [showCreatedCodeModal, setShowCreatedCodeModal] = useState(false);
-  const [classData, setClassData] = useState({ name: "", section: "", code: "", bg: "#FFF0D8", course: "", year: "", room: "" });
+  const [classData, setClassData] = useState({ name: "", section: "", code: "", bg: "#FFF0D8", course: "", year: "", schedule: "" });
   const [selectedClass, setSelectedClass] = useState(null);
   const [showManageModal, setShowManageModal] = useState(false);
   const [user, setUser] = useState({ username: "" });
@@ -473,7 +473,7 @@ function DashboardAndClasses() {
             bg: classData.bg,
             course: classData.course,
             year: classData.year,
-            room: classData.room,
+            schedule: classData.schedule,
             teacher: user.username // backend will ignore this and use token, but keep for compatibility
           },
           { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
@@ -482,8 +482,8 @@ function DashboardAndClasses() {
       const created = res.data.cls || res.data;
       const newCode = created.code || (created.cls && created.cls.code) || '';
       await fetchData();
-      setShowCreateModal(false);
-  setClassData({ name: "", section: "", code: "", bg: "#FFF0D8", course: "", year: "", room: "" });
+    setShowCreateModal(false);
+  setClassData({ name: "", section: "", code: "", bg: "#FFF0D8", course: "", year: "", schedule: "" });
       setCreatedCode(newCode);
       setShowCreatedCodeModal(true);
       setError("");
@@ -552,10 +552,10 @@ function DashboardAndClasses() {
                 <div className="d-flex align-items-center justify-content-between">
                   <div>
                     <Card.Title className="fw-bold">{cls.name}</Card.Title>
-                    <div className="mb-2 text-muted" style={{ lineHeight: 1.25 }}>
-                      <div>{(cls.course ? `${cls.course}` : '')}{cls.year ? ` ${cls.year}` : ''}{!cls.course && !cls.year && cls.section ? `${cls.section}` : ''}</div>
-                      <div>Room: {cls.room || ''}</div>
-                    </div>
+                      <div className="mb-2 text-muted" style={{ lineHeight: 1.25 }}>
+                        <div>{(cls.course ? `${cls.course}` : '')}{cls.year ? ` ${cls.year}` : ''}{!cls.course && !cls.year && cls.section ? `${cls.section}` : ''}</div>
+                        {cls.schedule && <div>Schedule: {cls.schedule}</div>}
+                      </div>
                   </div>
                   {cls.teacherPicture && (
                     <img
@@ -608,7 +608,7 @@ function DashboardAndClasses() {
         show={showCreateModal}
         onHide={() => {
           setShowCreateModal(false);
-          setClassData({ name: "", section: "", code: "", bg: "#FFF0D8", course: "", year: "" });
+          setClassData({ name: "", section: "", code: "", bg: "#FFF0D8", course: "", year: "", schedule: "" });
           setError("");
         }}
         centered
@@ -652,6 +652,18 @@ function DashboardAndClasses() {
               />
             </Form.Group>
 
+            <Form.Group className="mb-3" controlId="schedule">
+              <Form.Label>Schedule</Form.Label>
+              <Form.Control
+                type="text"
+                placeholder="e.g., Mon/Wed 10:00-11:00"
+                value={classData.schedule}
+                onChange={(e) => setClassData({ ...classData, schedule: e.target.value })}
+                aria-label="Class schedule"
+              />
+              
+            </Form.Group>
+
             {/* Background color removed per user request */}
           </Form>
         </Modal.Body>
@@ -660,7 +672,7 @@ function DashboardAndClasses() {
             variant="secondary"
             onClick={() => {
               setShowCreateModal(false);
-              setClassData({ name: "", section: "", code: "", bg: "#FFF0D8", course: "", year: "" });
+              setClassData({ name: "", section: "", code: "", bg: "#FFF0D8", course: "", year: "", schedule: "" });
               setError("");
             }}
           >

@@ -385,7 +385,7 @@ function DashboardHome() {
   const [createdCode, setCreatedCode] = useState("");
   const [showCreatedCodeModal, setShowCreatedCodeModal] = useState(false);
   const [userData, setUserData] = useState({ name: "", username: "", password: "", role: "student" });
-  const [classData, setClassData] = useState({ name: "", section: "", code: "", teacher: "", course: "", year: "" });
+  const [classData, setClassData] = useState({ name: "", section: "", code: "", teacher: "", course: "", year: "", schedule: "" });
   const [selectedUser, setSelectedUser] = useState(null);
   const [selectedClass, setSelectedClass] = useState(null);
   const [showUserDetailModal, setShowUserDetailModal] = useState(false);
@@ -494,7 +494,7 @@ function DashboardHome() {
             bg: classData.bg,
             course: classData.course,
             year: classData.year,
-            room: classData.room,
+            schedule: classData.schedule,
             teacher: classData.teacher
           },
           { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
@@ -504,7 +504,7 @@ function DashboardHome() {
       const newCode = created.code || (created.cls && created.cls.code) || '';
       await fetchData();
     setShowCreateClassModal(false);
-  setClassData({ name: "", section: "", code: "", teacher: "", course: "", year: "", bg: "#FFF0D8", room: "" });
+  setClassData({ name: "", section: "", code: "", teacher: "", course: "", year: "", bg: "#FFF0D8", schedule: "" });
       setCreatedCode(newCode);
       setShowCreatedCodeModal(true);
       setError("");
@@ -1081,7 +1081,7 @@ function DashboardHome() {
         show={showCreateClassModal}
         onHide={() => {
           setShowCreateClassModal(false);
-          setClassData({ name: "", section: "", code: "", teacher: "", course: "", year: "", bg: "#FFF0D8", room: "" });
+          setClassData({ name: "", section: "", code: "", teacher: "", course: "", year: "", bg: "#FFF0D8", schedule: "" });
           setError("");
         }}
         centered
@@ -1143,16 +1143,18 @@ function DashboardHome() {
               <label htmlFor="floatingYearAdmin">Year / Section</label>
             </Form.Floating>
 
+            {/* Room removed per user request */}
+
             <Form.Floating className="mb-3" style={{ position: 'relative' }}>
               <Form.Control
-                id="floatingRoomAdmin"
+                id="floatingScheduleAdmin"
                 type="text"
-                placeholder="Room"
-                value={classData.room}
-                onChange={(e) => setClassData({ ...classData, room: e.target.value })}
-                aria-label="Room"
+                placeholder="Schedule"
+                value={classData.schedule}
+                onChange={(e) => setClassData({ ...classData, schedule: e.target.value })}
+                aria-label="Schedule"
               />
-              <label htmlFor="floatingRoomAdmin">Room</label>
+              <label htmlFor="floatingScheduleAdmin">Schedule</label>
             </Form.Floating>
 
             {/* Background color removed to match Teacher modal UI */}
@@ -1161,9 +1163,9 @@ function DashboardHome() {
         <Modal.Footer>
           <Button
             variant="secondary"
-            onClick={() => {
+          onClick={() => {
               setShowCreateClassModal(false);
-              setClassData({ name: "", section: "", code: "", teacher: "", course: "", year: "", bg: "#FFF0D8", room: "" });
+              setClassData({ name: "", section: "", code: "", teacher: "", course: "", year: "", bg: "#FFF0D8", schedule: "" });
               setError("");
             }}
             aria-label="Cancel create class"
