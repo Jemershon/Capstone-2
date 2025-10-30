@@ -1,6 +1,8 @@
 import express from 'express';
 import Exam from '../models/Exam.js';
 import Notification from '../models/Notification.js';
+import mongoose from 'mongoose';
+import fs from 'fs';
 import { authenticateToken, requireTeacherOrAdmin, requireStudent } from '../middlewares/auth.js';
 
 // We'll import these models from server.js
@@ -590,9 +592,8 @@ router.delete('/:id', authenticateToken, requireTeacherOrAdmin, async (req, res)
 
     // Delete announcements tied to this exam and remove any attached files
     try {
-      const Announcement = require('mongoose').model('Announcement');
+      const Announcement = mongoose.models['Announcement'] || mongoose.model('Announcement');
       const announcements = await Announcement.find({ examId: exam._id });
-      const fs = require('fs');
       for (const ann of announcements) {
         try {
           if (ann.attachments && ann.attachments.length) {
@@ -609,7 +610,6 @@ router.delete('/:id', authenticateToken, requireTeacherOrAdmin, async (req, res)
           }
           // Delete notifications that reference this announcement
           try {
-            const Notification = require('mongoose').model('Notification');
             const notifDel = await Notification.deleteMany({ referenceId: ann._id });
             if (notifDel.deletedCount > 0) console.log(`Deleted ${notifDel.deletedCount} notifications for announcement ${ann._id}`);
           } catch (notifErr) {
@@ -628,7 +628,6 @@ router.delete('/:id', authenticateToken, requireTeacherOrAdmin, async (req, res)
 
     // Delete notifications that reference this exam
     try {
-      const Notification = require('mongoose').model('Notification');
       const notifRes = await Notification.deleteMany({ referenceId: exam._id });
       console.log(`Deleted ${notifRes.deletedCount} notifications referencing exam ${exam._id}`);
     } catch (notifErr) {
