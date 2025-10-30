@@ -20,13 +20,19 @@ export function getSocket() {
     // Authenticate on connect if a token is available
     socket.on('connect', () => {
       const token = getAuthToken();
+      console.log('[Socket.IO] Connected:', socket.id);
       if (token) {
         socket.emit('authenticate', token);
+        console.log('[Socket.IO] Sent authenticate event');
       }
     });
 
+    socket.on('disconnect', (reason) => {
+      console.warn('[Socket.IO] Disconnected:', reason);
+    });
+
     socket.on('connect_error', (err) => {
-      console.debug('Socket connect_error:', err && err.message ? err.message : err);
+      console.error('[Socket.IO] Connect error:', err && err.message ? err.message : err);
     });
 
     // Defer actual connection until a component requests it
