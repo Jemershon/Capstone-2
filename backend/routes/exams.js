@@ -87,20 +87,88 @@ router.post('/manual/:examId/submissions/:submissionId/grade', authenticateToken
     }
     const { finalScore, feedback } = req.body;
     if (typeof finalScore !== 'number') return res.status(400).json({ error: 'finalScore must be a number' });
-  const submission = await ExamSubmission.findById(req.params.submissionId);
-    if (!submission) return res.status(404).json({ error: 'Submission not found' });
-    submission.finalScore = finalScore;
-    submission.feedback = feedback || '';
-    submission.gradedAt = new Date();
-    // Do NOT create Grade entry yet; teacher must 'return' the grade to make it visible to students
-    // returned remains false until the teacher explicitly returns the grade
-    await submission.save();
-    res.json({ message: 'Grade saved (not returned)', finalScore, feedback });
-  } catch (err) {
-    console.error('Error grading manual exam submission:', err);
-    res.status(500).json({ error: 'Failed to grade manual exam submission' });
-  }
-});
+      const submission = await ExamSubmission.findById(req.params.submissionId);
+      if (!submission) return res.status(404).json({ error: 'Submission not found' });
+      submission.finalScore = finalScore;
+      submission.feedback = feedback || '';
+      submission.gradedAt = new Date();
+      // Do NOT create Grade entry yet; teacher must 'return' the grade to make it visible to students
+      // returned remains false until the teacher explicitly returns the grade
+      await submission.save();
+      res.json({ message: 'Grade saved (not returned)', finalScore, feedback });
+    } catch (err) {
+      console.error('Error grading manual exam submission:', err);
+      res.status(500).json({ error: 'Failed to grade manual exam submission' });
+    }
+  });
+  // Teacher: Return a graded submission (make grade visible to the student)
+  router.post('/manual/:examId/submissions/:submissionId/return', authenticateToken, requireTeacherOrAdmin, async (req, res) => {
+    try {
+      const exam = await Exam.findById(req.params.examId);
+      if (!exam) return res.status(404).json({ error: 'Exam not found' });
+      if (!exam.manualGrading) return res.status(400).json({ error: 'Exam is not set for manual grading' });
+      if (req.user.role === 'Teacher' && exam.createdBy !== req.user.username) {
+        return res.status(403).json({ error: 'Not authorized' });
+      }
+      const submission = await ExamSubmission.findById(req.params.submissionId);
+      if (!submission) return res.status(404).json({ error: 'Submission not found' });
+      // Must be graded before returning
+      if (typeof submission.finalScore !== 'number' || !submission.gradedAt) {
+        return res.status(400).json({ error: 'Submission has not been graded yet' });
+      }
+      // Create or update Grade entry (this makes it visible to students via /api/student/grades)
+      // Prefer any grade entry already linked to this exam
+      let gradeEntry = await Grade.findOne({ examId: exam._id, student: submission.student });
+      if (!gradeEntry) {
+        gradeEntry = await Grade.findOne({ class: exam.class, student: submission.student });
+      }
+      if (!gradeEntry) {
+        gradeEntry = new Grade({ class: exam.class, student: submission.student, examId: exam._id });
+      }
+      gradeEntry.examId = exam._id;
+      gradeEntry.grade = `${submission.finalScore}/${exam.questions.length}`;
+      gradeEntry.feedback = submission.feedback || '';
+      await gradeEntry.save();
+      // Mark submission as returned
+      submission.returned = true;
+      await submission.save();
+      // Create a notification to the student
+      try {
+        const notif = new Notification({
+          recipient: submission.student,
+          sender: req.user.username,
+          type: 'grade',
+          message: `Your grade for \"${exam.title}\" is ${submission.finalScore}/${exam.questions.length}`,
+          referenceId: exam._id,
+          class: exam.class,
+          read: false,
+          createdAt: new Date()
+        });
+        await notif.save();
+        // Emit socket events if available
+        if (req.app.io) {
+          req.app.io.to(`user:${submission.student}`).emit('grade-returned', {
+            examId: exam._id,
+            examTitle: exam.title,
+            finalScore: submission.finalScore,
+            feedback: submission.feedback || ''
+          });
+          req.app.io.to(`user:${submission.student}`).emit('new-notification', {
+            type: 'grade',
+            message: notif.message,
+            class: exam.class,
+            sender: req.user.username
+          });
+        }
+      } catch (notifErr) {
+        console.error('Failed to create/emit notification on grade return:', notifErr);
+      }
+      res.json({ message: 'Grade returned to student', finalScore: submission.finalScore });
+    } catch (err) {
+      console.error('Error returning grade:', err);
+      res.status(500).json({ error: 'Failed to return grade' });
+    }
+  });
 // Teacher: Get all submissions for a manual grading exam (with student answers and correct answers)
 router.get('/manual/:examId/submissions', authenticateToken, requireTeacherOrAdmin, async (req, res) => {
   try {
@@ -172,10 +240,15 @@ router.post('/manual/:examId/submissions/:submissionId/return', authenticateToke
     }
 
     // Create or update Grade entry (this makes it visible to students via /api/student/grades)
-    let gradeEntry = await Grade.findOne({ class: exam.class, student: submission.student });
+    // Prefer a grade already linked to this exam; fall back to class+student
+    let gradeEntry = await Grade.findOne({ examId: exam._id, student: submission.student });
     if (!gradeEntry) {
-      gradeEntry = new Grade({ class: exam.class, student: submission.student });
+      gradeEntry = await Grade.findOne({ class: exam.class, student: submission.student });
     }
+    if (!gradeEntry) {
+      gradeEntry = new Grade({ class: exam.class, student: submission.student, examId: exam._id });
+    }
+    gradeEntry.examId = exam._id;
     gradeEntry.grade = `${submission.finalScore}/${exam.questions.length}`;
     gradeEntry.feedback = submission.feedback || '';
     await gradeEntry.save();
@@ -239,9 +312,13 @@ router.post('/manual/:examId/submissions/return-all', authenticateToken, require
     let returnedCount = 0;
     for (const submission of submissions) {
       try {
-        // Create/update grade entry
-        let gradeEntry = await Grade.findOne({ class: exam.class, student: submission.student });
-        if (!gradeEntry) gradeEntry = new Grade({ class: exam.class, student: submission.student });
+        // Create/update grade entry (prefer exam-linked entry)
+  let gradeEntry = await Grade.findOne({ examId: exam._id, student: submission.student });
+        if (!gradeEntry) {
+          gradeEntry = await Grade.findOne({ class: exam.class, student: submission.student });
+        }
+        if (!gradeEntry) gradeEntry = new Grade({ class: exam.class, student: submission.student, examId: exam._id });
+        gradeEntry.examId = exam._id;
         gradeEntry.grade = `${submission.finalScore}/${exam.questions.length}`;
         gradeEntry.feedback = submission.feedback || '';
         await gradeEntry.save();
@@ -493,7 +570,71 @@ router.delete('/:id', authenticateToken, requireTeacherOrAdmin, async (req, res)
     
     // Store className before deleting for socket notifications
     const className = exam.class;
-    
+
+    // Also delete any exam submissions to keep manual grading lists clean
+    try {
+      const delResult = await ExamSubmission.deleteMany({ examId: exam._id });
+      console.log(`Deleted ${delResult.deletedCount} submissions for exam ${exam._id}`);
+    } catch (subErr) {
+      // Log the error but continue with deleting related artifacts and the exam itself
+      console.error('Failed to delete submissions for exam', exam._id, subErr);
+    }
+
+    // Delete Grade entries that were created for this exam (if any)
+    try {
+      const gradeDel = await Grade.deleteMany({ examId: exam._id });
+      console.log(`Deleted ${gradeDel.deletedCount} grade entries for exam ${exam._id}`);
+    } catch (gradeErr) {
+      console.error('Failed to delete grades for exam', exam._id, gradeErr);
+    }
+
+    // Delete announcements tied to this exam and remove any attached files
+    try {
+      const Announcement = require('mongoose').model('Announcement');
+      const announcements = await Announcement.find({ examId: exam._id });
+      const fs = require('fs');
+      for (const ann of announcements) {
+        try {
+          if (ann.attachments && ann.attachments.length) {
+            for (const a of ann.attachments) {
+              if (a && a.filePath) {
+                try {
+                  fs.unlinkSync(a.filePath);
+                  console.log(`Deleted attachment file ${a.filePath}`);
+                } catch (fsErr) {
+                  console.warn('Failed to delete attachment file', a.filePath, fsErr.message || fsErr);
+                }
+              }
+            }
+          }
+          // Delete notifications that reference this announcement
+          try {
+            const Notification = require('mongoose').model('Notification');
+            const notifDel = await Notification.deleteMany({ referenceId: ann._id });
+            if (notifDel.deletedCount > 0) console.log(`Deleted ${notifDel.deletedCount} notifications for announcement ${ann._id}`);
+          } catch (notifErr) {
+            console.warn('Failed to delete notifications for announcement', ann._id, notifErr);
+          }
+
+          await Announcement.deleteOne({ _id: ann._id });
+          console.log(`Deleted announcement ${ann._id} for exam ${exam._id}`);
+        } catch (annErr) {
+          console.error('Failed to delete announcement', ann._id, annErr);
+        }
+      }
+    } catch (annErrOuter) {
+      console.error('Failed to clean up announcements for exam', exam._id, annErrOuter);
+    }
+
+    // Delete notifications that reference this exam
+    try {
+      const Notification = require('mongoose').model('Notification');
+      const notifRes = await Notification.deleteMany({ referenceId: exam._id });
+      console.log(`Deleted ${notifRes.deletedCount} notifications referencing exam ${exam._id}`);
+    } catch (notifErr) {
+      console.error('Failed to delete notifications for exam', exam._id, notifErr);
+    }
+
     // Delete the exam
     await exam.deleteOne();
     console.log(`Exam ${req.params.id} deleted successfully`);
@@ -583,7 +724,8 @@ router.post('/:id/submit', authenticateToken, requireStudent, async (req, res) =
         class: exam.class, 
         student: req.user.username, 
         grade: `${finalScore}/${total}`, 
-        feedback
+        feedback,
+        examId: exam._id
       });
       await gradeEntry.save();
     }

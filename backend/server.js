@@ -494,6 +494,8 @@ const GradeSchema = new mongoose.Schema({
   student: String,
   grade: String,
   feedback: String,
+  // Link back to an exam when the grade was created from an exam
+  examId: { type: mongoose.Schema.Types.ObjectId, ref: 'Exam', default: null },
 });
 
 const Assignment = mongoose.model("Assignment", AssignmentSchema);
@@ -1885,7 +1887,7 @@ app.post("/api/grades", authenticateToken, requireTeacherOrAdmin, async (req, re
     if (req.user.role === "Teacher" && cls.teacher !== req.user.username) {
       return res.status(403).json({ error: "You are not authorized to grade this class" });
     }
-    const gradeEntry = new Grade({ class: className, student, grade, feedback });
+  const gradeEntry = new Grade({ class: className, student, grade, feedback, examId: req.body.examId || null });
     await gradeEntry.save();
     res.status(201).json({ message: "Grade assigned successfully" });
   } catch (err) {
@@ -2576,7 +2578,8 @@ app.post("/api/exam-submissions", authenticateToken, async (req, res) => {
         student: student,
         grade: `${finalScore}/${totalQuestions}`,
         feedback: feedbackText,
-        submittedAt: new Date()
+        submittedAt: new Date(),
+        examId: examId || null
       });
       await gradeEntry.save();
     } catch (gradeError) {
