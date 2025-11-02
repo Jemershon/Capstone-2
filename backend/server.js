@@ -976,15 +976,34 @@ app.post('/api/auth/google', async (req, res) => {
         role: roleToSet,
         googleId,
         picture,
+        profilePicture: picture, // Use Google profile picture
       });
       await user.save();
       console.log('Created new user from Google Sign-In:', user.username);
     } else {
-      // If user exists but doesn't have googleId, attach it
+      // Update existing user with latest Google info
+      let needsUpdate = false;
+      
       if (!user.googleId) {
         user.googleId = googleId;
-        user.picture = user.picture || picture;
+        needsUpdate = true;
+      }
+      
+      // Always update to latest Google profile picture
+      if (picture && user.profilePicture !== picture) {
+        user.profilePicture = picture;
+        needsUpdate = true;
+      }
+      
+      // Also update the legacy 'picture' field if it exists
+      if (picture && user.picture !== picture) {
+        user.picture = picture;
+        needsUpdate = true;
+      }
+      
+      if (needsUpdate) {
         await user.save();
+        console.log('Updated user Google profile picture:', user.username);
       }
     }
 

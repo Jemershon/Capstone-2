@@ -776,8 +776,12 @@ function DashboardHome() {
                         <Card.Body>
                           <div className="d-flex align-items-start mb-2">
                             <div className="me-2" style={{ width: "48px", height: "48px" }}>
-                              {gUser.picture ? (
-                                <img src={gUser.picture} alt={gUser.username} style={{ width: "48px", height: "48px", borderRadius: "50%" }} />
+                              {(gUser.profilePicture || gUser.picture) ? (
+                                <img 
+                                  src={gUser.profilePicture || gUser.picture} 
+                                  alt={gUser.username} 
+                                  style={{ width: "48px", height: "48px", borderRadius: "50%", objectFit: "cover" }} 
+                                />
                               ) : (
                                 <div className="bg-secondary text-white rounded-circle p-2 d-flex align-items-center justify-content-center" style={{ width: "48px", height: "48px" }}>
                                   <i className="bi bi-person-fill"></i>
