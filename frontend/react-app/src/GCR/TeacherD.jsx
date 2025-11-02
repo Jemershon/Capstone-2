@@ -423,6 +423,8 @@ function DashboardAndClasses() {
   const [showToast, setShowToast] = useState(false);
   const [editingClass, setEditingClass] = useState(null);
   const [successMessage, setSuccessMessage] = useState("");
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [classToDelete, setClassToDelete] = useState(null);
   
   // Stat card modals
   const [showStatsModal, setShowStatsModal] = useState(false);
@@ -491,6 +493,30 @@ function DashboardAndClasses() {
       console.error("Create class error:", err.response?.data || err.message);
       setError(err.response?.data?.error || "Failed to create class. Check network or try again.");
       setShowToast(true);
+    }
+  };
+
+  const handleDeleteClass = async () => {
+    if (!classToDelete) return;
+    
+    try {
+      await retry(() => 
+        axios.delete(`${API_BASE_URL}/api/classes/${classToDelete._id || classToDelete.id}`, 
+        { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } })
+      );
+      await fetchData();
+      setSuccessMessage("Class deleted successfully!");
+      setError("");
+      setShowToast(true);
+      setShowDeleteModal(false);
+      setClassToDelete(null);
+    } catch (err) {
+      console.error("Delete class error:", err.response?.data || err.message);
+      setError(err.response?.data?.error || "Failed to delete class. Please try again.");
+      setSuccessMessage("");
+      setShowToast(true);
+      setShowDeleteModal(false);
+      setClassToDelete(null);
     }
   };
 
@@ -577,23 +603,10 @@ function DashboardAndClasses() {
                   variant="outline-danger" 
                   size="sm" 
                   aria-label={`Delete class ${cls.name}`}
-                  onClick={async (e) => {
+                  onClick={(e) => {
                     e.stopPropagation();
-                    if (window.confirm(`Are you sure you want to delete the class "${cls.name}"? This action cannot be undone.`)) {
-                      try {
-                        await retry(() => 
-                          axios.delete(`${API_BASE_URL}/api/classes/${cls._id || cls.id}`, 
-                          { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } })
-                        );
-                        await fetchData();
-                        setError("Class deleted successfully!");
-                        setShowToast(true);
-                      } catch (err) {
-                        console.error("Delete class error:", err.response?.data || err.message);
-                        setError(err.response?.data?.error || "Failed to delete class. Please try again.");
-                        setShowToast(true);
-                      }
-                    }
+                    setClassToDelete(cls);
+                    setShowDeleteModal(true);
                   }}
                 >
                   Delete
@@ -626,7 +639,7 @@ function DashboardAndClasses() {
                 onChange={(e) => setClassData({ ...classData, name: e.target.value })}
                 required
                 aria-required="true"
-                placeholder="e.g., Capstone"
+                placeholder="e.g., MITE12 System Administration"
               />
             </Form.Group>
 
@@ -702,6 +715,41 @@ function DashboardAndClasses() {
             <Button variant="secondary" className="ms-2" onClick={() => setShowCreatedCodeModal(false)}>Close</Button>
           </div>
         </Modal.Body>
+      </Modal>
+
+      {/* Delete Class Confirmation Modal */}
+      <Modal 
+        show={showDeleteModal} 
+        onHide={() => {
+          setShowDeleteModal(false);
+          setClassToDelete(null);
+        }} 
+        centered
+      >
+        <Modal.Header closeButton>
+          <Modal.Title>Confirm Delete</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <p>Are you sure you want to delete the class <strong>"{classToDelete?.name}"</strong>?</p>
+          <p className="text-danger mb-0">⚠️ This action cannot be undone. All announcements, exams, and materials in this class will be permanently deleted.</p>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button 
+            variant="secondary" 
+            onClick={() => {
+              setShowDeleteModal(false);
+              setClassToDelete(null);
+            }}
+          >
+            Cancel
+          </Button>
+          <Button 
+            variant="danger" 
+            onClick={handleDeleteClass}
+          >
+            Delete Class
+          </Button>
+        </Modal.Footer>
       </Modal>
 
       {/* Stats Detail Modal */}
