@@ -930,8 +930,28 @@ function TeacherClassStream() {
     }
   }, [className, fetchAnnouncements]);
   
+  // Cache for API responses to prevent unnecessary refetches
+  const [apiCache, setApiCache] = useState({});
+  const CACHE_DURATION = 30000; // 30 seconds
+  
+  // Helper function to check if cache is still valid
+  const isCacheValid = (key) => {
+    if (!apiCache[key]) return false;
+    const age = Date.now() - apiCache[key].timestamp;
+    return age < CACHE_DURATION;
+  };
+  
   // Fetch class exams
-  const fetchExams = useCallback(async () => {
+  const fetchExams = useCallback(async (force = false) => {
+    const cacheKey = `exams_${className}`;
+    
+    // Use cache if valid and not forcing refresh
+    if (!force && isCacheValid(cacheKey)) {
+      console.log('Using cached exams data');
+      setExams(apiCache[cacheKey].data);
+      return;
+    }
+    
     setLoading(true);
     setError("");
     try {
@@ -946,6 +966,11 @@ function TeacherClassStream() {
       
       if (Array.isArray(res.data)) {
         setExams(res.data);
+        // Update cache
+        setApiCache(prev => ({
+          ...prev,
+          [cacheKey]: { data: res.data, timestamp: Date.now() }
+        }));
         console.log(`Successfully loaded ${res.data.length} exams for class ${className}`);
       } else {
         console.error("Invalid response format - expected array:", res.data);
@@ -968,7 +993,7 @@ function TeacherClassStream() {
     } finally {
       setLoading(false);
     }
-  }, [className]);
+  }, [className, apiCache]);
 
   // Fetch exam submissions for a specific exam
   const fetchExamSubmissions = async (examId) => {
@@ -1458,7 +1483,7 @@ function TeacherClassStream() {
             active={activeTab === "classwork"} 
             onClick={() => {
               setActiveTab("classwork");
-              fetchExams(); // Refresh exams when switching to this tab
+              fetchExams(true); // Force refresh exams when switching to this tab
             }}
           >
             Classwork
@@ -1525,10 +1550,10 @@ function TeacherClassStream() {
                   {posting ? "Posting..." : uploading ? "Uploading..." : "Post"}
                 </Button>
                 <Button variant="outline-primary" onClick={() => setShowExamModal(true)} aria-label="Create exam for this class">
-                  + Create Exam
+                  + Exam
                 </Button>
                 <Button type="button" variant="outline-secondary" onClick={() => { console.log('Stream Add Material clicked'); setShowMaterialsModal(true); }} aria-label="Add material for this class">
-                  + Add Material
+                  + Material
                 </Button>
               </div>
             </Form>
@@ -1856,7 +1881,7 @@ function TeacherClassStream() {
                 onExamCreated={(newExam) => {
                   console.log("New exam created:", newExam);
                   setShowExamModal(false);
-                  fetchExams(); // Refresh exams list
+                  fetchExams(true); // Force refresh exams list
                   setError(""); // Clear any errors
                 }} 
               />
@@ -2162,7 +2187,7 @@ function TeacherClassStream() {
                     // Close modal and refresh data
                     setShowEditExamModal(false);
                     setSelectedExam(null);
-                    fetchExams(); // Refresh exams list
+                    fetchExams(true); // Force refresh exams list
                     
                     // Show success message
                     setSuccessMessage("Exam updated successfully");
@@ -2234,7 +2259,7 @@ function TeacherClassStream() {
                     // Close modal and refresh data
                     setShowDeleteExamModal(false);
                     setSelectedExam(null);
-                    fetchExams(); // Refresh exams list
+                    fetchExams(true); // Force refresh exams list
                     
                     // Show success message with the assignment title
                     setSuccessMessage(`Assignment "${selectedExam.title}" deleted successfully`);
@@ -3127,7 +3152,7 @@ function Exams() {
         onClick={() => setShowCreateModal(true)}
         aria-label="Create new exam"
       >
-        + Create Exam
+        + Exam
       </Button>
       <Table striped bordered hover responsive style={{ tableLayout: "fixed" }}>
         <thead>

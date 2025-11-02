@@ -419,8 +419,28 @@ function DashboardHome() {
   }, [fetchData]);
 
   const handleCreateUser = async () => {
+    // Client-side sanitation and validation
+    const stripTags = (str) => (str || '').replace(/<[^>]*>/g, '').trim();
+  const removeEmojis = (str) => (str || '').replace(/[\u{1F300}-\u{1F6FF}\u{1F900}-\u{1F9FF}\u{1F1E6}-\u{1F1FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '').trim();
+  const sanitize = (s) => removeEmojis(stripTags(s)).replace(/\s+/g, ' ').trim();
+  const validateUsername = (u) => /^[A-Za-z0-9._-]{8,}$/.test(u || '');
+  const validatePassword = (p) => typeof p === 'string' && p.length >= 8 && !(/[<>{}]/.test(p)) && !(/[\u{1F300}-\u{1F6FF}\u{1F900}-\u{1F9FF}\u{1F1E6}-\u{1F1FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu.test(p));
+
     if (!userData.name || !userData.username || !userData.password) {
       setError("Name, username and password are required");
+      setShowToast(true);
+      return;
+    }
+
+    const cleanName = sanitize(userData.name);
+    const cleanUsername = sanitize(userData.username);
+    if (!validateUsername(cleanUsername)) {
+      setError('Username must be at least 8 characters and may only contain letters, numbers, ., _, -');
+      setShowToast(true);
+      return;
+    }
+    if (!validatePassword(userData.password)) {
+      setError('Password must be at least 8 characters and must not contain emojis or HTML/script characters');
       setShowToast(true);
       return;
     }
@@ -428,7 +448,7 @@ function DashboardHome() {
       await retry(() =>
         axios.post(
           `${API_BASE_URL}/api/admin/users`,
-          userData,
+          { ...userData, name: cleanName, username: cleanUsername },
           { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
         )
       );

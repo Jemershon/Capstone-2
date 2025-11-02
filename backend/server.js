@@ -37,6 +37,7 @@ import mongoose from "mongoose";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import cors from "cors";
+import compression from "compression";
 import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
@@ -66,6 +67,49 @@ const __dirname = path.dirname(__filename);
 // Initialize Express
 const app = express();
 
+// --- Input sanitation and validation helpers ---
+// Remove HTML tags and common script-like content
+function stripTags(input) {
+  if (!input || typeof input !== 'string') return '';
+  return input.replace(/<[^>]*>/g, '');
+}
+
+// Remove common emoji ranges (keep it conservative)
+function removeEmojis(input) {
+  if (!input || typeof input !== 'string') return '';
+  // Regex combining several emoji/unicode pictograph blocks
+  return input.replace(/[\u{1F300}-\u{1F6FF}\u{1F900}-\u{1F9FF}\u{1F1E6}-\u{1F1FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '');
+}
+
+function containsEmoji(input) {
+  if (!input || typeof input !== 'string') return false;
+  return /[\u{1F300}-\u{1F6FF}\u{1F900}-\u{1F9FF}\u{1F1E6}-\u{1F1FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu.test(input);
+}
+
+function sanitizeStringForStore(input) {
+  let s = stripTags(String(input));
+  s = removeEmojis(s);
+  // Trim and collapse whitespace
+  s = s.replace(/\s+/g, ' ').trim();
+  return s;
+}
+
+function validateUsername(username) {
+  if (!username || typeof username !== 'string') return false;
+  const s = sanitizeStringForStore(username);
+  // Username must be at least 8 chars and contain only alnum, dot, underscore, hyphen
+  return s.length >= 8 && /^[A-Za-z0-9._-]+$/.test(s);
+}
+
+function validatePassword(password) {
+  if (!password || typeof password !== 'string') return false;
+  if (password.length < 8) return false;
+  // Reject if contains tags or emojis (script-like content)
+  if (/<[^>]*>/g.test(password)) return false;
+  if (containsEmoji(password)) return false;
+  return true;
+}
+
 // Environment configuration with defaults
 const PORT = process.env.PORT || 4000;
 const MONGODB_URI = process.env.MONGODB_URI || "mongodb+srv://<your-production-uri>";
@@ -91,6 +135,7 @@ const CORS_ORIGIN_LIST = String(rawCorsEnv)
   .filter(Boolean);
 
 // Middleware
+app.use(compression()); // Compress all responses
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
@@ -271,6 +316,8 @@ const connectToMongoDB = async (retries = 3) => {
       await mongoose.connect(MONGODB_URI, {
         useNewUrlParser: true,
         useUnifiedTopology: true,
+        maxPoolSize: 10, // Maintain up to 10 socket connections
+        minPoolSize: 2,  // Maintain at least 2 connections
         serverSelectionTimeoutMS: 5000, // Timeout after 5s instead of 30s
         socketTimeoutMS: 45000,
       });
@@ -654,14 +701,24 @@ app.post("/api/register", async (req, res) => {
       return res.status(400).json({ error: "Invalid input data" });
     }
 
+    // Sanitize and validate inputs
+    const cleanName = sanitizeStringForStore(name);
+    const cleanUsername = sanitizeStringForStore(username);
+    if (!validateUsername(cleanUsername)) {
+      return res.status(400).json({ error: "Username must be at least 8 characters and contain only letters, numbers, ., _, -" });
+    }
+    if (!validatePassword(password)) {
+      return res.status(400).json({ error: "Password must be at least 8 characters and must not contain emojis or HTML/script content" });
+    }
+
     // Check uniqueness: username is required unique; email if provided must be unique
     const existingUser = await User.findOne({ $or: [{ username }, ...(email ? [{ email }] : [])] });
     if (existingUser) {
       return res.status(400).json({ error: "Username or email already exists" });
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const user = new User({ name, username, email: email || undefined, password: hashedPassword, role });
+  const hashedPassword = await bcrypt.hash(password, 10);
+  const user = new User({ name: cleanName, username: cleanUsername, email: email || undefined, password: hashedPassword, role });
 
     // Try to save. If a duplicate-key error occurs because of legacy documents that
     // have `email: null` and a non-partial unique index existed, attempt an
@@ -771,14 +828,24 @@ app.post("/api/register-admin", async (req, res) => {
     if (!name || !username || !email || !password) {
       return res.status(400).json({ error: "Invalid input data" });
     }
+
+    // Sanitize and validate admin user inputs
+    const cleanName = sanitizeStringForStore(name);
+    const cleanUsername = sanitizeStringForStore(username);
+    if (!validateUsername(cleanUsername)) {
+      return res.status(400).json({ error: "Username must be at least 8 characters and contain only letters, numbers, ., _, -" });
+    }
+    if (!validatePassword(password)) {
+      return res.status(400).json({ error: "Password must be at least 8 characters and must not contain emojis or HTML/script content" });
+    }
     
     const existingUser = await User.findOne({ $or: [{ username }, { email }] });
     if (existingUser) {
       return res.status(400).json({ error: "Username or email already exists" });
     }
     
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const user = new User({ name, username, email, password: hashedPassword, role: "Admin" });
+  const hashedPassword = await bcrypt.hash(password, 10);
+  const user = new User({ name: cleanName, username: cleanUsername, email, password: hashedPassword, role: "Admin" });
     await user.save();
     res.status(201).json({ message: "Admin user registered successfully" });
   } catch (err) {
@@ -1074,8 +1141,10 @@ app.get("/api/admin/users", authenticateToken, requireAdmin, async (req, res) =>
   try {
     const { page = 1, limit = 100 } = req.query;
     const users = await User.find()
+      .select('name username email role profilePicture')
       .skip((page - 1) * limit)
-      .limit(parseInt(limit));
+      .limit(parseInt(limit))
+      .lean();
     res.json(users);
   } catch (err) {
     console.error("Get users error:", err);
@@ -1112,6 +1181,16 @@ app.post("/api/admin/users", authenticateToken, requireAdmin, async (req, res) =
     if (!name || !username || !password || !["Student", "Teacher", "Admin"].includes(role)) {
       return res.status(400).json({ error: "Invalid input data" });
     }
+
+    // Sanitize/validate
+    const cleanName = sanitizeStringForStore(name);
+    const cleanUsername = sanitizeStringForStore(username);
+    if (!validateUsername(cleanUsername)) {
+      return res.status(400).json({ error: "Username must be at least 8 characters and contain only letters, numbers, ., _, -" });
+    }
+    if (!validatePassword(password)) {
+      return res.status(400).json({ error: "Password must be at least 8 characters and must not contain emojis or HTML/script content" });
+    }
     // Check username uniqueness and email uniqueness only if provided
     const lookup = [{ username }];
     if (email) lookup.push({ email });
@@ -1119,8 +1198,8 @@ app.post("/api/admin/users", authenticateToken, requireAdmin, async (req, res) =
     if (existingUser) {
       return res.status(400).json({ error: "Username or email already exists" });
     }
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const userData = { name, username, password: hashedPassword, role };
+  const hashedPassword = await bcrypt.hash(password, 10);
+  const userData = { name: cleanName, username: cleanUsername, password: hashedPassword, role };
     if (email) userData.email = email;
     const user = new User(userData);
     await user.save();
@@ -1217,12 +1296,16 @@ app.get("/api/admin/classes", authenticateToken, requireTeacherOrAdmin, async (r
     let classes;
     if (req.user.role === "Teacher") {
       classes = await Class.find({ teacher: req.user.username })
+        .select('name section teacher students code bg schedule') // Only needed fields
         .skip((page - 1) * limit)
-        .limit(parseInt(limit));
+        .limit(parseInt(limit))
+        .lean();
     } else {
       classes = await Class.find()
+        .select('name section teacher students code bg schedule')
         .skip((page - 1) * limit)
-        .limit(parseInt(limit));
+        .limit(parseInt(limit))
+        .lean();
     }
     res.json(classes);
   } catch (err) {
