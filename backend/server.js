@@ -37,12 +37,21 @@ import mongoose from "mongoose";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import cors from "cors";
-import compression from "compression";
 import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
 import { createServer } from "http";
 import { setupSocketIO } from "./socket.js";
+
+// Optional compression - gracefully handle if not installed
+let compression;
+try {
+  compression = (await import('compression')).default;
+  console.log('✅ Compression middleware loaded');
+} catch (e) {
+  console.warn('⚠️  Compression package not found, continuing without compression');
+  compression = (req, res, next) => next(); // No-op middleware
+}
 
 // Import middleware and routes
 import { authenticateToken, requireAdmin, requireTeacherOrAdmin, requireStudent } from "./middlewares/auth.js";
