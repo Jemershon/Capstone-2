@@ -64,6 +64,7 @@ import testNotificationsRoutes from "./routes/testNotifications.js";
 import uploadRoutes from "./routes/upload.js";
 import examsRoutes, { setupModels } from "./routes/exams.js";
 import reactionsRoutes from "./routes/reactions.js";
+import { sendBulkAnnouncementEmails } from "./services/sendgridService.js";
 import Exam from "./models/Exam.js";
 import Notification from "./models/Notification.js";
 import User from "./models/User.js";
@@ -1896,6 +1897,49 @@ app.post("/api/announcements", authenticateToken, requireTeacherOrAdmin, async (
             });
           });
         }
+        
+        // Send email notifications to all students
+        // Run this in background to not block the response
+        (async () => {
+          try {
+            // Get student email addresses
+            const students = await User.find({ 
+              username: { $in: cls.students } 
+            }).select('username name email').lean();
+            
+            const studentsWithEmails = students.filter(s => s.email);
+            
+            if (studentsWithEmails.length > 0) {
+              console.log(`📧 Sending announcement emails to ${studentsWithEmails.length} students...`);
+              
+              // Get teacher name
+              const teacherUser = await User.findOne({ username: req.user.username }).select('name').lean();
+              const teacherName = teacherUser?.name || req.user.username;
+              
+              // Construct announcement URL
+              const frontendUrl = process.env.FRONTEND_URL || 'https://ccsgoals.me';
+              const announcementUrl = `${frontendUrl}/teacher/${encodeURIComponent(className)}`;
+              
+              // Send bulk emails
+              const emailResults = await sendBulkAnnouncementEmails(
+                studentsWithEmails,
+                teacherName,
+                className,
+                message,
+                announcementUrl
+              );
+              
+              console.log(`✅ Email notifications sent: ${emailResults.sent} successful, ${emailResults.failed} failed`);
+              if (emailResults.failed > 0) {
+                console.error('Email errors:', emailResults.errors);
+              }
+            } else {
+              console.log('⚠️  No students with email addresses found');
+            }
+          } catch (emailErr) {
+            console.error('Error sending announcement emails:', emailErr);
+          }
+        })();
       }
     } catch (notifErr) {
       console.error('Error sending announcement notifications:', notifErr);
