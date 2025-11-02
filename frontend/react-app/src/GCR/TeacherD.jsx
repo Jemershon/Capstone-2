@@ -878,13 +878,22 @@ function TeacherClassStream() {
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef(null);
   
+  // Topic management state
+  const [topics, setTopics] = useState([]);
+  const [selectedTopic, setSelectedTopic] = useState(null);
+  const [filterTopic, setFilterTopic] = useState(null);
+  const [showTopicModal, setShowTopicModal] = useState(false);
+  const [topicData, setTopicData] = useState({ name: '', color: '#6c757d' });
+  const [editingTopic, setEditingTopic] = useState(null);
+  
   // Reference to socket.io connection
   const socketRef = useRef(null);  // Fetch class announcements
   const fetchAnnouncements = useCallback(async () => {
     setLoading(true);
     try {
+      const topicFilter = filterTopic ? `&topic=${filterTopic}` : '';
       const res = await retry(() =>
-        axios.get(`${API_BASE_URL}/api/announcements?page=1&limit=100&className=${encodeURIComponent(className)}`, {
+        axios.get(`${API_BASE_URL}/api/announcements?page=1&limit=100&className=${encodeURIComponent(className)}${topicFilter}`, {
           headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
         })
       );
@@ -896,6 +905,18 @@ function TeacherClassStream() {
       setShowToast(true);
     } finally {
       setLoading(false);
+    }
+  }, [className, filterTopic]);
+
+  const fetchTopics = useCallback(async () => {
+    try {
+      const res = await axios.get(`${API_BASE_URL}/api/topics?className=${encodeURIComponent(className)}`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+      });
+      setTopics(res.data || []);
+      console.log("Fetched topics:", res.data);
+    } catch (err) {
+      console.error("Fetch topics error:", err.response?.data || err.message);
     }
   }, [className]);
 
@@ -1136,6 +1157,7 @@ function TeacherClassStream() {
       fetchAnnouncements();
       fetchExams();
       fetchClassInfo();
+      fetchTopics();
       
       // Setup Socket.IO connection for real-time updates
       const token = getAuthToken();
@@ -1231,7 +1253,12 @@ function TeacherClassStream() {
         console.log('Socket connection closed and events unsubscribed');
       }
     };
-  }, [fetchAnnouncements, fetchExams, fetchClassInfo, className, API_BASE_URL]);
+  }, [fetchAnnouncements, fetchExams, fetchClassInfo, fetchTopics, className, API_BASE_URL]);
+
+  // Refetch announcements when filter changes
+  useEffect(() => {
+    fetchAnnouncements();
+  }, [filterTopic, fetchAnnouncements]);
 
   
   // File handling functions
@@ -1284,6 +1311,84 @@ function TeacherClassStream() {
     }
   };
 
+  // Topic management functions
+  const handleCreateTopic = async () => {
+    if (!topicData.name.trim()) {
+      setError("Topic name is required");
+      setShowToast(true);
+      return;
+    }
+    
+    try {
+      await axios.post(
+        `${API_BASE_URL}/api/topics`,
+        { name: topicData.name, color: topicData.color, className },
+        { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
+      );
+      
+      await fetchTopics();
+      setShowTopicModal(false);
+      setTopicData({ name: '', color: '#6c757d' });
+      setSuccessMessage("Topic created successfully!");
+      setShowToast(true);
+    } catch (err) {
+      console.error("Create topic error:", err);
+      setError(err.response?.data?.error || "Failed to create topic");
+      setShowToast(true);
+    }
+  };
+
+  const handleUpdateTopic = async () => {
+    if (!topicData.name.trim()) {
+      setError("Topic name is required");
+      setShowToast(true);
+      return;
+    }
+    
+    try {
+      await axios.put(
+        `${API_BASE_URL}/api/topics/${editingTopic._id}`,
+        { name: topicData.name, color: topicData.color },
+        { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
+      );
+      
+      await fetchTopics();
+      setShowTopicModal(false);
+      setEditingTopic(null);
+      setTopicData({ name: '', color: '#6c757d' });
+      setSuccessMessage("Topic updated successfully!");
+      setShowToast(true);
+    } catch (err) {
+      console.error("Update topic error:", err);
+      setError(err.response?.data?.error || "Failed to update topic");
+      setShowToast(true);
+    }
+  };
+
+  const handleDeleteTopic = async (topicId) => {
+    if (!window.confirm("Are you sure you want to delete this topic? Announcements with this topic will remain but won't have a topic.")) {
+      return;
+    }
+    
+    try {
+      await axios.delete(
+        `${API_BASE_URL}/api/topics/${topicId}`,
+        { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
+      );
+      
+      await fetchTopics();
+      if (filterTopic === topicId) {
+        setFilterTopic(null);
+      }
+      setSuccessMessage("Topic deleted successfully!");
+      setShowToast(true);
+    } catch (err) {
+      console.error("Delete topic error:", err);
+      setError(err.response?.data?.error || "Failed to delete topic");
+      setShowToast(true);
+    }
+  };
+
   // Post an announcement
   const handlePost = async () => {
     if (!message.trim() && selectedFiles.length === 0) return;
@@ -1304,7 +1409,8 @@ function TeacherClassStream() {
             date: new Date().toISOString(), 
             teacher: localStorage.getItem("username"), 
             class: className,
-            attachments: attachments
+            attachments: attachments,
+            topic: selectedTopic || null
           },
           { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
         )
@@ -1312,6 +1418,7 @@ function TeacherClassStream() {
       
       setMessage("");
       setSelectedFiles([]);
+      setSelectedTopic(null);
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
@@ -1509,11 +1616,90 @@ function TeacherClassStream() {
 
       {activeTab === "stream" && (
         <div>
+          {/* Topic filter buttons */}
+          <Card className="p-3 mb-3">
+            <div className="d-flex align-items-center justify-content-between mb-2">
+              <h6 className="mb-0">📁 Topics</h6>
+              <Button 
+                variant="outline-primary" 
+                size="sm" 
+                onClick={() => {
+                  setEditingTopic(null);
+                  setTopicData({ name: '', color: '#6c757d' });
+                  setShowTopicModal(true);
+                }}
+              >
+                + New Topic
+              </Button>
+            </div>
+            <div className="d-flex flex-wrap gap-2">
+              <Button 
+                variant={filterTopic === null ? "primary" : "outline-secondary"}
+                size="sm"
+                onClick={() => setFilterTopic(null)}
+              >
+                All
+              </Button>
+              {topics.map(topic => (
+                <div key={topic._id} className="d-inline-flex align-items-center gap-1">
+                  <Button 
+                    variant={filterTopic === topic._id ? "primary" : "outline-secondary"}
+                    size="sm"
+                    style={{ 
+                      borderColor: topic.color,
+                      backgroundColor: filterTopic === topic._id ? topic.color : 'transparent',
+                      color: filterTopic === topic._id ? '#fff' : topic.color
+                    }}
+                    onClick={() => setFilterTopic(filterTopic === topic._id ? null : topic._id)}
+                  >
+                    {topic.name}
+                  </Button>
+                  <Button 
+                    variant="outline-secondary" 
+                    size="sm"
+                    style={{ padding: '2px 8px', fontSize: '16px' }}
+                    title="Edit topic"
+                    onClick={() => {
+                      setEditingTopic(topic);
+                      setTopicData({ name: topic.name, color: topic.color });
+                      setShowTopicModal(true);
+                    }}
+                  >
+                    ✎
+                  </Button>
+                  <Button 
+                    variant="outline-danger" 
+                    size="sm"
+                    style={{ padding: '2px 8px', fontSize: '18px', fontWeight: 'bold' }}
+                    title="Delete topic"
+                    onClick={() => handleDeleteTopic(topic._id)}
+                  >
+                    ×
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </Card>
+
           <Card className="p-3 mb-3">
             <Form>
               <Form.Group className="mb-2">
                 <Form.Label className="fw-bold">Share something with your class</Form.Label>
                 <Form.Control as="textarea" rows={3} value={message} onChange={(e) => setMessage(e.target.value)} placeholder="Announce something to your class" />
+              </Form.Group>
+              
+              {/* Topic selection */}
+              <Form.Group className="mb-2">
+                <Form.Label className="fw-bold">Topic (optional)</Form.Label>
+                <Form.Select 
+                  value={selectedTopic || ''} 
+                  onChange={(e) => setSelectedTopic(e.target.value || null)}
+                >
+                  <option value="">No topic</option>
+                  {topics.map(topic => (
+                    <option key={topic._id} value={topic._id}>{topic.name}</option>
+                  ))}
+                </Form.Select>
               </Form.Group>
               
               {/* File upload section */}
@@ -1567,7 +1753,20 @@ function TeacherClassStream() {
                 <Card.Body>
                   <div className="d-flex justify-content-between align-items-start">
                     <div>
-                      <div className="fw-bold">{a.teacher}</div>
+                      <div className="d-flex align-items-center gap-2">
+                        <div className="fw-bold">{a.teacher}</div>
+                        {a.topic && (
+                          <span 
+                            className="badge" 
+                            style={{ 
+                              backgroundColor: a.topic.color,
+                              fontSize: '0.75rem'
+                            }}
+                          >
+                            {a.topic.name}
+                          </span>
+                        )}
+                      </div>
                       <div className="text-muted" style={{ fontSize: 12 }}>{new Date(a.date).toLocaleString()}</div>
                     </div>
                     <div className="d-flex gap-2">
@@ -2401,6 +2600,67 @@ function TeacherClassStream() {
         onMaterialCreated={handleMaterialCreated}
         hideContent={activeTab !== 'materials'}
       />
+
+      {/* Topic Management Modal */}
+      <Modal show={showTopicModal} onHide={() => {
+        setShowTopicModal(false);
+        setEditingTopic(null);
+        setTopicData({ name: '', color: '#6c757d' });
+      }} centered>
+        <Modal.Header closeButton>
+          <Modal.Title>{editingTopic ? 'Edit Topic' : 'Create New Topic'}</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Form>
+            <Form.Group className="mb-3">
+              <Form.Label>Topic Name</Form.Label>
+              <Form.Control
+                type="text"
+                value={topicData.name}
+                onChange={(e) => setTopicData({ ...topicData, name: e.target.value })}
+                placeholder="e.g., Week 1, Assignments, Quizzes"
+                required
+              />
+            </Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Label>Color</Form.Label>
+              <div className="d-flex gap-2 align-items-center">
+                <Form.Control
+                  type="color"
+                  value={topicData.color}
+                  onChange={(e) => setTopicData({ ...topicData, color: e.target.value })}
+                  style={{ width: '60px', height: '40px' }}
+                />
+                <Form.Control
+                  type="text"
+                  value={topicData.color}
+                  onChange={(e) => setTopicData({ ...topicData, color: e.target.value })}
+                  placeholder="#6c757d"
+                />
+              </div>
+              <Form.Text className="text-muted">
+                Choose a color to identify this topic
+              </Form.Text>
+            </Form.Group>
+          </Form>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => {
+            setShowTopicModal(false);
+            setEditingTopic(null);
+            setTopicData({ name: '', color: '#6c757d' });
+          }}>
+            Cancel
+          </Button>
+          <Button 
+            variant="primary" 
+            onClick={editingTopic ? handleUpdateTopic : handleCreateTopic}
+            disabled={!topicData.name.trim()}
+          >
+            {editingTopic ? 'Update' : 'Create'}
+          </Button>
+        </Modal.Footer>
+      </Modal>
 
       {/* Exam Creation Modal */}
       <Modal

@@ -1003,6 +1003,11 @@ function StudentClassStream() {
   const [examGrades, setExamGrades] = useState([]);
   const [currentClass, setCurrentClass] = useState(null);
   const [showLeaveModal, setShowLeaveModal] = useState(false);
+  
+  // Topic filter state
+  const [topics, setTopics] = useState([]);
+  const [filterTopic, setFilterTopic] = useState(null);
+  
   const navigate = useNavigate();
 
   // Debug: Log when submittedExams changes
@@ -1072,7 +1077,8 @@ function StudentClassStream() {
         fetchAssignments(token),
         fetchExams(token),
         fetchMaterials(token),
-        fetchClassmates(token)
+        fetchClassmates(token),
+        fetchTopics(token)
       ]);
       
       // Always refresh submitted exams to ensure current state
@@ -1086,6 +1092,14 @@ function StudentClassStream() {
       setLoading(false);
     }
   };
+  
+  // Add useEffect to refetch announcements when filterTopic changes
+  useEffect(() => {
+    const token = getAuthToken();
+    if (token && filterTopic !== undefined) {
+      fetchAnnouncements(token);
+    }
+  }, [filterTopic]);
   
   // Handle file preview functionality
   const handleFilePreview = (fileUrl, fileName, fileType) => {
@@ -1120,12 +1134,24 @@ function StudentClassStream() {
 
   const fetchAnnouncements = async (token) => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/api/announcements?className=${encodeURIComponent(className)}`, {
+      const topicFilter = filterTopic ? `&topic=${filterTopic}` : '';
+      const response = await axios.get(`${API_BASE_URL}/api/announcements?className=${encodeURIComponent(className)}${topicFilter}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setAnnouncements(response.data);
     } catch (err) {
       console.error("Error fetching announcements:", err);
+    }
+  };
+
+  const fetchTopics = async (token) => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/api/topics?className=${encodeURIComponent(className)}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setTopics(response.data || []);
+    } catch (err) {
+      console.error("Error fetching topics:", err);
     }
   };
 
@@ -1535,6 +1561,37 @@ function StudentClassStream() {
             {/* Stream Tab */}
             <Tab eventKey="stream" title="Stream">
               <div className="stream-content">
+                {/* Topic filter */}
+                {topics.length > 0 && (
+                  <Card className="p-3 mb-3">
+                    <h6 className="mb-2">📁 Filter by Topic</h6>
+                    <div className="d-flex flex-wrap gap-2">
+                      <Button 
+                        variant={filterTopic === null ? "primary" : "outline-secondary"}
+                        size="sm"
+                        onClick={() => setFilterTopic(null)}
+                      >
+                        All
+                      </Button>
+                      {topics.map(topic => (
+                        <Button 
+                          key={topic._id}
+                          variant={filterTopic === topic._id ? "primary" : "outline-secondary"}
+                          size="sm"
+                          style={{ 
+                            borderColor: topic.color,
+                            backgroundColor: filterTopic === topic._id ? topic.color : 'transparent',
+                            color: filterTopic === topic._id ? '#fff' : topic.color
+                          }}
+                          onClick={() => setFilterTopic(filterTopic === topic._id ? null : topic._id)}
+                        >
+                          {topic.name}
+                        </Button>
+                      ))}
+                    </div>
+                  </Card>
+                )}
+                
                 {announcements.length === 0 ? (
                   <Card className="text-center p-4">
                     <p className="text-muted">No announcements yet</p>
@@ -1548,9 +1605,21 @@ function StudentClassStream() {
                                style={{ width: 40, height: 40 }}>
                             {announcement.teacher ? announcement.teacher[0].toUpperCase() : 'T'}
                           </div>
-                          <div>
-                            <strong>{announcement.teacher}</strong>
-                            <br />
+                          <div className="flex-grow-1">
+                            <div className="d-flex align-items-center gap-2">
+                              <strong>{announcement.teacher}</strong>
+                              {announcement.topic && (
+                                <span 
+                                  className="badge" 
+                                  style={{ 
+                                    backgroundColor: announcement.topic.color,
+                                    fontSize: '0.75rem'
+                                  }}
+                                >
+                                  {announcement.topic.name}
+                                </span>
+                              )}
+                            </div>
                             <small className="text-muted">{new Date(announcement.date).toLocaleString()}</small>
                           </div>
                         </div>

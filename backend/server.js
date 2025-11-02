@@ -64,11 +64,13 @@ import testNotificationsRoutes from "./routes/testNotifications.js";
 import uploadRoutes from "./routes/upload.js";
 import examsRoutes, { setupModels } from "./routes/exams.js";
 import reactionsRoutes from "./routes/reactions.js";
+import topicsRoutes from "./routes/topics.js";
 import { sendBulkAnnouncementEmails } from "./services/sendgridService.js";
 import Exam from "./models/Exam.js";
 import Notification from "./models/Notification.js";
 import User from "./models/User.js";
 import Class from "./models/Class.js";
+import Topic from "./models/Topic.js";
 
 // Fix __dirname for ES Modules
 const __filename = fileURLToPath(import.meta.url);
@@ -503,6 +505,7 @@ const AnnouncementSchema = new mongoose.Schema(
     message: String,
     examId: { type: mongoose.Schema.Types.ObjectId, ref: "Exam" },
     materialRef: { type: mongoose.Schema.Types.Mixed }, // Reference to material object
+    topic: { type: mongoose.Schema.Types.ObjectId, ref: "Topic" }, // Topic/folder for organization
     likes: { type: Number, default: 0 },
     attachments: [{
       filename: String,
@@ -1792,7 +1795,7 @@ app.post("/api/assignments", authenticateToken, requireTeacherOrAdmin, async (re
 // Get class-scoped announcements
 app.get("/api/announcements", authenticateToken, async (req, res) => {
   try {
-    const { page = 1, limit = 100, className } = req.query;
+    const { page = 1, limit = 100, className, topic } = req.query;
     const filter = {};
     
     if (req.user.role === "Teacher") {
@@ -1817,7 +1820,19 @@ app.get("/api/announcements", authenticateToken, async (req, res) => {
     
     if (className) filter.class = className;
     
+    // Filter by topic if provided
+    if (topic) {
+      if (topic === 'none') {
+        // Show announcements with no topic
+        filter.topic = null;
+      } else {
+        // Show announcements with specific topic
+        filter.topic = topic;
+      }
+    }
+    
     const announcements = await Announcement.find(filter)
+      .populate('topic') // Populate topic details
       .sort({ date: -1 }) // Sort by date, newest first
       .skip((page - 1) * limit)
       .limit(parseInt(limit));
@@ -1832,7 +1847,7 @@ app.get("/api/announcements", authenticateToken, async (req, res) => {
 // Changes: server will set teacher = req.user.username and date = now if not provided
 app.post("/api/announcements", authenticateToken, requireTeacherOrAdmin, async (req, res) => {
   try {
-    let { message, date, teacher, class: className, examId, attachments, materialRef } = req.body;
+    let { message, date, teacher, class: className, examId, attachments, materialRef, topic } = req.body;
 
     // Normalize className
     if (!message || !className) {
@@ -1855,6 +1870,14 @@ app.post("/api/announcements", authenticateToken, requireTeacherOrAdmin, async (
       return res.status(403).json({ error: "You are not authorized to post to this class" });
     }
 
+    // Validate topic if provided
+    if (topic) {
+      const topicExists = await Topic.findById(topic);
+      if (!topicExists || topicExists.class !== className) {
+        return res.status(400).json({ error: "Invalid topic for this class" });
+      }
+    }
+
     const announcement = new Announcement({ 
       message, 
       date, 
@@ -1863,7 +1886,8 @@ app.post("/api/announcements", authenticateToken, requireTeacherOrAdmin, async (
       examId: examId || null, 
       likes: 0,
       attachments: attachments || [],
-      materialRef
+      materialRef,
+      topic: topic || null
     });
     await announcement.save();
     
@@ -2398,6 +2422,7 @@ app.use("/api", notificationsRoutes);
 app.use("/api", testNotificationsRoutes);
 app.use("/api", uploadRoutes);
 app.use("/api", reactionsRoutes);
+app.use("/api/topics", topicsRoutes);
 app.use("/api/exams", examsRoutes);
 
 // Student: Submit exam answers
