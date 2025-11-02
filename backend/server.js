@@ -1173,7 +1173,7 @@ app.get("/api/admin/users", authenticateToken, requireAdmin, async (req, res) =>
   try {
     const { page = 1, limit = 100 } = req.query;
     const users = await User.find()
-      .select('name username email role profilePicture googleId') // Include googleId for sign-in tracking
+      .select('name username email role profilePicture picture googleId') // Include googleId and picture for Google sign-ins
       .skip((page - 1) * limit)
       .limit(parseInt(limit))
       .lean();
