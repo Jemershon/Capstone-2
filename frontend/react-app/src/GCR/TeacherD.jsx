@@ -3645,8 +3645,7 @@ function Grades() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showToast, setShowToast] = useState(false);
-  const [sortBy, setSortBy] = useState("finalScore"); // finalScore, submittedAt, student
-  const [sortOrder, setSortOrder] = useState("desc"); // desc, asc
+  // Removed sortBy and sortOrder state
   const [searchTerm, setSearchTerm] = useState("");
 
   const fetchLeaderboardData = useCallback(async () => {
@@ -3752,26 +3751,7 @@ function Grades() {
       );
     }
     
-    // Apply simple sorting
-    data.sort((a, b) => {
-      let aVal = a[sortBy];
-      let bVal = b[sortBy];
-      
-      // Handle different data types
-      if (sortBy === "finalScore") {
-        aVal = Number(aVal) || 0;
-        bVal = Number(bVal) || 0;
-      } else if (typeof aVal === "string") {
-        aVal = aVal.toLowerCase();
-        bVal = bVal.toLowerCase();
-      }
-      
-      if (sortOrder === "desc") {
-        return bVal > aVal ? 1 : bVal < aVal ? -1 : 0;
-      } else {
-        return aVal > bVal ? 1 : aVal < bVal ? -1 : 0;
-      }
-    });
+    // Sorting removed
     
     return data;
   };
@@ -3834,36 +3814,10 @@ function Grades() {
         </Toast>
       )}
 
-      {/* Controls */}
+      {/* Controls: Only search remains */}
       <Card className="mb-4">
         <Card.Body>
           <Row className="align-items-end">
-            <Col md={3} sm={6} className="mb-2">
-              <Form.Label className="fw-bold">Sort By</Form.Label>
-              <Form.Select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
-                size="sm"
-              >
-                <option value="finalScore">Score</option>
-                <option value="student">Name</option>
-                <option value="section">Section</option>
-                <option value="className">Class</option>
-              </Form.Select>
-            </Col>
-            
-            <Col md={3} sm={6} className="mb-2">
-              <Form.Label className="fw-bold">Order</Form.Label>
-              <Form.Select
-                value={sortOrder}
-                onChange={(e) => setSortOrder(e.target.value)}
-                size="sm"
-              >
-                <option value="desc">Highest First</option>
-                <option value="asc">Lowest First</option>
-              </Form.Select>
-            </Col>
-            
             <Col md={6} sm={12} className="mb-2">
               <Form.Label className="fw-bold">Search</Form.Label>
               <Form.Control
