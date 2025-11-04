@@ -1929,7 +1929,7 @@ function TeacherClassStream() {
           {/* Uploaded Files Section */}
           <div className="mb-4">
             <h5 className="mb-3">📎 Uploaded Files</h5>
-            {announcements.filter(a => a.attachments && a.attachments.length > 0 && (!filterTopic || a.topic === filterTopic)).length === 0 ? (
+            {announcements.filter(a => a.attachments && a.attachments.length > 0).length === 0 ? (
               <Card className="text-center p-4">
                 <p className="text-muted">No files uploaded yet. Upload files in the Stream tab to see them here.</p>
               </Card>
@@ -1937,7 +1937,7 @@ function TeacherClassStream() {
               <Card>
                 <Card.Body>
                   {announcements
-                    .filter(a => a.attachments && a.attachments.length > 0 && (!filterTopic || a.topic === filterTopic))
+                    .filter(a => a.attachments && a.attachments.length > 0)
                     .map((announcement, index) => (
                       <div key={announcement._id || index} className="mb-3">
                         <div className="d-flex align-items-center mb-2">
@@ -3715,7 +3715,8 @@ function Grades() {
     // Apply search filter
     if (searchTerm) {
       data = data.filter(item => 
-        item.student.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (item.student.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.studentName?.toLowerCase().includes(searchTerm.toLowerCase())) ||
         item.examTitle.toLowerCase().includes(searchTerm.toLowerCase()) ||
         item.className.toLowerCase().includes(searchTerm.toLowerCase()) ||
         item.section.toLowerCase().includes(searchTerm.toLowerCase())
@@ -3857,7 +3858,7 @@ function Grades() {
                         {index === 2 && " 🥉"}
                       </Badge>
                     </td>
-                    <td className="fw-bold">{submission.student}</td>
+                    <td className="fw-bold">{submission.studentName || submission.student}</td>
                     <td>
                       <Badge bg="info" className="small">
                         {submission.section}

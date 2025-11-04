@@ -2473,7 +2473,7 @@ app.get("/api/leaderboard", authenticateToken, requireTeacherOrAdmin, async (req
     // Get user data for student names and sections
     const studentUsernames = [...new Set(submissions.map(sub => sub.student))];
     const users = await User.find({ username: { $in: studentUsernames } })
-      .select("username email role section creditPoints");
+      .select("username name email role section creditPoints");
     
     // Create user lookup map
     const userMap = {};
@@ -2516,6 +2516,7 @@ app.get("/api/leaderboard", authenticateToken, requireTeacherOrAdmin, async (req
       return {
         _id: submission._id,
         student: studentUsername,
+        studentName: userMap[studentUsername]?.name || studentUsername,
         studentEmail: userMap[studentUsername]?.email || '',
         section: studentClass.section,
         creditPoints: userMap[studentUsername]?.creditPoints || 0,
