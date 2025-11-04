@@ -1028,6 +1028,16 @@ function StudentClassStream() {
   const [topics, setTopics] = useState([]);
   const [filterTopic, setFilterTopic] = useState(null);
   
+  // Material submission state
+  const [selectedMaterial, setSelectedMaterial] = useState(null);
+  const [showMaterialSubmissionModal, setShowMaterialSubmissionModal] = useState(false);
+  const [materialSubmissionFile, setMaterialSubmissionFile] = useState(null);
+  const [materialSubmissions, setMaterialSubmissions] = useState({});
+  const [submittingMaterial, setSubmittingMaterial] = useState(null);
+  
+  // Timer state for real-time countdown
+  const [timeRemaining, setTimeRemaining] = useState({});
+  
   const navigate = useNavigate();
   
   // Helper function to handle API errors gracefully for students
@@ -1132,6 +1142,47 @@ function StudentClassStream() {
       fetchAnnouncements(token);
     }
   }, [filterTopic]);
+
+  // Real-time exam timer countdown
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setTimeRemaining((prev) => {
+        const updated = { ...prev };
+        exams.forEach((exam) => {
+          if (exam.dueDate) {
+            const now = new Date().getTime();
+            const due = new Date(exam.dueDate).getTime();
+            const remaining = due - now;
+            
+            if (remaining > 0) {
+              const hours = Math.floor(remaining / (1000 * 60 * 60));
+              const minutes = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60));
+              const seconds = Math.floor((remaining % (1000 * 60)) / 1000);
+              
+              updated[exam._id] = {
+                total: remaining,
+                hours,
+                minutes,
+                seconds,
+                formatted: `${hours}h ${minutes}m ${seconds}s`
+              };
+            } else {
+              updated[exam._id] = {
+                total: 0,
+                hours: 0,
+                minutes: 0,
+                seconds: 0,
+                formatted: 'Expired'
+              };
+            }
+          }
+        });
+        return updated;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [exams]);
   
   // Handle file preview functionality
   const handleFilePreview = (fileUrl, fileName, fileType) => {
@@ -1217,8 +1268,75 @@ function StudentClassStream() {
         headers: { Authorization: `Bearer ${token}` }
       });
       setMaterials(response.data);
+      
+      // Fetch submissions for each material
+      const submissions = {};
+      for (const material of response.data) {
+        try {
+          const subRes = await axios.get(`${API_BASE_URL}/api/materials/${material._id}/my-submission`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          submissions[material._id] = subRes.data;
+        } catch (err) {
+          console.warn(`Failed to fetch submission for material ${material._id}:`, err);
+        }
+      }
+      setMaterialSubmissions(submissions);
     } catch (err) {
       console.error("Error fetching materials:", err);
+    }
+  };
+
+  const handleMaterialSubmit = async () => {
+    if (!selectedMaterial || !materialSubmissionFile) {
+      alert("Please select a file to submit");
+      return;
+    }
+
+    setSubmittingMaterial(selectedMaterial._id);
+    try {
+      const token = localStorage.getItem("token");
+      const formData = new FormData();
+      formData.append("file", materialSubmissionFile);
+      
+      // First upload the file
+      const uploadRes = await axios.post(`${API_BASE_URL}/api/upload`, formData, {
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "multipart/form-data"
+        }
+      });
+
+      if (!uploadRes.data.file) {
+        throw new Error("File upload failed");
+      }
+
+      // Then submit to material
+      const submitRes = await axios.post(
+        `${API_BASE_URL}/api/materials/${selectedMaterial._id}/submit`,
+        {
+          fileName: materialSubmissionFile.name,
+          filePath: uploadRes.data.file,
+          fileSize: materialSubmissionFile.size,
+          mimeType: materialSubmissionFile.type
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      setMaterialSubmissions({
+        ...materialSubmissions,
+        [selectedMaterial._id]: submitRes.data.submission
+      });
+
+      setShowMaterialSubmissionModal(false);
+      setMaterialSubmissionFile(null);
+      setSelectedMaterial(null);
+      alert("✅ Submission successful!");
+    } catch (err) {
+      console.error("Error submitting material:", err);
+      alert(`❌ Submission failed: ${err.response?.data?.error || err.message}`);
+    } finally {
+      setSubmittingMaterial(null);
     }
   };
 
@@ -1835,8 +1953,12 @@ function StudentClassStream() {
                                 {exam.questions?.length || 0} {(exam.questions?.length || 0) === 1 ? 'question' : 'questions'}
                               </Badge>
                               {exam.dueDate && (
-                                <Badge bg="warning">
-                                  Due: {new Date(exam.dueDate).toLocaleDateString()}
+                                <Badge 
+                                  bg={timeRemaining[exam._id]?.total > 0 && timeRemaining[exam._id]?.total < 300000 ? "danger" : "warning"}
+                                  className="d-flex align-items-center px-3 py-2"
+                                  style={{ fontSize: '0.875rem', fontFamily: 'monospace' }}
+                                >
+                                  ⏱️ {timeRemaining[exam._id]?.formatted || 'Loading...'}
                                 </Badge>
                               )}
                               {submittedExams.includes(exam._id) && (
@@ -1989,12 +2111,21 @@ function StudentClassStream() {
                           {material.description && (
                             <p className="text-muted small text-center">{material.description}</p>
                           )}
+                          
+                          {/* Submission Status */}
+                          {materialSubmissions[material._id] && (
+                            <div className="alert alert-success py-2 mb-2 small">
+                              <i className="bi bi-check-circle me-1"></i>
+                              Submitted on {new Date(materialSubmissions[material._id].submittedAt).toLocaleDateString()}
+                            </div>
+                          )}
+                          
                           {material.type === 'file' && (
-                            <div className="d-flex gap-2">
+                            <div className="d-flex gap-2 flex-column">
                               <Button
                                 variant="outline-primary"
                                 size="sm"
-                                className="flex-grow-1"
+                                className="w-100"
                                 onClick={() => handleFilePreview(
                                   material.content.startsWith('http') ? material.content : `${API_BASE_URL}/${material.content}`,
                                   material.title,
@@ -2006,7 +2137,7 @@ function StudentClassStream() {
                               <Button
                                 variant="outline-secondary"
                                 size="sm"
-                                className="flex-grow-1"
+                                className="w-100"
                                 as="a"
                                 href={material.content.startsWith('http') ? material.content : `${API_BASE_URL}/${material.content}`}
                                 target="_blank"
@@ -2014,19 +2145,47 @@ function StudentClassStream() {
                               >
                                 Download
                               </Button>
+                              <Button
+                                variant="outline-success"
+                                size="sm"
+                                className="w-100"
+                                onClick={() => {
+                                  setSelectedMaterial(material);
+                                  setShowMaterialSubmissionModal(true);
+                                }}
+                                disabled={submittingMaterial === material._id}
+                              >
+                                <i className="bi bi-upload me-1"></i>
+                                {submittingMaterial === material._id ? "Uploading..." : materialSubmissions[material._id] ? "Upload Again" : "Submit Response"}
+                              </Button>
                             </div>
                           )}
                           {(material.type === 'video' || material.type === 'link') && (
-                            <Button
-                              variant="outline-primary"
-                              size="sm"
-                              className="w-100"
-                              as="a"
-                              href={material.content}
-                              target="_blank"
-                            >
-                              Open
-                            </Button>
+                            <div className="d-flex gap-2 flex-column">
+                              <Button
+                                variant="outline-primary"
+                                size="sm"
+                                className="w-100"
+                                as="a"
+                                href={material.content}
+                                target="_blank"
+                              >
+                                Open
+                              </Button>
+                              <Button
+                                variant="outline-success"
+                                size="sm"
+                                className="w-100"
+                                onClick={() => {
+                                  setSelectedMaterial(material);
+                                  setShowMaterialSubmissionModal(true);
+                                }}
+                                disabled={submittingMaterial === material._id}
+                              >
+                                <i className="bi bi-upload me-1"></i>
+                                {submittingMaterial === material._id ? "Uploading..." : materialSubmissions[material._id] ? "Upload Again" : "Submit Response"}
+                              </Button>
+                            </div>
                           )}
                         </Card.Body>
                       </Card>
@@ -2073,6 +2232,42 @@ function StudentClassStream() {
           </Button>
           <Button variant="primary" onClick={handleSubmitAssignment}>
             Submit Assignment
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* Material Submission Modal */}
+      <Modal show={showMaterialSubmissionModal} onHide={() => { setShowMaterialSubmissionModal(false); setMaterialSubmissionFile(null); }} size="lg">
+        <Modal.Header closeButton>
+          <Modal.Title>Submit Response: {selectedMaterial?.title}</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Form>
+            <Form.Group className="mb-3">
+              <Form.Label>Upload Your File</Form.Label>
+              <Form.Control
+                type="file"
+                onChange={(e) => setMaterialSubmissionFile(e.target.files[0])}
+                accept="*/*"
+              />
+              {materialSubmissionFile && (
+                <small className="text-success">
+                  ✅ Selected: {materialSubmissionFile.name} ({(materialSubmissionFile.size / 1024 / 1024).toFixed(2)} MB)
+                </small>
+              )}
+            </Form.Group>
+          </Form>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => { setShowMaterialSubmissionModal(false); setMaterialSubmissionFile(null); }}>
+            Cancel
+          </Button>
+          <Button 
+            variant="success" 
+            onClick={handleMaterialSubmit}
+            disabled={!materialSubmissionFile || submittingMaterial === selectedMaterial?._id}
+          >
+            {submittingMaterial === selectedMaterial?._id ? "Uploading..." : "Submit"}
           </Button>
         </Modal.Footer>
       </Modal>
@@ -2186,9 +2381,22 @@ function StudentClassStream() {
       {/* Take Exam Modal */}
       <Modal show={showExamModal} onHide={() => setShowExamModal(false)} size="lg">
         <Modal.Header closeButton>
-          <Modal.Title>
-            {examSubmitted ? 'Exam Submitted' : `Take Exam: ${selectedExam?.title}`}
-          </Modal.Title>
+          <div className="w-100">
+            <Modal.Title>
+              {examSubmitted ? 'Exam Submitted' : `Take Exam: ${selectedExam?.title}`}
+            </Modal.Title>
+            {selectedExam && selectedExam.dueDate && !examSubmitted && (
+              <div className="mt-2">
+                <Badge 
+                  bg={timeRemaining[selectedExam._id]?.total > 0 && timeRemaining[selectedExam._id]?.total < 300000 ? "danger" : "warning"}
+                  className="d-flex align-items-center px-3 py-2"
+                  style={{ fontSize: '0.875rem', fontFamily: 'monospace', width: 'fit-content' }}
+                >
+                  ⏱️ Time Remaining: {timeRemaining[selectedExam._id]?.formatted || 'Loading...'}
+                </Badge>
+              </div>
+            )}
+          </div>
         </Modal.Header>
         <Modal.Body style={{ maxHeight: '70vh', overflowY: 'auto' }}>
           {selectedExam ? (

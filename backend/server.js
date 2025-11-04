@@ -2785,7 +2785,8 @@ setupModels({
 
 // Set up models for materials routes
 setupMaterialsModels({
-  Class
+  Class,
+  User
 });
 
 // Use route modules

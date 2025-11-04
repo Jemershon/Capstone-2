@@ -33,6 +33,12 @@ function Materials({ className, showCreateModal: externalShowCreateModal, onShow
   const [showToast, setShowToast] = useState(false);
   const [fileToUpload, setFileToUpload] = useState(null);
   
+  // Submission viewer state
+  const [selectedMaterialForSubmissions, setSelectedMaterialForSubmissions] = useState(null);
+  const [submissions, setSubmissions] = useState([]);
+  const [showSubmissionsModal, setShowSubmissionsModal] = useState(false);
+  const [loadingSubmissions, setLoadingSubmissions] = useState(false);
+  
   const fetchMaterials = useCallback(async () => {
     setLoading(true);
     try {
@@ -194,6 +200,26 @@ function Materials({ className, showCreateModal: externalShowCreateModal, onShow
       setShowToast(true);
     }
   };
+
+  const handleViewSubmissions = async (material) => {
+    setSelectedMaterialForSubmissions(material);
+    setLoadingSubmissions(true);
+    try {
+      const res = await retry(() =>
+        axios.get(`${API_BASE_URL}/api/materials/${material._id}/submissions`, {
+          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+        })
+      );
+      setSubmissions(res.data || []);
+      setShowSubmissionsModal(true);
+    } catch (err) {
+      console.error('Fetch submissions error:', err.response?.data || err.message);
+      setError(err.response?.data?.error || 'Failed to fetch submissions.');
+      setShowToast(true);
+    } finally {
+      setLoadingSubmissions(false);
+    }
+  };
   
   const handleFileChange = (e) => {
     setFileToUpload(e.target.files[0]);
@@ -272,10 +298,10 @@ function Materials({ className, showCreateModal: externalShowCreateModal, onShow
                         key={material._id}
                         className="d-flex justify-content-between align-items-center"
                       >
-                        <div>
+                        <div className="flex-grow-1">
                           <h5 className="mb-1">{material.title}</h5>
                           <div className="text-muted mb-1">{material.description}</div>
-                          <div className="d-flex align-items-center">
+                          <div className="d-flex align-items-center gap-2 flex-wrap">
                             <small className="text-muted me-2">
                               {new Date(material.createdAt).toLocaleDateString()}
                             </small>
@@ -285,7 +311,7 @@ function Materials({ className, showCreateModal: externalShowCreateModal, onShow
                                 href={material.content}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="btn btn-sm btn-outline-primary me-2"
+                                className="btn btn-sm btn-outline-primary"
                               >
                                 Open
                               </a>
@@ -294,11 +320,18 @@ function Materials({ className, showCreateModal: externalShowCreateModal, onShow
                                 href={material.content && material.content.startsWith('http') ? material.content : `${API_BASE_URL}/${material.content}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="btn btn-sm btn-outline-info w-100"
+                                className="btn btn-sm btn-outline-info"
                               >
                                 View
                               </a>
                             )}
+                            <Button
+                              variant="outline-success"
+                              size="sm"
+                              onClick={() => handleViewSubmissions(material)}
+                            >
+                              📥 Submissions
+                            </Button>
                       </div>
                     </div>
                     <Button
@@ -535,6 +568,84 @@ function Materials({ className, showCreateModal: externalShowCreateModal, onShow
             disabled={!materialData.title || (materialData.type !== 'file' && !materialData.content) || (materialData.type === 'file' && !fileToUpload)}
           >
             Add Material
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* Submissions Modal */}
+      <Modal show={showSubmissionsModal} onHide={() => setShowSubmissionsModal(false)} size="lg">
+        <Modal.Header closeButton>
+          <Modal.Title>Submissions for: {selectedMaterialForSubmissions?.title}</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {loadingSubmissions ? (
+            <div className="text-center">
+              <Spinner animation="border" role="status" />
+              <p className="mt-2">Loading submissions...</p>
+            </div>
+          ) : submissions.length === 0 ? (
+            <Alert variant="light" className="text-center">
+              No submissions yet.
+            </Alert>
+          ) : (
+            <div className="table-responsive">
+              <table className="table table-striped">
+                <thead>
+                  <tr>
+                    <th>Student</th>
+                    <th>File</th>
+                    <th>Submitted</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {submissions.map((sub) => (
+                    <tr key={sub._id}>
+                      <td>{sub.studentName || sub.student}</td>
+                      <td>
+                        <a 
+                          href={sub.filePath && sub.filePath.startsWith('http') ? sub.filePath : `${API_BASE_URL}/${sub.filePath}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-truncate d-block"
+                          title={sub.fileName}
+                        >
+                          {sub.fileName}
+                        </a>
+                      </td>
+                      <td>
+                        <small>{new Date(sub.submittedAt).toLocaleDateString()}</small>
+                      </td>
+                      <td>
+                        {sub.status === 'graded' ? (
+                          <span className="badge bg-success">Graded</span>
+                        ) : sub.status === 'returned' ? (
+                          <span className="badge bg-info">Returned</span>
+                        ) : (
+                          <span className="badge bg-warning">Submitted</span>
+                        )}
+                      </td>
+                      <td>
+                        <a 
+                          href={sub.filePath && sub.filePath.startsWith('http') ? sub.filePath : `${API_BASE_URL}/${sub.filePath}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="btn btn-sm btn-outline-primary"
+                        >
+                          View
+                        </a>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowSubmissionsModal(false)}>
+            Close
           </Button>
         </Modal.Footer>
       </Modal>
