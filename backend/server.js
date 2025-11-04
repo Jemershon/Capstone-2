@@ -532,6 +532,8 @@ const ExamSubmissionSchema = new mongoose.Schema(
     ],
     rawScore: Number,
     finalScore: Number,
+    // Teacher feedback for manual grading
+    feedback: { type: String, default: '' },
   // Whether this submission requires manual grading (captured at submission time)
   manualGrading: { type: Boolean, default: false },
   // Timestamp when a teacher graded this submission (used to disambiguate zero scores)
@@ -2708,22 +2710,27 @@ app.post("/api/exam-submissions", authenticateToken, async (req, res) => {
     }
 
     // Create notification for student about successful submission
-    try {
-      const notification = new Notification({
-        recipient: student,
-        sender: 'System',
-        type: 'grade',
-        message: `Exam "${exam.title}" submitted successfully! Score: ${finalScore}/${totalQuestions}`,
-        class: exam.class
-      });
-      await notification.save();
-      
-      // Send real-time notification to student
-      if (req.app.io) {
-        req.app.io.to(`user:${student}`).emit('new-notification', notification);
+    // ONLY if exam is NOT manual grading (if manual, student gets notified when teacher returns grade)
+    if (!exam.manualGrading) {
+      try {
+        const notification = new Notification({
+          recipient: student,
+          sender: 'System',
+          type: 'grade',
+          message: `Exam "${exam.title}" submitted successfully! Score: ${finalScore}/${totalQuestions}`,
+          class: exam.class
+        });
+        await notification.save();
+        
+        // Send real-time notification to student
+        if (req.app.io) {
+          req.app.io.to(`user:${student}`).emit('new-notification', notification);
+        }
+      } catch (notificationError) {
+        console.log("Notification creation failed, but continuing:", notificationError.message);
       }
-    } catch (notificationError) {
-      console.log("Notification creation failed, but continuing:", notificationError.message);
+    } else {
+      console.log(`📝 Manual grading exam - student will be notified when teacher returns grade`);
     }
 
     // Notify teacher about student submission
@@ -2787,7 +2794,7 @@ app.get("/api/exam-submissions/student", authenticateToken, async (req, res) => 
     
     const submissions = await ExamSubmission.find({ student })
       .populate('examId', 'title className due')
-      .select('examId submittedAt finalScore rawScore creditsUsed')
+      .select('examId submittedAt finalScore rawScore creditsUsed feedback totalQuestions returned')
       .sort({ submittedAt: -1 });
     
     res.json(submissions);

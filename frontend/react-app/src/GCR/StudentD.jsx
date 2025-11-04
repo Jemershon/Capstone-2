@@ -1003,6 +1003,8 @@ function StudentClassStream() {
   const [examGrades, setExamGrades] = useState([]);
   const [currentClass, setCurrentClass] = useState(null);
   const [showLeaveModal, setShowLeaveModal] = useState(false);
+  const [showResultModal, setShowResultModal] = useState(false);
+  const [selectedResult, setSelectedResult] = useState(null);
   
   // Topic filter state
   const [topics, setTopics] = useState([]);
@@ -1025,6 +1027,7 @@ function StudentClassStream() {
       // Always get the latest from the server
       const token = getAuthToken();
       if (token) {
+        console.log('🔄 Fetching submitted exams due to className change');
         fetchSubmittedExams(token).catch(err => 
           console.error('Error fetching submissions on className change:', err)
         );
@@ -1032,15 +1035,14 @@ function StudentClassStream() {
     }
   }, [className]);
 
-  // Fetch exam grades when exams are loaded
+  // Also fetch when component first mounts
   useEffect(() => {
-    if (exams.length > 0) {
-      const token = getAuthToken();
-      if (token) {
-        fetchSubmittedExams(token);
-      }
+    const token = getAuthToken();
+    if (token) {
+      console.log('🔄 Fetching submitted exams on initial mount');
+      fetchSubmittedExams(token);
     }
-  }, [exams]);
+  }, []); // Empty dependency - only on mount
 
   // Socket listener for real-time grade updates
   useEffect(() => {
@@ -1056,7 +1058,7 @@ function StudentClassStream() {
       console.log('Exam submitted event received, refreshing grades:', data);
       // Refresh exam grades when any exam is submitted
       const token = getAuthToken();
-      if (token && exams.length > 0) {
+      if (token) {
         fetchSubmittedExams(token);
       }
     });
@@ -1064,7 +1066,7 @@ function StudentClassStream() {
     return () => {
       socket.disconnect();
     };
-  }, [className, exams]);
+  }, [className]);
 
   const fetchClassData = async () => {
     setLoading(true);
@@ -1289,6 +1291,9 @@ function StudentClassStream() {
   const fetchSubmittedExams = async (token) => {
     try {
       console.log('📋 Fetching submitted exams for student');
+      console.log('📋 Current exams array:', exams);
+      console.log('📋 Current className:', className);
+      
       const response = await axios.get(`${API_BASE_URL}/api/exam-submissions/student`, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -1310,24 +1315,38 @@ function StudentClassStream() {
       setSubmittedExams(submittedIds);
       console.log('✅ submittedExams state updated to:', submittedIds);
       
-      // Filter submissions for current class and set exam grades
-      const classSubmissions = response.data.filter(submission => 
-        submission.examId && exams.some(exam => 
-          exam._id === submission.examId && exam.className === className
-        )
-      );
-      
-      // Combine with exam data for better display
-      const gradesWithExamInfo = classSubmissions.map(submission => {
-        const examInfo = exams.find(exam => exam._id === submission.examId);
+      // Store ALL submissions (not just current class) for the View Result button to work
+      // We'll filter by class when displaying the grades list, but View Result needs all submissions
+      console.log('📊 Processing all submissions for examGrades');
+      const gradesWithExamInfo = response.data.map(submission => {
+        const subExamId = typeof submission.examId === 'object' && submission.examId !== null 
+          ? submission.examId._id 
+          : submission.examId;
+        
+        console.log('🔍 Processing submission:', {
+          submissionId: submission._id,
+          examId: subExamId,
+          finalScore: submission.finalScore,
+          totalQuestions: submission.totalQuestions
+        });
+        
         return {
           ...submission,
-          examTitle: examInfo?.title || 'Unknown Exam',
-          examDue: examInfo?.due,
-          isLate: examInfo?.due ? new Date(submission.submittedAt) > new Date(examInfo.due) : false
+          _id: submission._id,
+          examId: subExamId, // Store the ID as string for easier comparison
+          examTitle: submission.examId?.title || 'Unknown Exam',
+          examDue: submission.examId?.due,
+          isLate: submission.examId?.due ? new Date(submission.submittedAt) > new Date(submission.examId.due) : false,
+          finalScore: submission.finalScore,
+          totalQuestions: submission.totalQuestions || 0,
+          feedback: submission.feedback || '',
+          returned: submission.returned || false,
+          creditsUsed: submission.creditsUsed || 0,
+          submittedAt: submission.submittedAt
         };
       }).sort((a, b) => new Date(b.submittedAt) - new Date(a.submittedAt)); // Sort by newest first
       
+      console.log('📊 Grades with exam info (final - ALL submissions):', gradesWithExamInfo);
       setExamGrades(gradesWithExamInfo);
     } catch (err) {
       console.error("Error fetching submitted exams:", err);
@@ -1827,7 +1846,7 @@ function StudentClassStream() {
                               )}
                             </div>
                             {submittedExams.includes(exam._id) ? (
-                              <div className="d-flex align-items-center">
+                              <div className="d-flex align-items-center gap-2">
                                 <Badge 
                                   bg="success" 
                                   className="d-flex align-items-center px-3 py-2"
@@ -1836,6 +1855,42 @@ function StudentClassStream() {
                                   <i className="bi bi-check-circle-fill me-2"></i>
                                   Exam Taken
                                 </Badge>
+                                <Button
+                                  variant="outline-primary"
+                                  size="sm"
+                                  onClick={() => {
+                                    console.log('🔍 View Result clicked for exam:', exam._id, exam.title);
+                                    console.log('📊 All examGrades:', examGrades);
+                                    console.log('📊 examGrades IDs:', examGrades.map(g => ({
+                                      examId: g.examId,
+                                      examTitle: g.examTitle,
+                                      finalScore: g.finalScore
+                                    })));
+                                    
+                                    const result = examGrades.find(g => {
+                                      console.log('  Comparing:', g.examId, '===', exam._id, '?', g.examId === exam._id);
+                                      return g.examId === exam._id;
+                                    });
+                                    
+                                    console.log('✅ Found result:', result);
+                                    
+                                    if (result) {
+                                      setSelectedResult(result);
+                                    } else {
+                                      setSelectedResult({ 
+                                        examTitle: exam.title, 
+                                        finalScore: 'Pending', 
+                                        feedback: 'Your exam is being graded. You will be notified when the results are available.',
+                                        totalQuestions: exam.questions?.length || 0,
+                                        returned: false
+                                      });
+                                    }
+                                    setShowResultModal(true);
+                                  }}
+                                >
+                                  <i className="bi bi-eye me-1"></i>
+                                  View Result
+                                </Button>
                               </div>
                             ) : (
                               <div className="d-flex align-items-center">
@@ -2244,16 +2299,14 @@ function StudentClassStream() {
           )}
         </Modal.Footer>
       </Modal>
-    </Container>
-  );
 
-  {/* File Preview Modal */}
-  <Modal 
-    show={showFilePreview} 
-    onHide={() => setShowFilePreview(false)} 
-    size="lg"
-    centered
-  >
+      {/* File Preview Modal */}
+      <Modal 
+        show={showFilePreview} 
+        onHide={() => setShowFilePreview(false)} 
+        size="lg"
+        centered
+      >
     <Modal.Header closeButton>
       <Modal.Title>{previewFile?.name || 'File Preview'}</Modal.Title>
     </Modal.Header>
@@ -2384,6 +2437,91 @@ function StudentClassStream() {
       </Button>
     </Modal.Footer>
   </Modal>
+
+  {/* Exam Result Modal */}
+  <Modal 
+    show={showResultModal} 
+    onHide={() => setShowResultModal(false)} 
+    centered
+    size="lg"
+  >
+    <Modal.Header closeButton>
+      <Modal.Title>Exam Result</Modal.Title>
+    </Modal.Header>
+    <Modal.Body>
+      {console.log('🎯 Modal opened with selectedResult:', selectedResult)}
+      {selectedResult ? (
+        <div>
+          <h5 className="mb-3">{selectedResult.examTitle || 'No Title'}</h5>
+          
+          {selectedResult.finalScore !== 'Pending' && selectedResult.finalScore !== undefined ? (
+            <>
+              <div className="d-flex justify-content-between align-items-center p-3 bg-light rounded mb-3">
+                <div>
+                  <h6 className="mb-0">Your Score</h6>
+                  <small className="text-muted">
+                    {selectedResult.creditsUsed > 0 && (
+                      <>Raw Score: {selectedResult.rawScore}/{selectedResult.totalQuestions}<br /></>
+                    )}
+                  </small>
+                </div>
+                <h2 className="mb-0">
+                  <Badge bg={selectedResult.finalScore >= selectedResult.totalQuestions * 0.9 ? 'success' : selectedResult.finalScore >= selectedResult.totalQuestions * 0.7 ? 'warning' : 'danger'}>
+                    {selectedResult.finalScore}/{selectedResult.totalQuestions}
+                  </Badge>
+                </h2>
+              </div>
+
+              {selectedResult.creditsUsed > 0 && (
+                <Alert variant="info">
+                  <i className="bi bi-star-fill me-2"></i>
+                  You used {selectedResult.creditsUsed} credit point{selectedResult.creditsUsed !== 1 ? 's' : ''} to improve your score!
+                </Alert>
+              )}
+
+              {selectedResult.feedback && (
+                <div className="mt-3">
+                  <h6>Teacher Feedback</h6>
+                  <div className="p-3 bg-light rounded" style={{ whiteSpace: 'pre-wrap' }}>
+                    {selectedResult.feedback}
+                  </div>
+                </div>
+              )}
+
+              <div className="mt-3">
+                <small className="text-muted">
+                  Submitted: {new Date(selectedResult.submittedAt).toLocaleString()}
+                  {selectedResult.isLate && <Badge bg="warning" className="ms-2">Late Submission</Badge>}
+                </small>
+              </div>
+            </>
+          ) : (
+            <Alert variant="info">
+              <i className="bi bi-clock-history me-2"></i>
+              {selectedResult.feedback || 'Your exam is being graded. You will be notified when the results are available.'}
+            </Alert>
+          )}
+        </div>
+      ) : (
+        <div>
+          <Alert variant="warning">
+            <i className="bi bi-exclamation-triangle me-2"></i>
+            No result data available. Please try refreshing the page.
+          </Alert>
+          <div className="text-muted small">
+            Debug info: selectedResult is {typeof selectedResult}
+          </div>
+        </div>
+      )}
+    </Modal.Body>
+    <Modal.Footer>
+      <Button variant="secondary" onClick={() => setShowResultModal(false)}>
+        Close
+      </Button>
+    </Modal.Footer>
+  </Modal>
+    </Container>
+  );
 }
 
 // ================= Student Grades =================

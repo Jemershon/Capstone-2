@@ -275,6 +275,7 @@ router.post('/manual/:examId/submissions/:submissionId/return', authenticateToke
 
       // Emit socket events if available
       if (req.app.io) {
+        console.log(`[Return Grade] Emitting to room: user:${submission.student}, teacher: ${req.user.username}`);
         req.app.io.to(`user:${submission.student}`).emit('grade-returned', {
           examId: exam._id,
           examTitle: exam.title,
@@ -285,7 +286,8 @@ router.post('/manual/:examId/submissions/:submissionId/return', authenticateToke
           type: 'grade',
           message: notif.message,
           class: exam.class,
-          sender: req.user.username
+          sender: req.user.username,
+          recipient: submission.student
         });
       }
     } catch (notifErr) {

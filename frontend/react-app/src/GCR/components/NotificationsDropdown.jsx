@@ -73,6 +73,16 @@ function NotificationsDropdown({ inNavbar = false, mobileMode = false }) {
 
       // Attach listener for new notifications
       const onNewNotification = (notification) => {
+        console.log('[NotificationsDropdown] Received notification via socket:', notification);
+        console.log('[NotificationsDropdown] Current user from token:', token ? JSON.parse(atob(token.split('.')[1])) : 'No token');
+        
+        // Safety check: Don't show notifications where current user is the sender
+        const currentUser = token ? JSON.parse(atob(token.split('.')[1])).username : null;
+        if (notification.sender && currentUser && notification.sender === currentUser) {
+          console.log('[NotificationsDropdown] Ignoring notification from self:', notification.sender);
+          return;
+        }
+        
         setNotifications(prev => [notification, ...prev.slice(0, 4)]);
         setUnreadCount(prev => prev + 1);
         if ('Notification' in window && Notification.permission === 'granted') {
