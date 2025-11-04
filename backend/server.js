@@ -211,8 +211,8 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 
-// Ensure uploads directory exists (only in development)
-if (NODE_ENV === 'development') {
+// Ensure uploads directory exists (both dev and production for local fallback)
+const setupUploadsDirectory = () => {
   const uploadsDir = path.join(__dirname, "uploads");
   const subdirs = ['materials', 'assignments', 'profiles'];
   
@@ -231,55 +231,32 @@ if (NODE_ENV === 'development') {
       }
     });
     
+    // Serve /uploads in both dev and production
     app.use("/uploads", express.static(uploadsDir, {
       setHeaders: (res, path) => {
-        // Check if this is a download request (has download query parameter)
         const isDownload = res.req && res.req.url && res.req.url.includes('?download=true');
-        
-        if (isDownload) {
-          // Force download
-          res.setHeader('Content-Disposition', 'attachment');
-        } else {
-          // Allow inline viewing
-          res.setHeader('Content-Disposition', 'inline');
-        }
-        
-        // Allow files to be viewed in browser 
+        res.setHeader('Content-Disposition', isDownload ? 'attachment' : 'inline');
         res.setHeader('X-Frame-Options', 'SAMEORIGIN');
-        // Add CORS headers for file access
         res.setHeader('Access-Control-Allow-Origin', '*');
         res.setHeader('Access-Control-Allow-Methods', 'GET');
         res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
       }
     }));
-    console.debug("Serving static files locally (development mode)");
+    
+    console.log(`✅ Serving static files from ${uploadsDir}`);
+    return true;
   } catch (error) {
-    console.warn("⚠️ Could not create uploads directory:", error.message);
-    console.warn("⚠️ File uploads may not work locally");
+    console.error("❌ Could not set up uploads directory:", error.message);
+    return false;
   }
+};
+
+setupUploadsDirectory();
+
+if (NODE_ENV === 'production') {
+  console.log("ℹ️ Production mode: Cloudinary is preferred for file persistence. Set CLOUDINARY_* env vars to use it.");
 } else {
-  console.log("ℹ️ Production mode: Using Cloudinary for file storage");
-  // Also serve local uploads if present (backward compatible) so files remain accessible
-  try {
-    const uploadsDir = path.join(__dirname, "uploads");
-    if (fs.existsSync(uploadsDir)) {
-      app.use("/uploads", express.static(uploadsDir, {
-        setHeaders: (res, path) => {
-          const isDownload = res.req && res.req.url && res.req.url.includes('?download=true');
-          res.setHeader('Content-Disposition', isDownload ? 'attachment' : 'inline');
-          res.setHeader('X-Frame-Options', 'SAMEORIGIN');
-          res.setHeader('Access-Control-Allow-Origin', '*');
-          res.setHeader('Access-Control-Allow-Methods', 'GET');
-          res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
-        }
-      }));
-      console.debug("Serving static files in production (uploads directory detected)");
-    } else {
-      console.debug("No local uploads directory in production; relying on Cloudinary URLs");
-    }
-  } catch (error) {
-    console.warn("⚠️ Could not configure uploads static in production:", error.message);
-  }
+  console.debug("Development mode: Using local file storage");
 }
 
 // Security headers
