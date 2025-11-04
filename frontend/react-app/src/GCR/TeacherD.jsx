@@ -1503,12 +1503,28 @@ function TeacherClassStream() {
     
     setPosting(true);
     try {
-      console.log("Creating exam with data:", { ...examData, class: className });
+      // Prepare exam data - ensure due date preserves local time
+      const examPayload = { 
+        ...examData, 
+        class: className, 
+        createdBy: localStorage.getItem("username")
+      };
+      
+      // If due date is provided, ensure it's sent in the correct format
+      // datetime-local gives us "YYYY-MM-DDTHH:mm" which we need to treat as local time
+      if (examData.due) {
+        // Append seconds to make it a complete datetime
+        examPayload.due = examData.due.includes(':') && examData.due.split(':').length === 2 
+          ? `${examData.due}:00` 
+          : examData.due;
+      }
+      
+      console.log("Creating exam with data:", examPayload);
       
       const createRes = await retry(() =>
         axios.post(
           `${API_BASE_URL}/api/exams`,
-          { ...examData, class: className, createdBy: localStorage.getItem("username") },
+          examPayload,
           { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
         )
       );

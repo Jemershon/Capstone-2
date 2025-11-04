@@ -421,13 +421,22 @@ router.post('/', authenticateToken, requireTeacherOrAdmin, async (req, res) => {
     
     console.log(`Creating exam "${title}" for class "${className}" with due date: ${due}`);
     
+    // Parse the due date correctly - datetime-local sends YYYY-MM-DDTHH:mm or YYYY-MM-DDTHH:mm:ss
+    // We want to preserve this as the exact local time without timezone conversion
+    let dueDate = null;
+    if (due) {
+      // If the due string doesn't have timezone info, treat it as local time
+      dueDate = new Date(due);
+      console.log(`Parsed due date: ${dueDate.toISOString()} (from input: ${due})`);
+    }
+    
     const exam = new Exam({
       title,
       description,
       class: className,
       questions,
       createdBy: createdBy || req.user.username,
-      due: due ? new Date(due) : null,
+      due: dueDate,
       manualGrading: !!manualGrading,
     });
     
@@ -525,9 +534,15 @@ router.put('/:id', authenticateToken, requireTeacherOrAdmin, async (req, res) =>
     exam.title = title;
     exam.description = description;
     exam.questions = questions;
-    exam.due = due ? new Date(due) : null;
     
-    console.log(`Updating exam ${req.params.id} with due date: ${exam.due}`);
+    // Parse the due date correctly - preserve local time
+    if (due) {
+      exam.due = new Date(due);
+      console.log(`Updating exam ${req.params.id} with due date: ${exam.due.toISOString()} (from input: ${due})`);
+    } else {
+      exam.due = null;
+      console.log(`Updating exam ${req.params.id} - due date cleared`);
+    }
     
     // Keep the class field as is - don't change it during updates
     // This prevents issues if the frontend sends a different value
