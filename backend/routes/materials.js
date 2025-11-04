@@ -167,6 +167,13 @@ router.post("/materials/:materialId/submit", authenticateToken, async (req, res)
     const { materialId } = req.params;
     const { fileName, filePath, fileSize, mimeType } = req.body;
 
+    console.log('📤 Material submission request:', { 
+      materialId, 
+      student: req.user.username,
+      fileName, 
+      filePath: filePath?.substring(0, 50) 
+    });
+
     if (!fileName || !filePath) {
       return res.status(400).json({ error: "fileName and filePath are required" });
     }
@@ -174,18 +181,26 @@ router.post("/materials/:materialId/submit", authenticateToken, async (req, res)
     // Find the material
     const material = await Material.findById(materialId);
     if (!material) {
+      console.error('❌ Material not found:', materialId);
       return res.status(404).json({ error: "Material not found" });
     }
 
+    console.log('✅ Material found:', material.title);
+
     // Get student name from User model
     let studentName = req.user.username;
-    try {
-      const user = await User.findOne({ username: req.user.username });
-      if (user && user.name) {
-        studentName = user.name;
+    if (!User) {
+      console.error('❌ User model not initialized! Using username as fallback.');
+    } else {
+      try {
+        const user = await User.findOne({ username: req.user.username });
+        if (user && user.name) {
+          studentName = user.name;
+          console.log('✅ Student name resolved:', studentName);
+        }
+      } catch (err) {
+        console.warn("Failed to fetch student name:", err);
       }
-    } catch (err) {
-      console.warn("Failed to fetch student name:", err);
     }
 
     // Create submission
@@ -196,12 +211,14 @@ router.post("/materials/:materialId/submit", authenticateToken, async (req, res)
       studentName: studentName,
       fileName,
       filePath,
-      fileSize,
-      mimeType,
+      fileSize: fileSize || 0,
+      mimeType: mimeType || 'application/octet-stream',
       status: "submitted"
     });
 
+    console.log('💾 Saving submission...');
     await submission.save();
+    console.log('✅ Submission saved successfully');
 
     // Notify teacher about the submission
     try {
@@ -236,8 +253,12 @@ router.post("/materials/:materialId/submit", authenticateToken, async (req, res)
       submission 
     });
   } catch (err) {
-    console.error("Create material submission error:", err);
-    res.status(500).json({ error: "Failed to submit material response" });
+    console.error("❌ Create material submission error:", err);
+    console.error("Error stack:", err.stack);
+    res.status(500).json({ 
+      error: "Failed to submit material response",
+      details: process.env.NODE_ENV === 'development' ? err.message : undefined
+    });
   }
 });
 
