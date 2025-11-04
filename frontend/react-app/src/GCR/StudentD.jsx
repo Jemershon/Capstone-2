@@ -538,6 +538,18 @@ function StudentMainDashboard() {
   const [showToast, setShowToast] = useState(false);
   const [joinCode, setJoinCode] = useState("");
   const [showJoinModal, setShowJoinModal] = useState(false);
+  
+  // Helper function to handle API errors gracefully for students
+  const handleApiError = (err, fallbackMessage = "An error occurred") => {
+    // Don't show permission errors to students - they're not relevant
+    if (err.response?.status === 403 && err.response?.data?.error?.includes("Teacher or Admin")) {
+      console.warn("Permission error silently ignored for student:", err.response.data.error);
+      return null; // Return null to indicate error should be ignored
+    }
+    
+    // For other errors, return the error message
+    return err.response?.data?.error || fallbackMessage;
+  };
   const [showUnenrollModal, setShowUnenrollModal] = useState(false);
   const [selectedClassToUnenroll, setSelectedClassToUnenroll] = useState(null);
   const [showStatsModal, setShowStatsModal] = useState(false);
@@ -605,8 +617,11 @@ function StudentMainDashboard() {
       setShowToast(true);
     } catch (err) {
       console.error("Join class error:", err);
-      setError(err.response?.data?.error || "Failed to join class. Please check the code.");
-      setShowToast(true);
+      const errorMsg = handleApiError(err, "Failed to join class. Please check the code.");
+      if (errorMsg) {
+        setError(errorMsg);
+        setShowToast(true);
+      }
     }
   };
 
@@ -662,8 +677,11 @@ function StudentMainDashboard() {
         setError(`Class removed from your view`);
         setShowToast(true);
       } else {
-        setError(err.response?.data?.error || "Failed to leave class. Please try again.");
-        setShowToast(true);
+        const errorMsg = handleApiError(err, "Failed to leave class. Please try again.");
+        if (errorMsg) {
+          setError(errorMsg);
+          setShowToast(true);
+        }
       }
     }
   };
@@ -1011,6 +1029,18 @@ function StudentClassStream() {
   const [filterTopic, setFilterTopic] = useState(null);
   
   const navigate = useNavigate();
+  
+  // Helper function to handle API errors gracefully for students
+  const handleApiError = (err, fallbackMessage = "An error occurred") => {
+    // Don't show permission errors to students - they're not relevant
+    if (err.response?.status === 403 && err.response?.data?.error?.includes("Teacher or Admin")) {
+      console.warn("Permission error silently ignored for student:", err.response.data.error);
+      return null; // Return null to indicate error should be ignored
+    }
+    
+    // For other errors, return the error message
+    return err.response?.data?.error || fallbackMessage;
+  };
 
   // Debug: Log when submittedExams changes
   useEffect(() => {
@@ -2531,6 +2561,17 @@ function StudentGrades() {
   const [error, setError] = useState("");
   const [showToast, setShowToast] = useState(false);
   
+  // Helper function to handle API errors gracefully for students
+  const handleApiError = (err, fallbackMessage = "An error occurred") => {
+    // Don't show permission errors to students - they're not relevant
+    if (err.response?.status === 403 && err.response?.data?.error?.includes("Teacher or Admin")) {
+      console.warn("Permission error silently ignored for student:", err.response.data.error);
+      return null; // Return null to indicate error should be ignored
+    }
+    
+    // For other errors, return the error message
+    return err.response?.data?.error || fallbackMessage;
+  };
 
   useEffect(() => {
     fetchGrades();
@@ -2548,8 +2589,11 @@ function StudentGrades() {
       
     } catch (err) {
       console.error("Error fetching grades:", err);
-      setError(err.response?.data?.error || "Failed to fetch grades");
-      setShowToast(true);
+      const errorMsg = handleApiError(err, "Failed to fetch grades");
+      if (errorMsg) {
+        setError(errorMsg);
+        setShowToast(true);
+      }
     } finally {
       setLoading(false);
     }
@@ -2644,8 +2688,22 @@ function StudentProfile() {
     totalMaterials: 0,
     totalExams: 0
   });
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deletePassword, setDeletePassword] = useState("");
 
   const navigate = useNavigate();
+  
+  // Helper function to handle API errors gracefully for students
+  const handleApiError = (err, fallbackMessage = "An error occurred") => {
+    // Don't show permission errors to students - they're not relevant
+    if (err.response?.status === 403 && err.response?.data?.error?.includes("Teacher or Admin")) {
+      console.warn("Permission error silently ignored for student:", err.response.data.error);
+      return null; // Return null to indicate error should be ignored
+    }
+    
+    // For other errors, return the error message
+    return err.response?.data?.error || fallbackMessage;
+  };
 
   useEffect(() => {
     fetchProfile();
@@ -2662,8 +2720,11 @@ function StudentProfile() {
       setProfile(response.data);
     } catch (err) {
       console.error("Error fetching profile:", err);
-      setError(err.response?.data?.error || "Failed to load profile");
-      setShowToast(true);
+      const errorMsg = handleApiError(err, "Failed to load profile");
+      if (errorMsg) {
+        setError(errorMsg);
+        setShowToast(true);
+      }
     } finally {
       setLoading(false);
     }
@@ -2747,8 +2808,69 @@ function StudentProfile() {
       setShowToast(true);
     } catch (err) {
       console.error("Error updating profile:", err);
-      setError(err.response?.data?.error || "Failed to update profile");
+      const errorMsg = handleApiError(err, "Failed to update profile");
+      if (errorMsg) {
+        setError(errorMsg);
+        setShowToast(true);
+      }
+    }
+  };
+
+  const handleCleanupData = async () => {
+    if (!confirm("This will remove any orphaned or stale data from your account (like notifications from deleted classes). Continue?")) {
+      return;
+    }
+    
+    try {
+      const token = getAuthToken();
+      const response = await axios.post(`${API_BASE_URL}/api/cleanup-my-data`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      setSuccessMessage(response.data.message);
       setShowToast(true);
+      
+      // Refresh profile and stats after cleanup
+      await fetchProfile();
+      await fetchStats();
+    } catch (err) {
+      console.error("Error cleaning up data:", err);
+      const errorMsg = handleApiError(err, "Failed to clean up data");
+      if (errorMsg) {
+        setError(errorMsg);
+        setShowToast(true);
+      }
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!deletePassword) {
+      setError("Please enter your password to confirm deletion");
+      setShowToast(true);
+      return;
+    }
+    
+    try {
+      const token = getAuthToken();
+      const response = await axios.delete(`${API_BASE_URL}/api/delete-account`, {
+        headers: { Authorization: `Bearer ${token}` },
+        data: { password: deletePassword }
+      });
+      
+      // Clear all auth data
+      clearAuthData();
+      
+      // Show success message
+      alert(response.data.message + "\n\nYou will now be redirected to the login page.");
+      
+      // Redirect to home page
+      navigate('/');
+    } catch (err) {
+      console.error("Error deleting account:", err);
+      const errorMsg = err.response?.data?.error || "Failed to delete account";
+      setError(errorMsg);
+      setShowToast(true);
+      setDeletePassword("");
     }
   };
 
@@ -2894,6 +3016,56 @@ function StudentProfile() {
         </Col>
       </Row>
 
+      {/* Maintenance & Settings Section */}
+      <Row>
+        <Col lg={12} className="mb-4">
+          <Card className="modern-card">
+            <Card.Header className="modern-card-header">
+              <h5 className="mb-0">
+                <i className="bi bi-tools me-2"></i>Account Maintenance
+              </h5>
+            </Card.Header>
+            <Card.Body>
+              <div className="d-flex justify-content-between align-items-center mb-3 pb-3 border-bottom">
+                <div>
+                  <h6 className="mb-1">Clean Up Stale Data</h6>
+                  <small className="text-muted">
+                    Remove orphaned notifications, assignments from deleted classes, and other stale data.
+                  </small>
+                </div>
+                <Button 
+                  variant="outline-primary" 
+                  size="sm" 
+                  onClick={handleCleanupData}
+                  className="ms-3"
+                >
+                  <i className="bi bi-trash me-1"></i>
+                  Clean Up
+                </Button>
+              </div>
+              
+              <div className="d-flex justify-content-between align-items-center">
+                <div>
+                  <h6 className="mb-1 text-danger">Delete Account</h6>
+                  <small className="text-muted">
+                    Permanently delete your account and all associated data. You can reuse the same username later.
+                  </small>
+                </div>
+                <Button 
+                  variant="outline-danger" 
+                  size="sm" 
+                  onClick={() => setShowDeleteModal(true)}
+                  className="ms-3"
+                >
+                  <i className="bi bi-exclamation-triangle me-1"></i>
+                  Delete Account
+                </Button>
+              </div>
+            </Card.Body>
+          </Card>
+        </Col>
+      </Row>
+
       {/* Quick Actions removed to match Teacher profile; Settings button moved to profile header */}
 
       {/* Edit Profile Modal */}
@@ -2932,6 +3104,63 @@ function StudentProfile() {
           <Button className="btn-modern-primary" onClick={handleSaveProfile}>
             <i className="bi bi-check-circle me-2"></i>
             Save Changes
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* Delete Account Confirmation Modal */}
+      <Modal show={showDeleteModal} onHide={() => { setShowDeleteModal(false); setDeletePassword(''); }} centered>
+        <Modal.Header closeButton className="border-0 bg-danger text-white">
+          <Modal.Title>
+            <i className="bi bi-exclamation-triangle me-2"></i>
+            Delete Account
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <div className="text-center py-3">
+            <i className="bi bi-exclamation-octagon text-danger" style={{ fontSize: '3rem' }}></i>
+            <h5 className="mt-3 mb-2 text-danger">⚠️ Warning: This Action Cannot Be Undone</h5>
+            <p className="text-muted mb-3">
+              Deleting your account will permanently remove:
+            </p>
+            <ul className="text-start text-muted mb-3">
+              <li>All your class memberships and data</li>
+              <li>All exam submissions and grades</li>
+              <li>All assignments and materials</li>
+              <li>All notifications and comments</li>
+              <li>Your entire profile and settings</li>
+            </ul>
+            <p className="text-muted mb-4">
+              <strong>Note:</strong> Your username will become available for reuse after deletion.
+            </p>
+            <Form.Group className="mb-3">
+              <Form.Label className="text-start d-block">
+                <strong>Enter your password to confirm deletion:</strong>
+              </Form.Label>
+              <Form.Control
+                type="password"
+                value={deletePassword}
+                onChange={(e) => setDeletePassword(e.target.value)}
+                placeholder="Enter your password"
+                autoFocus
+              />
+            </Form.Group>
+          </div>
+        </Modal.Body>
+        <Modal.Footer className="border-0">
+          <Button 
+            variant="outline-secondary" 
+            onClick={() => { setShowDeleteModal(false); setDeletePassword(''); }}
+          >
+            Cancel
+          </Button>
+          <Button 
+            variant="danger" 
+            onClick={handleDeleteAccount}
+            disabled={!deletePassword.trim()}
+          >
+            <i className="bi bi-trash me-2"></i>
+            Yes, Delete My Account
           </Button>
         </Modal.Footer>
       </Modal>

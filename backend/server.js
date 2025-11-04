@@ -586,7 +586,17 @@ async function generateUniqueClassCode(attempts = 5, length = 6) {
 
 
 // Seed data endpoint
+// Seed database with sample data (DEVELOPMENT ONLY - DISABLED IN PRODUCTION)
 app.post("/api/seed", async (req, res) => {
+  // Prevent accidental seeding in production
+  if (NODE_ENV === 'production') {
+    return res.status(403).json({ 
+      error: "Seed endpoint is disabled in production for security reasons" 
+    });
+  }
+  
+  console.warn("⚠️ SEEDING DATABASE - This will delete all existing data!");
+  
   try {
     await User.deleteMany({});
     await Class.deleteMany({});
@@ -711,9 +721,25 @@ app.post("/api/seed", async (req, res) => {
 app.post("/api/register", async (req, res) => {
   try {
     const { name, username, email, password, role } = req.body;
+    console.log("Registration attempt:", { username, role, hasPassword: !!password });
+    
     // Email is now optional because users can sign up with Google
-    if (!name || !username || !password || !["Student", "Teacher"].includes(role)) {
-      return res.status(400).json({ error: "Invalid input data" });
+    if (!name || !username || !password) {
+      return res.status(400).json({ error: "Name, username, and password are required" });
+    }
+    
+    // Normalize role to proper case (Student/Teacher)
+    let normalizedRole = role;
+    if (role && typeof role === 'string') {
+      const roleLower = role.toLowerCase();
+      if (roleLower === 'student') normalizedRole = 'Student';
+      else if (roleLower === 'teacher') normalizedRole = 'Teacher';
+    }
+    
+    // Validate role
+    if (!normalizedRole || !["Student", "Teacher"].includes(normalizedRole)) {
+      console.warn("Invalid role provided:", role, "normalized to:", normalizedRole);
+      return res.status(400).json({ error: "Invalid role. Must be Student or Teacher." });
     }
 
     // Sanitize and validate inputs
@@ -733,7 +759,9 @@ app.post("/api/register", async (req, res) => {
     }
 
   const hashedPassword = await bcrypt.hash(password, 10);
-  const user = new User({ name: cleanName, username: cleanUsername, email: email || undefined, password: hashedPassword, role });
+  const user = new User({ name: cleanName, username: cleanUsername, email: email || undefined, password: hashedPassword, role: normalizedRole });
+  
+  console.log("Creating user with role:", normalizedRole);
 
     // Try to save. If a duplicate-key error occurs because of legacy documents that
     // have `email: null` and a non-partial unique index existed, attempt an
@@ -741,7 +769,78 @@ app.post("/api/register", async (req, res) => {
     // unique index on `email`, then retry the save once.
     try {
       await user.save();
-      return res.status(201).json({ message: "User registered successfully" });
+      
+      console.log(`🧹 Cleaning up any stale data for new user: ${cleanUsername}`);
+      
+      // COMPREHENSIVE CLEANUP: Remove all orphaned data that might exist for this username
+      // This ensures new users start with a completely clean slate
+      try {
+        const cleanupResults = await Promise.allSettled([
+          // Clean up notifications
+          Notification.deleteMany({ recipient: cleanUsername }),
+          
+          // Clean up classes where user is listed as teacher (for new teachers)
+          normalizedRole === 'Teacher' 
+            ? Class.deleteMany({ teacher: cleanUsername }) 
+            : Promise.resolve({ deletedCount: 0 }),
+          
+          // Remove user from student lists in classes (for new students)
+          normalizedRole === 'Student'
+            ? Class.updateMany(
+                { students: cleanUsername },
+                { $pull: { students: cleanUsername } }
+              )
+            : Promise.resolve({ modifiedCount: 0 }),
+          
+          // Clean up announcements created by this user
+          Announcement.deleteMany({ teacher: cleanUsername }),
+          
+          // Clean up assignments created by this user
+          Assignment.deleteMany({ createdBy: cleanUsername }),
+          
+          // Clean up exams created by this user
+          Exam.deleteMany({ createdBy: cleanUsername }),
+          
+          // Clean up exam submissions by this user (for students)
+          ExamSubmission.deleteMany({ studentUsername: cleanUsername }),
+          
+          // Clean up grades for this user
+          Grade.deleteMany({ student: cleanUsername }),
+          
+          // Clean up materials created by this user
+          Material.deleteMany({ createdBy: cleanUsername }),
+          
+          // Clean up topics created by this user
+          Topic.deleteMany({ teacher: cleanUsername }),
+          
+          // Clean up comments by this user
+          Comment.deleteMany({ author: cleanUsername }),
+          
+          // Clean up reactions by this user
+          Reaction.deleteMany({ user: cleanUsername })
+        ]);
+        
+        // Log cleanup results
+        let totalCleaned = 0;
+        cleanupResults.forEach((result, index) => {
+          if (result.status === 'fulfilled' && result.value) {
+            const count = result.value.deletedCount || result.value.modifiedCount || 0;
+            totalCleaned += count;
+          }
+        });
+        
+        if (totalCleaned > 0) {
+          console.log(`✨ Cleaned up ${totalCleaned} stale records for new user ${cleanUsername}`);
+        } else {
+          console.log(`✓ No stale data found for ${cleanUsername} - fresh start!`);
+        }
+      } catch (cleanupErr) {
+        console.error('Warning: Failed to clean up some stale data:', cleanupErr.message);
+        // Non-fatal, continue with registration
+      }
+      
+      console.log(`✅ User registered successfully: ${cleanUsername} as ${normalizedRole}`);
+      return res.status(201).json({ message: "User registered successfully", role: normalizedRole });
     } catch (saveErr) {
       console.error('Register save error:', saveErr && saveErr.message ? saveErr.message : saveErr);
 
@@ -866,6 +965,206 @@ app.post("/api/register-admin", async (req, res) => {
   } catch (err) {
     console.error("Admin register error:", err);
     res.status(500).json({ error: "Admin registration failed" });
+  }
+});
+
+// User cleanup endpoint - allows users to clean up their own stale data
+app.post("/api/cleanup-my-data", authenticateToken, async (req, res) => {
+  try {
+    const username = req.user.username;
+    const role = req.user.role;
+    
+    console.log(`🧹 Manual cleanup requested by user: ${username} (${role})`);
+    
+    // Clean up orphaned data for this user
+    const cleanupResults = await Promise.allSettled([
+      // Clean up notifications where user is recipient but sender doesn't exist
+      Notification.deleteMany({ 
+        recipient: username,
+        sender: { $exists: true }
+      }).then(async (result) => {
+        // Also remove notifications from non-existent senders
+        const notifs = await Notification.find({ recipient: username });
+        const usernames = [...new Set(notifs.map(n => n.sender).filter(Boolean))];
+        const existingUsers = await User.find({ username: { $in: usernames } }).select('username');
+        const existingUsernames = new Set(existingUsers.map(u => u.username));
+        const orphanedNotifs = notifs.filter(n => n.sender && !existingUsernames.has(n.sender));
+        if (orphanedNotifs.length > 0) {
+          await Notification.deleteMany({ _id: { $in: orphanedNotifs.map(n => n._id) } });
+          return { deletedCount: result.deletedCount + orphanedNotifs.length };
+        }
+        return result;
+      }),
+      
+      // For teachers: Remove classes with no students
+      role === 'Teacher'
+        ? Class.deleteMany({ teacher: username, students: { $size: 0 } })
+        : Promise.resolve({ deletedCount: 0 }),
+      
+      // For students: Remove from classes where teacher doesn't exist
+      role === 'Student'
+        ? Class.find({ students: username }).then(async (classes) => {
+            const teacherUsernames = [...new Set(classes.map(c => c.teacher))];
+            const existingTeachers = await User.find({ 
+              username: { $in: teacherUsernames },
+              role: 'Teacher'
+            }).select('username');
+            const existingTeacherUsernames = new Set(existingTeachers.map(u => u.username));
+            const orphanedClasses = classes.filter(c => !existingTeacherUsernames.has(c.teacher));
+            if (orphanedClasses.length > 0) {
+              await Class.updateMany(
+                { _id: { $in: orphanedClasses.map(c => c._id) } },
+                { $pull: { students: username } }
+              );
+              return { modifiedCount: orphanedClasses.length };
+            }
+            return { modifiedCount: 0 };
+          })
+        : Promise.resolve({ modifiedCount: 0 }),
+      
+      // Clean up exam submissions for deleted exams
+      ExamSubmission.find({ studentUsername: username }).then(async (submissions) => {
+        const examIds = [...new Set(submissions.map(s => s.exam).filter(Boolean))];
+        const existingExams = await Exam.find({ _id: { $in: examIds } }).select('_id');
+        const existingExamIds = new Set(existingExams.map(e => e._id.toString()));
+        const orphanedSubs = submissions.filter(s => s.exam && !existingExamIds.has(s.exam.toString()));
+        if (orphanedSubs.length > 0) {
+          await ExamSubmission.deleteMany({ _id: { $in: orphanedSubs.map(s => s._id) } });
+          return { deletedCount: orphanedSubs.length };
+        }
+        return { deletedCount: 0 };
+      })
+    ]);
+    
+    // Log cleanup results
+    let totalCleaned = 0;
+    const details = [];
+    
+    cleanupResults.forEach((result, index) => {
+      if (result.status === 'fulfilled' && result.value) {
+        const count = result.value.deletedCount || result.value.modifiedCount || 0;
+        if (count > 0) {
+          totalCleaned += count;
+          const types = ['notifications', 'empty classes', 'orphaned class memberships', 'orphaned submissions'];
+          details.push(`${count} ${types[index] || 'items'}`);
+        }
+      }
+    });
+    
+    console.log(`✨ Cleaned up ${totalCleaned} orphaned records for ${username}`);
+    
+    res.json({ 
+      message: totalCleaned > 0 
+        ? `Successfully cleaned up ${totalCleaned} orphaned records` 
+        : "No orphaned data found - your account is clean!",
+      cleaned: totalCleaned,
+      details: details
+    });
+  } catch (err) {
+    console.error("Cleanup error:", err);
+    res.status(500).json({ error: "Failed to clean up data" });
+  }
+});
+
+// Delete user account endpoint - allows users to delete their own account
+app.delete("/api/delete-account", authenticateToken, async (req, res) => {
+  try {
+    const username = req.user.username;
+    const userId = req.user.id;
+    const { password } = req.body;
+    
+    console.log(`🗑️ Account deletion requested by: ${username}`);
+    
+    // Verify password for security
+    if (!password) {
+      return res.status(400).json({ error: "Password is required to delete account" });
+    }
+    
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+    
+    // Verify password
+    const passwordMatch = await bcrypt.compare(password, user.password);
+    if (!passwordMatch) {
+      return res.status(401).json({ error: "Incorrect password" });
+    }
+    
+    console.log(`🔐 Password verified for ${username}, proceeding with deletion...`);
+    
+    // COMPREHENSIVE DATA DELETION - Remove ALL traces of this user
+    const deletionResults = await Promise.allSettled([
+      // Delete all notifications (both sent and received)
+      Notification.deleteMany({ $or: [{ recipient: username }, { sender: username }] }),
+      
+      // Delete classes created by this teacher OR remove student from all classes
+      user.role === 'Teacher'
+        ? Class.deleteMany({ teacher: username })
+        : Class.updateMany(
+            { students: username },
+            { $pull: { students: username } }
+          ),
+      
+      // Delete all announcements created by this user
+      Announcement.deleteMany({ teacher: username }),
+      
+      // Delete all assignments created by this user
+      Assignment.deleteMany({ createdBy: username }),
+      
+      // Delete all exams created by this user
+      Exam.deleteMany({ createdBy: username }),
+      
+      // Delete all exam submissions by this user
+      ExamSubmission.deleteMany({ studentUsername: username }),
+      
+      // Delete all grades for/by this user
+      Grade.deleteMany({ $or: [{ student: username }, { gradedBy: username }] }),
+      
+      // Delete all materials created by this user
+      Material.deleteMany({ createdBy: username }),
+      
+      // Delete all topics created by this user
+      Topic.deleteMany({ teacher: username }),
+      
+      // Delete all comments by this user
+      Comment.deleteMany({ author: username }),
+      
+      // Delete all reactions by this user
+      Reaction.deleteMany({ user: username })
+    ]);
+    
+    // Log deletion results
+    let totalDeleted = 0;
+    const deletionDetails = [
+      'notifications', 'classes/memberships', 'announcements', 'assignments', 
+      'exams', 'exam submissions', 'grades', 'materials', 
+      'topics', 'comments', 'reactions'
+    ];
+    
+    deletionResults.forEach((result, index) => {
+      if (result.status === 'fulfilled' && result.value) {
+        const count = result.value.deletedCount || result.value.modifiedCount || 0;
+        if (count > 0) {
+          totalDeleted += count;
+          console.log(`  ✓ Deleted ${count} ${deletionDetails[index]}`);
+        }
+      }
+    });
+    
+    // Finally, delete the user account itself
+    await User.findByIdAndDelete(userId);
+    console.log(`  ✓ Deleted user account: ${username}`);
+    
+    console.log(`✅ Account deletion complete: ${username} (${totalDeleted} related records deleted)`);
+    
+    res.json({ 
+      message: "Account deleted successfully. You can now use this username to create a new account.",
+      deletedRecords: totalDeleted
+    });
+  } catch (err) {
+    console.error("Delete account error:", err);
+    res.status(500).json({ error: "Failed to delete account" });
   }
 });
 
