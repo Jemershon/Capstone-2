@@ -3932,6 +3932,8 @@ function Profile() {
   const [showToast, setShowToast] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deletePassword, setDeletePassword] = useState("");
   const [editForm, setEditForm] = useState({
     name: '',
     email: ''
@@ -4050,6 +4052,63 @@ function Profile() {
       console.error("Error updating profile:", err);
       setError(err.response?.data?.error || "Failed to update profile");
       setShowToast(true);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    try {
+      const token = getAuthToken();
+      
+      // Different handling for Google OAuth vs regular accounts
+      if (profile?.googleId) {
+        // For Google accounts, proceed directly without password
+        const response = await axios.delete(`${API_BASE_URL}/api/delete-account`, {
+          headers: { Authorization: `Bearer ${token}` },
+          data: { confirmDelete: true }
+        });
+        
+        // Clear all auth data
+        localStorage.removeItem('token');
+        localStorage.removeItem('authToken');
+        setShowDeleteModal(false);
+        setDeletePassword('');
+        
+        // Show success message
+        alert(response.data.message + "\n\nYou will now be redirected to the home page.");
+        
+        // Redirect to home page
+        navigate('/');
+      } else {
+        // For regular accounts, require password
+        if (!deletePassword) {
+          setError("Please enter your password to confirm deletion");
+          setShowToast(true);
+          return;
+        }
+        
+        const response = await axios.delete(`${API_BASE_URL}/api/delete-account`, {
+          headers: { Authorization: `Bearer ${token}` },
+          data: { password: deletePassword }
+        });
+        
+        // Clear all auth data
+        localStorage.removeItem('token');
+        localStorage.removeItem('authToken');
+        setShowDeleteModal(false);
+        setDeletePassword('');
+        
+        // Show success message
+        alert(response.data.message + "\n\nYou will now be redirected to the home page.");
+        
+        // Redirect to home page
+        navigate('/');
+      }
+    } catch (err) {
+      console.error("Error deleting account:", err);
+      const errorMsg = err.response?.data?.error || "Failed to delete account";
+      setError(errorMsg);
+      setShowToast(true);
+      setDeletePassword("");
     }
   };
 
@@ -4202,6 +4261,38 @@ function Profile() {
         </Col>
       </Row>
 
+      {/* Maintenance & Settings Section */}
+      <Row>
+        <Col lg={12} className="mb-4">
+          <Card className="modern-card">
+            <Card.Header className="modern-card-header">
+              <h5 className="mb-0">
+                <i className="bi bi-tools me-2"></i>Account Maintenance
+              </h5>
+            </Card.Header>
+            <Card.Body>
+              <div className="d-flex justify-content-between align-items-center">
+                <div>
+                  <h6 className="mb-1 text-danger">Delete Account</h6>
+                  <small className="text-muted">
+                    Permanently delete your account and all associated data. This cannot be undone.
+                  </small>
+                </div>
+                <Button 
+                  variant="outline-danger" 
+                  size="sm" 
+                  onClick={() => setShowDeleteModal(true)}
+                  className="ms-3"
+                >
+                  <i className="bi bi-exclamation-triangle me-1"></i>
+                  Delete Account
+                </Button>
+              </div>
+            </Card.Body>
+          </Card>
+        </Col>
+      </Row>
+
       {/* Quick Actions removed - settings moved to profile header */}
 
       {/* Edit Profile Modal */}
@@ -4240,6 +4331,76 @@ function Profile() {
           <Button className="btn-modern-primary" onClick={handleSaveProfile}>
             <i className="bi bi-check-circle me-2"></i>
             Save Changes
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* Delete Account Confirmation Modal */}
+      <Modal show={showDeleteModal} onHide={() => { setShowDeleteModal(false); setDeletePassword(''); }} centered>
+        <Modal.Header closeButton className="border-0 bg-danger text-white">
+          <Modal.Title>
+            <i className="bi bi-exclamation-triangle me-2"></i>
+            Delete Account
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <div className="text-center py-3">
+            <i className="bi bi-exclamation-octagon text-danger" style={{ fontSize: '3rem' }}></i>
+            <h5 className="mt-3 mb-2 text-danger">⚠️ Warning: This Action Cannot Be Undone</h5>
+            <p className="text-muted mb-3">
+              Deleting your account will permanently remove:
+            </p>
+            <ul className="text-start text-muted mb-3">
+              <li>All your classes and their data</li>
+              <li>All exams and student submissions</li>
+              <li>All materials and assignments</li>
+              <li>All student grade records</li>
+              <li>Your entire profile and settings</li>
+            </ul>
+            <p className="text-muted mb-4">
+              <strong>Note:</strong> Your username will become available for reuse after deletion.
+            </p>
+            
+            {/* Show password field only for non-Google accounts */}
+            {!profile?.googleId && (
+              <Form.Group className="mb-3">
+                <Form.Label className="text-start d-block">
+                  <strong>Enter your password to confirm deletion:</strong>
+                </Form.Label>
+                <Form.Control
+                  type="password"
+                  value={deletePassword}
+                  onChange={(e) => setDeletePassword(e.target.value)}
+                  placeholder="Enter your password"
+                  autoFocus
+                />
+              </Form.Group>
+            )}
+            
+            {/* Show different message for Google accounts */}
+            {profile?.googleId && (
+              <div className="alert alert-warning mb-0">
+                <i className="bi bi-google me-2"></i>
+                <strong>Google Account:</strong> Click the button below to proceed with account deletion. 
+                No password required.
+              </div>
+            )}
+          </div>
+        </Modal.Body>
+        <Modal.Footer className="border-0">
+          <Button 
+            variant="outline-secondary" 
+            onClick={() => { setShowDeleteModal(false); setDeletePassword(''); }}
+          >
+            Cancel
+          </Button>
+          <Button 
+            variant="danger" 
+            onClick={handleDeleteAccount}
+            disabled={!profile?.googleId && !deletePassword.trim()}
+          >
+            <i className="bi bi-trash me-2"></i>
+            Yes, Delete My Account
           </Button>
         </Modal.Footer>
       </Modal>
