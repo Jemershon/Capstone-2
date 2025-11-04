@@ -1149,9 +1149,9 @@ function StudentClassStream() {
       setTimeRemaining((prev) => {
         const updated = { ...prev };
         exams.forEach((exam) => {
-          if (exam.dueDate) {
+          if (exam.due) {
             const now = new Date().getTime();
-            const due = new Date(exam.dueDate).getTime();
+            const due = new Date(exam.due).getTime();
             const remaining = due - now;
             
             if (remaining > 0) {
@@ -1952,7 +1952,7 @@ function StudentClassStream() {
                               <Badge bg="info" className="me-2">
                                 {exam.questions?.length || 0} {(exam.questions?.length || 0) === 1 ? 'question' : 'questions'}
                               </Badge>
-                              {exam.dueDate && (
+                              {exam.due && (
                                 <Badge 
                                   bg={timeRemaining[exam._id]?.total > 0 && timeRemaining[exam._id]?.total < 300000 ? "danger" : "warning"}
                                   className="d-flex align-items-center px-3 py-2"
@@ -2385,7 +2385,7 @@ function StudentClassStream() {
             <Modal.Title>
               {examSubmitted ? 'Exam Submitted' : `Take Exam: ${selectedExam?.title}`}
             </Modal.Title>
-            {selectedExam && selectedExam.dueDate && !examSubmitted && (
+            {selectedExam && selectedExam.due && !examSubmitted && (
               <div className="mt-2">
                 <Badge 
                   bg={timeRemaining[selectedExam._id]?.total > 0 && timeRemaining[selectedExam._id]?.total < 300000 ? "danger" : "warning"}
