@@ -1503,20 +1503,21 @@ function TeacherClassStream() {
     
     setPosting(true);
     try {
-      // Prepare exam data - ensure due date preserves local time
+      // Prepare exam data - ensure due date preserves EXACT local time
       const examPayload = { 
         ...examData, 
         class: className, 
         createdBy: localStorage.getItem("username")
       };
       
-      // If due date is provided, ensure it's sent in the correct format
-      // datetime-local gives us "YYYY-MM-DDTHH:mm" which we need to treat as local time
+      // If due date is provided, convert to ISO string preserving local time
+      // datetime-local gives us "YYYY-MM-DDTHH:mm" which represents LOCAL time
       if (examData.due) {
-        // Append seconds to make it a complete datetime
-        examPayload.due = examData.due.includes(':') && examData.due.split(':').length === 2 
-          ? `${examData.due}:00` 
-          : examData.due;
+        // Parse as local time and convert to ISO string
+        // This ensures the exact moment is preserved regardless of server timezone
+        const localDate = new Date(examData.due);
+        examPayload.due = localDate.toISOString();
+        console.log(`Due date: Input="${examData.due}", LocalDate=${localDate}, ISO=${examPayload.due}`);
       }
       
       console.log("Creating exam with data:", examPayload);
