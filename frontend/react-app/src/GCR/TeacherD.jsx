@@ -3645,9 +3645,6 @@ function Grades() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showToast, setShowToast] = useState(false);
-  const [viewMode, setViewMode] = useState("all"); // all, byClass, bySection
-  const [selectedClass, setSelectedClass] = useState("");
-  const [selectedSection, setSelectedSection] = useState("");
   const [sortBy, setSortBy] = useState("finalScore"); // finalScore, submittedAt, student
   const [sortOrder, setSortOrder] = useState("desc"); // desc, asc
   const [searchTerm, setSearchTerm] = useState("");
@@ -3661,11 +3658,6 @@ function Grades() {
       );
       setLeaderboardData(response.data);
       
-      // Set default class if available
-      if (response.data?.summary?.classes?.length > 0 && !selectedClass) {
-        setSelectedClass(response.data.summary.classes[0]);
-      }
-      
     } catch (err) {
       console.error("Fetch leaderboard error:", err.response?.data || err.message);
       setError(err.response?.data?.error || "Failed to load leaderboard data");
@@ -3673,7 +3665,7 @@ function Grades() {
     } finally {
       setLoading(false);
     }
-  }, [selectedClass]);
+  }, []);
 
   // Delete a single submission
   const handleDeleteSubmission = async (submissionId) => {
@@ -3744,21 +3736,11 @@ function Grades() {
     };
   }, [fetchLeaderboardData]);
 
-  // Get current data based on view mode
+  // Get current data - always show all submissions
   const getCurrentData = () => {
     if (!leaderboardData) return [];
     
-    let data = [];
-    switch (viewMode) {
-      case "byClass":
-        data = selectedClass ? (leaderboardData.byClass[selectedClass] || []) : [];
-        break;
-      case "bySection":
-        data = selectedSection ? (leaderboardData.bySection[selectedSection] || []) : [];
-        break;
-      default:
-        data = leaderboardData.allSubmissions || [];
-    }
+    let data = leaderboardData.allSubmissions || [];
     
     // Apply search filter
     if (searchTerm) {
@@ -3822,8 +3804,6 @@ function Grades() {
   }
 
   const currentData = getCurrentData();
-  const availableClasses = leaderboardData?.summary?.classes || [];
-  const availableSections = leaderboardData ? Object.keys(leaderboardData.bySection) : [];
 
   return (
     <div className="dashboard-content">
@@ -3858,51 +3838,7 @@ function Grades() {
       <Card className="mb-4">
         <Card.Body>
           <Row className="align-items-end">
-            <Col md={2} sm={6} className="mb-2">
-              <Form.Label className="fw-bold">View Mode</Form.Label>
-              <Form.Select
-                value={viewMode}
-                onChange={(e) => setViewMode(e.target.value)}
-                size="sm"
-              >
-                <option value="all">All Submissions</option>
-                <option value="byClass">By Class</option>
-                <option value="bySection">By Section</option>
-              </Form.Select>
-            </Col>
-            
-            {viewMode === "byClass" && (
-              <Col md={2} sm={6} className="mb-2">
-                <Form.Label className="fw-bold">Class</Form.Label>
-                <Form.Select
-                  value={selectedClass}
-                  onChange={(e) => setSelectedClass(e.target.value)}
-                  size="sm"
-                >
-                  {availableClasses.map(className => (
-                    <option key={className} value={className}>{className}</option>
-                  ))}
-                </Form.Select>
-              </Col>
-            )}
-            
-            {viewMode === "bySection" && (
-              <Col md={2} sm={6} className="mb-2">
-                <Form.Label className="fw-bold">Section</Form.Label>
-                <Form.Select
-                  value={selectedSection}
-                  onChange={(e) => setSelectedSection(e.target.value)}
-                  size="sm"
-                >
-                  <option value="">Select Section</option>
-                  {availableSections.map(section => (
-                    <option key={section} value={section}>{section}</option>
-                  ))}
-                </Form.Select>
-              </Col>
-            )}
-            
-            <Col md={2} sm={6} className="mb-2">
+            <Col md={3} sm={6} className="mb-2">
               <Form.Label className="fw-bold">Sort By</Form.Label>
               <Form.Select
                 value={sortBy}
@@ -3916,7 +3852,7 @@ function Grades() {
               </Form.Select>
             </Col>
             
-            <Col md={2} sm={6} className="mb-2">
+            <Col md={3} sm={6} className="mb-2">
               <Form.Label className="fw-bold">Order</Form.Label>
               <Form.Select
                 value={sortOrder}
@@ -3928,11 +3864,11 @@ function Grades() {
               </Form.Select>
             </Col>
             
-            <Col md={2} sm={12} className="mb-2">
+            <Col md={6} sm={12} className="mb-2">
               <Form.Label className="fw-bold">Search</Form.Label>
               <Form.Control
                 type="text"
-                placeholder="Search students, exams..."
+                placeholder="Search students, exams, classes..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 size="sm"

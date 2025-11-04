@@ -2545,9 +2545,94 @@ app.post("/api/exam-submissions", authenticateToken, async (req, res) => {
       return res.status(403).json({ error: "You are not enrolled in this class" });
     }
 
-    // Calculate raw score
-    let correctAnswers = 0;
+    // Declare variables for score tracking
+    let rawScore;
+    let finalScore;
+    let creditsUsed;
+    let finalCreditPoints;
+    let correctAnswers;
     const totalQuestions = exam.questions.length;
+    
+    // Check if exam uses manual grading
+    if (exam.manualGrading) {
+      // For manual grading exams, don't calculate score automatically
+      console.log("📝 Manual grading exam - score will be set by teacher");
+      
+      // Get user for credit points (but don't modify them yet)
+      const user = await User.findOne({ username: student });
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      // Just store current credit points, don't apply any changes
+      finalCreditPoints = user.creditPoints || 0;
+      
+      // Create submission WITHOUT scores (teacher will add them later)
+      const submission = new ExamSubmission({
+        examId,
+        student,
+        answers,
+        rawScore: null, // Will be set by teacher
+        finalScore: null, // Will be set by teacher
+        totalQuestions: exam.questions.length,
+        creditsUsed: 0,
+        submittedAt: new Date(),
+        returned: false // Not returned yet
+      });
+
+      await submission.save();
+      console.log("Manual grading submission saved successfully (no auto-scoring)");
+
+      // Emit exam submission event to the class for real-time updates
+      if (req.app.io) {
+        console.log(`Emitting exam-submitted to class:${exam.class}`);
+        req.app.io.to(`class:${exam.class}`).emit('exam-submitted', {
+          examId,
+          student,
+          score: null, // No score yet
+          totalQuestions: exam.questions.length,
+          submittedAt: new Date()
+        });
+      }
+
+      // NO notification for student (they'll be notified when teacher returns grade)
+      console.log(`📝 Manual grading - student will be notified when teacher returns grade`);
+
+      // Notify teacher about student submission
+      try {
+        const teacherNotification = new Notification({
+          recipient: exam.createdBy,
+          sender: student,
+          type: 'assignment',
+          message: `${student} submitted manual grading exam: "${exam.title}" - Needs grading`,
+          referenceId: examId,
+          class: exam.class
+        });
+        await teacherNotification.save();
+        
+        // Send real-time notification to teacher
+        if (req.app.io) {
+          req.app.io.to(`user:${exam.createdBy}`).emit('new-notification', teacherNotification);
+        }
+        console.log(`✅ Teacher ${exam.createdBy} notified about manual grading submission from ${student}`);
+      } catch (teacherNotifError) {
+        console.log("Teacher notification failed, but continuing:", teacherNotifError.message);
+      }
+
+      return res.json({
+        success: true,
+        message: "Exam submitted successfully! Your teacher will grade it and notify you.",
+        rawScore: null,
+        finalScore: null,
+        totalQuestions: exam.questions.length,
+        creditsUsed: 0,
+        creditPoints: finalCreditPoints,
+        manualGrading: true
+      });
+    }
+
+    // AUTO-GRADING: Calculate raw score for non-manual grading exams
+    correctAnswers = 0;
 
     console.log("========== SCORING DETAILS ==========");
     console.log("Total questions:", totalQuestions);
@@ -2587,7 +2672,7 @@ app.post("/api/exam-submissions", authenticateToken, async (req, res) => {
       }
     });
 
-    const rawScore = correctAnswers;
+    rawScore = correctAnswers;
     console.log("Raw Score:", rawScore, "/", totalQuestions);
     console.log("====================================");
     
@@ -2610,8 +2695,8 @@ app.post("/api/exam-submissions", authenticateToken, async (req, res) => {
     console.log(`Student wants to use: ${useCreditPoints} credit points`);
     
     // Apply credit points if student chose to use them
-    let creditsUsed = 0;
-    let finalScore = rawScore;
+    creditsUsed = 0;
+    finalScore = rawScore;
     
     // useCreditPoints is now a number (how many points student wants to use)
     const requestedCredits = parseInt(useCreditPoints) || 0;
@@ -2662,7 +2747,7 @@ app.post("/api/exam-submissions", authenticateToken, async (req, res) => {
     
     // Calculate final credit points: original - used + timing bonus/penalty
     const calculatedCreditPoints = originalCreditPoints - creditsUsed + creditDelta;
-    const finalCreditPoints = Math.max(0, Math.min(10, calculatedCreditPoints)); // Max 10, Min 0
+    finalCreditPoints = Math.max(0, Math.min(10, calculatedCreditPoints)); // Max 10, Min 0
     
     console.log(`Credit points calculation: ${originalCreditPoints} - ${creditsUsed} + ${creditDelta} = ${calculatedCreditPoints} → ${finalCreditPoints} (min 0, max 10)`);
     
