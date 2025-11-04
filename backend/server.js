@@ -1071,27 +1071,35 @@ app.delete("/api/delete-account", authenticateToken, async (req, res) => {
   try {
     const username = req.user.username;
     const userId = req.user.id;
-    const { password } = req.body;
+    const { password, confirmDelete } = req.body;
     
     console.log(`🗑️ Account deletion requested by: ${username}`);
-    
-    // Verify password for security
-    if (!password) {
-      return res.status(400).json({ error: "Password is required to delete account" });
-    }
     
     const user = await User.findById(userId);
     if (!user) {
       return res.status(404).json({ error: "User not found" });
     }
     
-    // Verify password
-    const passwordMatch = await bcrypt.compare(password, user.password);
-    if (!passwordMatch) {
-      return res.status(401).json({ error: "Incorrect password" });
+    // Different verification for Google OAuth vs regular accounts
+    if (user.googleId) {
+      // For Google OAuth accounts, require explicit confirmation instead of password
+      if (!confirmDelete) {
+        return res.status(400).json({ error: "Please confirm account deletion" });
+      }
+      console.log(`🔐 Google OAuth account confirmed for deletion: ${username}`);
+    } else {
+      // For regular accounts, require password verification
+      if (!password) {
+        return res.status(400).json({ error: "Password is required to delete account" });
+      }
+      
+      // Verify password
+      const passwordMatch = await bcrypt.compare(password, user.password);
+      if (!passwordMatch) {
+        return res.status(401).json({ error: "Incorrect password" });
+      }
+      console.log(`🔐 Password verified for ${username}, proceeding with deletion...`);
     }
-    
-    console.log(`🔐 Password verified for ${username}, proceeding with deletion...`);
     
     // COMPREHENSIVE DATA DELETION - Remove ALL traces of this user
     const deletionResults = await Promise.allSettled([

@@ -2690,6 +2690,7 @@ function StudentProfile() {
   });
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deletePassword, setDeletePassword] = useState("");
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
 
   const navigate = useNavigate();
   
@@ -2844,33 +2845,58 @@ function StudentProfile() {
   };
 
   const handleDeleteAccount = async () => {
-    if (!deletePassword) {
-      setError("Please enter your password to confirm deletion");
-      setShowToast(true);
-      return;
-    }
-    
     try {
       const token = getAuthToken();
-      const response = await axios.delete(`${API_BASE_URL}/api/delete-account`, {
-        headers: { Authorization: `Bearer ${token}` },
-        data: { password: deletePassword }
-      });
       
-      // Clear all auth data
-      clearAuthData();
-      
-      // Show success message
-      alert(response.data.message + "\n\nYou will now be redirected to the login page.");
-      
-      // Redirect to home page
-      navigate('/');
+      // Different handling for Google OAuth vs regular accounts
+      if (profile?.googleId) {
+        // For Google accounts, proceed directly without password
+        const response = await axios.delete(`${API_BASE_URL}/api/delete-account`, {
+          headers: { Authorization: `Bearer ${token}` },
+          data: { confirmDelete: true }
+        });
+        
+        // Clear all auth data
+        clearAuthData();
+        setShowDeleteModal(false);
+        setDeleteConfirmText('');
+        
+        // Show success message
+        alert(response.data.message + "\n\nYou will now be redirected to the home page.");
+        
+        // Redirect to home page
+        navigate('/');
+      } else {
+        // For regular accounts, require password
+        if (!deletePassword) {
+          setError("Please enter your password to confirm deletion");
+          setShowToast(true);
+          return;
+        }
+        
+        const response = await axios.delete(`${API_BASE_URL}/api/delete-account`, {
+          headers: { Authorization: `Bearer ${token}` },
+          data: { password: deletePassword }
+        });
+        
+        // Clear all auth data
+        clearAuthData();
+        setShowDeleteModal(false);
+        setDeletePassword('');
+        
+        // Show success message
+        alert(response.data.message + "\n\nYou will now be redirected to the home page.");
+        
+        // Redirect to home page
+        navigate('/');
+      }
     } catch (err) {
       console.error("Error deleting account:", err);
       const errorMsg = err.response?.data?.error || "Failed to delete account";
       setError(errorMsg);
       setShowToast(true);
       setDeletePassword("");
+      setDeleteConfirmText("");
     }
   };
 
@@ -3109,7 +3135,7 @@ function StudentProfile() {
       </Modal>
 
       {/* Delete Account Confirmation Modal */}
-      <Modal show={showDeleteModal} onHide={() => { setShowDeleteModal(false); setDeletePassword(''); }} centered>
+      <Modal show={showDeleteModal} onHide={() => { setShowDeleteModal(false); setDeletePassword(''); setDeleteConfirmText(''); }} centered>
         <Modal.Header closeButton className="border-0 bg-danger text-white">
           <Modal.Title>
             <i className="bi bi-exclamation-triangle me-2"></i>
@@ -3133,31 +3159,44 @@ function StudentProfile() {
             <p className="text-muted mb-4">
               <strong>Note:</strong> Your username will become available for reuse after deletion.
             </p>
-            <Form.Group className="mb-3">
-              <Form.Label className="text-start d-block">
-                <strong>Enter your password to confirm deletion:</strong>
-              </Form.Label>
-              <Form.Control
-                type="password"
-                value={deletePassword}
-                onChange={(e) => setDeletePassword(e.target.value)}
-                placeholder="Enter your password"
-                autoFocus
-              />
-            </Form.Group>
+            
+            {/* Show password field only for non-Google accounts */}
+            {!profile?.googleId && (
+              <Form.Group className="mb-3">
+                <Form.Label className="text-start d-block">
+                  <strong>Enter your password to confirm deletion:</strong>
+                </Form.Label>
+                <Form.Control
+                  type="password"
+                  value={deletePassword}
+                  onChange={(e) => setDeletePassword(e.target.value)}
+                  placeholder="Enter your password"
+                  autoFocus
+                />
+              </Form.Group>
+            )}
+            
+            {/* Show different message for Google accounts */}
+            {profile?.googleId && (
+              <div className="alert alert-warning mb-0">
+                <i className="bi bi-google me-2"></i>
+                <strong>Google Account:</strong> Click the button below to proceed with account deletion. 
+                No password required.
+              </div>
+            )}
           </div>
         </Modal.Body>
         <Modal.Footer className="border-0">
           <Button 
             variant="outline-secondary" 
-            onClick={() => { setShowDeleteModal(false); setDeletePassword(''); }}
+            onClick={() => { setShowDeleteModal(false); setDeletePassword(''); setDeleteConfirmText(''); }}
           >
             Cancel
           </Button>
           <Button 
             variant="danger" 
             onClick={handleDeleteAccount}
-            disabled={!deletePassword.trim()}
+            disabled={!profile?.googleId && !deletePassword.trim()}
           >
             <i className="bi bi-trash me-2"></i>
             Yes, Delete My Account
