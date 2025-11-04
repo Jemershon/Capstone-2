@@ -234,7 +234,7 @@ function Comments({ referenceType, referenceId, className }) {
             <ListGroup.Item key={comment._id} className="px-0 py-2">
               <div className="d-flex justify-content-between">
                 <div>
-                  <div className="fw-bold">{comment.author}</div>
+                  <div className="fw-bold">{comment.authorName || comment.author}</div>
                   <div className="text-muted" style={{ fontSize: '0.75rem' }}>
                     {new Date(comment.createdAt).toLocaleString()}
                   </div>

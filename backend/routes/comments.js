@@ -41,6 +41,7 @@ router.post("/comments", authenticateToken, async (req, res) => {
     const comment = new Comment({
       content,
       author: req.user.username,
+      authorName: req.user.name || req.user.username,
       authorRole: req.user.role,
       referenceType,
       referenceId,
@@ -73,8 +74,9 @@ router.post("/comments", authenticateToken, async (req, res) => {
         const notification = new Notification({
           recipient: postCreator,
           sender: req.user.username,
+          senderName: req.user.name || req.user.username,
           type: 'comment',
-          message: `${req.user.username} commented on your ${referenceType}: "${content.substring(0, 50)}${content.length > 50 ? '...' : ''}"`,
+          message: `${req.user.name || req.user.username} commented on your ${referenceType}: "${content.substring(0, 50)}${content.length > 50 ? '...' : ''}"`,
           referenceId: referenceId,
           class: className
         });

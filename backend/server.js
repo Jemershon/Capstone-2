@@ -231,8 +231,28 @@ if (NODE_ENV === 'development') {
       }
     });
     
-    app.use("/uploads", express.static(uploadsDir));
-  console.debug("Serving static files locally (development mode)");
+    app.use("/uploads", express.static(uploadsDir, {
+      setHeaders: (res, path) => {
+        // Check if this is a download request (has download query parameter)
+        const isDownload = res.req && res.req.url && res.req.url.includes('?download=true');
+        
+        if (isDownload) {
+          // Force download
+          res.setHeader('Content-Disposition', 'attachment');
+        } else {
+          // Allow inline viewing
+          res.setHeader('Content-Disposition', 'inline');
+        }
+        
+        // Allow files to be viewed in browser 
+        res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+        // Add CORS headers for file access
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Access-Control-Allow-Methods', 'GET');
+        res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+      }
+    }));
+    console.debug("Serving static files locally (development mode)");
   } catch (error) {
     console.warn("⚠️ Could not create uploads directory:", error.message);
     console.warn("⚠️ File uploads may not work locally");
@@ -261,6 +281,50 @@ app.get('/api/test', (req, res) => {
     fileStorage: NODE_ENV === 'production' ? 'Cloudinary' : 'Local',
     version: '1.0.0'
   });
+});
+
+// Test route for file access
+app.get('/api/test-file-access', (req, res) => {
+  const testFile = 'uploads/materials/1762178899909-525909201.docx';
+  const fullPath = path.join(__dirname, testFile);
+  
+  if (fs.existsSync(fullPath)) {
+    res.json({
+      fileExists: true,
+      filePath: testFile,
+      accessUrl: `${req.protocol}://${req.get('host')}/${testFile}`,
+      fileStats: fs.statSync(fullPath)
+    });
+  } else {
+    res.json({
+      fileExists: false,
+      filePath: testFile,
+      searchedPath: fullPath
+    });
+  }
+});
+
+// Download route that forces file downloads
+app.get('/api/download/:type/:filename', (req, res) => {
+  const { type, filename } = req.params;
+  const allowedTypes = ['materials', 'assignments', 'profiles'];
+  
+  if (!allowedTypes.includes(type)) {
+    return res.status(400).json({ error: 'Invalid file type' });
+  }
+  
+  const filePath = path.join(__dirname, 'uploads', type, filename);
+  
+  if (!fs.existsSync(filePath)) {
+    return res.status(404).json({ error: 'File not found' });
+  }
+  
+  // Get original filename from database or use filename
+  const originalName = req.query.name || filename;
+  
+  res.setHeader('Content-Disposition', `attachment; filename="${originalName}"`);
+  res.setHeader('Content-Type', 'application/octet-stream');
+  res.sendFile(filePath);
 });
 
 // Debug: Emit a test socket event to a class room
@@ -500,6 +564,7 @@ const AssignmentSchema = new mongoose.Schema(
 const AnnouncementSchema = new mongoose.Schema(
   {
     teacher: String,
+    teacherName: String, // Display name of teacher
     class: String,
     date: Date,
     message: String,
@@ -2191,6 +2256,7 @@ app.post("/api/announcements", authenticateToken, requireTeacherOrAdmin, async (
       message, 
       date, 
       teacher, 
+      teacherName: req.user.name || req.user.username,
       class: className, 
       examId: examId || null, 
       likes: 0,
@@ -2208,6 +2274,7 @@ app.post("/api/announcements", authenticateToken, requireTeacherOrAdmin, async (
         const notifications = cls.students.map(studentUsername => ({
           recipient: studentUsername,
           sender: req.user.username,
+          senderName: req.user.name || req.user.username,
           type: 'announcement',
           message: `New announcement in ${className}: "${message.substring(0, 50)}${message.length > 50 ? '...' : ''}"}`,
           referenceId: announcement._id,

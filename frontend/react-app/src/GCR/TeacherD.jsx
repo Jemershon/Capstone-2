@@ -1802,7 +1802,7 @@ function TeacherClassStream() {
                   <div className="d-flex justify-content-between align-items-start">
                     <div>
                       <div className="d-flex align-items-center gap-2">
-                        <div className="fw-bold">{a.teacher}</div>
+                        <div className="fw-bold">{a.teacherName || a.teacher}</div>
                         {a.topic && (
                           <span 
                             className="badge" 
@@ -1857,20 +1857,6 @@ function TeacherClassStream() {
                             >
                               View
                             </Button>
-                            <Button 
-                              variant="outline-success" 
-                              size="sm"
-                              onClick={() => {
-                                const link = document.createElement('a');
-                                link.href = `${API_BASE_URL}/${attachment.filePath}`;
-                                link.download = attachment.originalName;
-                                document.body.appendChild(link);
-                                link.click();
-                                document.body.removeChild(link);
-                              }}
-                            >
-                              Download
-                            </Button>
                           </div>
                         </div>
                       ))}
@@ -1887,8 +1873,7 @@ function TeacherClassStream() {
                           {a.materialRef.description && (
                             <p className="text-muted small text-center">{a.materialRef.description}</p>
                           )}
-                          {a.materialRef.type === 'file' && a.materialRef.content && (
-                            <div className="d-flex gap-2">
+                            {a.materialRef.type === 'file' && a.materialRef.content && (
                               <Button
                                 variant="outline-primary"
                                 size="sm"
@@ -1900,19 +1885,7 @@ function TeacherClassStream() {
                               >
                                 View
                               </Button>
-                              <Button
-                                variant="outline-secondary"
-                                size="sm"
-                                className="flex-grow-1"
-                                as="a"
-                                href={a.materialRef.content.startsWith('http') ? a.materialRef.content : `${API_BASE_URL}/${a.materialRef.content}`}
-                                target="_blank"
-                                download
-                              >
-                                Download
-                              </Button>
-                            </div>
-                          )}
+                            )}
                           {(a.materialRef.type === 'video' || a.materialRef.type === 'link') && a.materialRef.content && (
                             <Button
                               variant="outline-primary"
@@ -1962,7 +1935,7 @@ function TeacherClassStream() {
                     .map((announcement, index) => (
                       <div key={announcement._id || index} className="mb-3">
                         <div className="d-flex align-items-center mb-2">
-                          <div className="fw-bold me-2">{announcement.teacher}</div>
+                          <div className="fw-bold me-2">{announcement.teacherName || announcement.teacher}</div>
                           <small className="text-muted">
                             {new Date(announcement.date).toLocaleDateString()} - "{announcement.message}"
                           </small>
@@ -3271,7 +3244,7 @@ function Announcements() {
           )}
           {announcements.map((a) => (
             <tr key={a._id || a.id}>
-              <td>{a.teacher}</td>
+              <td>{a.teacherName || a.teacher}</td>
               <td>{new Date(a.date).toLocaleDateString()}</td>
               <td style={{ whiteSpace: "pre-wrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                 {a.message}

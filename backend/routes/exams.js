@@ -139,6 +139,7 @@ router.post('/manual/:examId/submissions/:submissionId/grade', authenticateToken
         const notif = new Notification({
           recipient: submission.student,
           sender: req.user.username,
+          senderName: req.user.name || req.user.username,
           type: 'grade',
           message: `Your grade for \"${exam.title}\" is ${submission.finalScore}/${exam.questions.length}`,
           referenceId: exam._id,
@@ -264,6 +265,7 @@ router.post('/manual/:examId/submissions/:submissionId/return', authenticateToke
       const notif = new Notification({
         recipient: submission.student,
         sender: req.user.username,
+        senderName: req.user.name || req.user.username,
         type: 'grade',
         message: `Your grade for \"${exam.title}\" is ${submission.finalScore}/${exam.questions.length}`,
         referenceId: exam._id,
@@ -336,6 +338,7 @@ router.post('/manual/:examId/submissions/return-all', authenticateToken, require
           const notif = new Notification({
             recipient: submission.student,
             sender: req.user.username,
+            senderName: req.user.name || req.user.username,
             type: 'grade',
             message: `Your grade for \"${exam.title}\" is ${submission.finalScore}/${exam.questions.length}`,
             referenceId: exam._id,

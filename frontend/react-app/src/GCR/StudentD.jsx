@@ -1652,11 +1652,11 @@ function StudentClassStream() {
                         <div className="d-flex align-items-center mb-2">
                           <div className="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-3" 
                                style={{ width: 40, height: 40 }}>
-                            {announcement.teacher ? announcement.teacher[0].toUpperCase() : 'T'}
+                            {announcement.teacherName ? announcement.teacherName[0].toUpperCase() : announcement.teacher ? announcement.teacher[0].toUpperCase() : 'T'}
                           </div>
                           <div className="flex-grow-1">
                             <div className="d-flex align-items-center gap-2">
-                              <strong>{announcement.teacher}</strong>
+                              <strong>{announcement.teacherName || announcement.teacher}</strong>
                               {announcement.topic && (
                                 <span 
                                   className="badge" 
@@ -1693,20 +1693,6 @@ function StudentClassStream() {
                                   >
                                     View
                                   </Button>
-                                  <Button 
-                                    variant="outline-success" 
-                                    size="sm"
-                                    onClick={() => {
-                                      const link = document.createElement('a');
-                                      link.href = `${API_BASE_URL}/${attachment.filePath}`;
-                                      link.download = attachment.originalName;
-                                      document.body.appendChild(link);
-                                      link.click();
-                                      document.body.removeChild(link);
-                                    }}
-                                  >
-                                    Download
-                                  </Button>
                                 </div>
                               </div>
                             ))}
@@ -1734,17 +1720,6 @@ function StudentClassStream() {
                                         )}
                                       >
                                         View
-                                      </Button>
-                                      <Button
-                                        variant="outline-secondary"
-                                        size="sm"
-                                        className="flex-grow-1"
-                                        as="a"
-                                        href={announcement.materialRef.content.startsWith('http') ? announcement.materialRef.content : `${API_BASE_URL}/${announcement.materialRef.content}`}
-                                        target="_blank"
-                                        download
-                                      >
-                                        Download
                                       </Button>
                                     </div>
                                   )}

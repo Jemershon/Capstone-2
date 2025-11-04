@@ -283,21 +283,22 @@ function Materials({ className, showCreateModal: externalShowCreateModal, onShow
                             {material.type === 'link' || material.type === 'video' ? (
                               <a 
                                 href={material.content}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="btn btn-sm btn-outline-primary"
-                          >
-                            Open
-                          </a>
-                        ) : (
-                          <a 
-                            href={`${API_BASE_URL}/${material.content}`}
-                            download
-                            className="btn btn-sm btn-outline-primary"
-                          >
-                            Download
-                          </a>
-                        )}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="btn btn-sm btn-outline-primary me-2"
+                              >
+                                Open
+                              </a>
+                            ) : (
+                              <a 
+                                href={`${API_BASE_URL}/${material.content}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="btn btn-sm btn-outline-info me-2"
+                              >
+                                View
+                              </a>
+                            )}
                       </div>
                     </div>
                     <Button
@@ -366,17 +367,11 @@ function Materials({ className, showCreateModal: externalShowCreateModal, onShow
                       <div>
                         <a 
                           href={`${API_BASE_URL}/${material.content}`}
-                          download
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="btn btn-sm btn-outline-primary"
-                          onClick={(e) => {
-                            // Track download event
-                            console.log('Downloading file:', material.title);
-                            // You could add analytics tracking here
-                          }}
+                          className="btn btn-sm btn-outline-info me-2"
                         >
-                          Download
+                          View
                         </a>
                       </div>
                     </div>

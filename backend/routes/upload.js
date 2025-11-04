@@ -11,11 +11,21 @@ const upload = createUploadMiddleware();
 router.post('/upload', authenticateToken, upload.single('file'), (req, res) => {
   try {
     if (!req.file) {
+      console.error('No file received in upload request');
       return res.status(400).json({ error: 'No file uploaded' });
     }
     
+    console.log('File received:', {
+      originalname: req.file.originalname,
+      filename: req.file.filename,
+      size: req.file.size,
+      path: req.file.path
+    });
+    
     const uploadType = req.query.type || 'materials';
     const processedFile = processUploadedFile(req.file, uploadType);
+    
+    console.log('Processed file:', processedFile);
     
     // Return success response with file info
     res.status(201).json({ 
@@ -30,7 +40,7 @@ router.post('/upload', authenticateToken, upload.single('file'), (req, res) => {
     });
   } catch (err) {
     console.error('File upload error:', err);
-    res.status(500).json({ error: 'Failed to upload file' });
+    res.status(500).json({ error: 'Failed to upload file: ' + err.message });
   }
 });
 

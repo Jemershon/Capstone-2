@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 const commentSchema = new mongoose.Schema({
   content: { type: String, required: true },
   author: { type: String, required: true }, // Username
+  authorName: { type: String }, // Display name
   authorRole: { type: String, enum: ["Student", "Teacher", "Admin"], required: true },
   referenceType: { 
     type: String, 

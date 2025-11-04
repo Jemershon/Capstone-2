@@ -11,6 +11,9 @@ const reactionSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  userName: {
+    type: String,
+  },
   userRole: {
     type: String,
     enum: ["Student", "Teacher", "Admin"],

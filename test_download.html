@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Material Download Test</title>
+</head>
+<body>
+    <h1>Material Download Test</h1>
+    <div>
+        <h3>Test Download Links</h3>
+        <p>
+            <a href="http://localhost:4000/uploads/materials/1762178899909-525909201.docx" target="_blank">
+                View Document in Browser
+            </a>
+        </p>
+        <p>
+            <a href="http://localhost:4000/uploads/materials/1762178899909-525909201.docx" download="Activity 1.docx">
+                Download Document
+            </a>
+        </p>
+    </div>
+    
+    <script>
+        // Test if file is accessible via fetch
+        fetch('http://localhost:4000/uploads/materials/1762178899909-525909201.docx', {
+            method: 'GET'
+        })
+        .then(response => {
+            console.log('File access test result:', response.status, response.statusText);
+            if (response.ok) {
+                console.log('✅ File is accessible');
+            } else {
+                console.log('❌ File access failed');
+            }
+        })
+        .catch(error => {
+            console.error('❌ File access error:', error);
+        });
+    </script>
+</body>
+</html>

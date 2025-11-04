@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 const notificationSchema = new mongoose.Schema({
   recipient: { type: String, required: true }, // Username of the recipient
   sender: { type: String, required: true }, // Username of the sender
+  senderName: { type: String }, // Display name of the sender
   type: { 
     type: String, 
     enum: ["assignment", "announcement", "grade", "comment", "material", "exam"], 

@@ -565,11 +565,11 @@ function DashboardHome() {
       return (u.role || '').toLowerCase() === roleFilter;
     })
     .sort((a, b) => {
-      if (sortMode === 'az') return (a.username || '').localeCompare(b.username || '');
-      if (sortMode === 'za') return (b.username || '').localeCompare(a.username || '');
+      if (sortMode === 'az') return (a.name || a.username || '').localeCompare(b.name || b.username || '');
+      if (sortMode === 'za') return (b.name || b.username || '').localeCompare(a.name || a.username || '');
       // default: keep admins on top, then teachers, then students — stable sort when same role
       const rank = (r) => r === 'admin' ? 0 : r === 'teacher' ? 1 : 2;
-      return rank(a.role) - rank(b.role) || ((a.username || '').localeCompare(b.username || ''));
+      return rank(a.role) - rank(b.role) || ((a.name || a.username || '').localeCompare(b.name || b.username || ''));
     });
 
   if (loading) {
@@ -718,7 +718,7 @@ function DashboardHome() {
                               <i className="bi bi-person-fill"></i>
                             </div>
                             <div className="flex-grow-1 d-flex flex-column">
-                              <h6 className="mb-0 fw-bold">{user.username}</h6>
+                              <h6 className="mb-0 fw-bold">{user.name || user.username}</h6>
                               <small className={`badge ${user.role === 'teacher' ? 'bg-success' : user.role === 'admin' ? 'bg-danger' : 'bg-info'}`}>
                                 {user.role}
                               </small>
@@ -729,11 +729,11 @@ function DashboardHome() {
                                 size="sm"
                                 onClick={async (e) => {
                                   e.stopPropagation();
-                                  if (window.confirm(`Are you sure you want to delete user "${user.username}"?`)) {
+                                  if (window.confirm(`Are you sure you want to delete user "${user.name || user.username}"?`)) {
                                     await handleDeleteUser(user._id || user.id);
                                   }
                                 }}
-                                aria-label={`Delete user ${user.username}`}
+                                aria-label={`Delete user ${user.name || user.username}`}
                               >
                                 <i className="bi bi-trash"></i>
                               </Button>
@@ -779,7 +779,7 @@ function DashboardHome() {
                               {(gUser.profilePicture || gUser.picture) ? (
                                 <img 
                                   src={gUser.profilePicture || gUser.picture} 
-                                  alt={gUser.username} 
+                                  alt={gUser.name || gUser.username} 
                                   style={{ width: "48px", height: "48px", borderRadius: "50%", objectFit: "cover" }} 
                                 />
                               ) : (
@@ -789,7 +789,7 @@ function DashboardHome() {
                               )}
                             </div>
                             <div className="flex-grow-1">
-                              <h6 className="mb-0 fw-bold">{gUser.username}</h6>
+                              <h6 className="mb-0 fw-bold">{gUser.name || gUser.username}</h6>
                               <small className="text-muted d-block">{gUser.email}</small>
                               <small className="text-muted d-block">Role: {gUser.role}</small>
                               <small className="text-muted d-block">Google ID: <code style={{fontSize: '0.75rem'}}>{gUser.googleId}</code></small>
@@ -799,11 +799,11 @@ function DashboardHome() {
                                 variant="outline-danger"
                                 size="sm"
                                 onClick={async () => {
-                                  if (window.confirm(`Are you sure you want to delete user "${gUser.username}"?`)) {
+                                  if (window.confirm(`Are you sure you want to delete user "${gUser.name || gUser.username}"?`)) {
                                     await handleDeleteUser(gUser._id || gUser.id);
                                   }
                                 }}
-                                aria-label={`Delete user ${gUser.username}`}
+                                aria-label={`Delete user ${gUser.name || gUser.username}`}
                               >
                                 <i className="bi bi-trash"></i>
                               </Button>
@@ -811,11 +811,11 @@ function DashboardHome() {
                                 variant="outline-secondary"
                                 size="sm"
                                 onClick={async () => {
-                                  if (window.confirm(`Unlink Google account from "${gUser.username}"? This will keep the user but remove Google sign-in.`)) {
+                                  if (window.confirm(`Unlink Google account from "${gUser.name || gUser.username}"? This will keep the user but remove Google sign-in.`)) {
                                     await handleUnlinkGoogle(gUser._id || gUser.id);
                                   }
                                 }}
-                                aria-label={`Unlink google for ${gUser.username}`}
+                                aria-label={`Unlink google for ${gUser.name || gUser.username}`}
                               >
                                 Unlink
                               </Button>
@@ -898,7 +898,7 @@ function DashboardHome() {
           <Button 
             variant="danger"
             onClick={async () => {
-              if (window.confirm(`Are you sure you want to delete user "${selectedUser.username}"?`)) {
+              if (window.confirm(`Are you sure you want to delete user "${selectedUser.name || selectedUser.username}"?`)) {
                 await handleDeleteUser(selectedUser._id || selectedUser.id);
                 setShowUserDetailModal(false);
                 setSelectedUser(null);

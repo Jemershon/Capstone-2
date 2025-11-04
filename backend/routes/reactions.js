@@ -85,6 +85,7 @@ router.post("/reactions", authenticateToken, async (req, res) => {
       const reaction = new Reaction({
         userId: req.user.id,
         username: req.user.username,
+        userName: req.user.name || req.user.username,
         userRole: req.user.role,
         referenceType,
         referenceId,
@@ -118,8 +119,9 @@ router.post("/reactions", authenticateToken, async (req, res) => {
           const notification = new Notification({
             recipient: postCreator,
             sender: req.user.username,
+            senderName: req.user.name || req.user.username,
             type: 'comment', // Using 'comment' type as it's the closest match
-            message: `${req.user.username} reacted ${reactionEmoji} to your ${referenceType}`,
+            message: `${req.user.name || req.user.username} reacted ${reactionEmoji} to your ${referenceType}`,
             referenceId: referenceId,
             class: className
           });
