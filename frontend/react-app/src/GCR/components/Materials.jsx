@@ -306,25 +306,21 @@ function Materials({ className, showCreateModal: externalShowCreateModal, onShow
                               {new Date(material.createdAt).toLocaleDateString()}
                             </small>
                             <span className="badge bg-info text-dark me-2">{material.type}</span>
-                            {material.type === 'link' || material.type === 'video' ? (
-                              <a 
-                                href={material.content}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="btn btn-sm btn-outline-primary"
-                              >
-                                Open
-                              </a>
-                            ) : (
-                              <a 
-                                href={material.content && material.content.startsWith('http') ? material.content : `${API_BASE_URL}/${material.content}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="btn btn-sm btn-outline-info"
-                              >
-                                View
-                              </a>
-                            )}
+                            {/* Unified View button for all material types */}
+                            <a 
+                              href={
+                                material.type === 'link' || material.type === 'video' 
+                                  ? material.content 
+                                  : (material.content && material.content.startsWith('http') 
+                                      ? material.content 
+                                      : `${API_BASE_URL}/${material.content}`)
+                              }
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="btn btn-sm btn-outline-primary"
+                            >
+                              View
+                            </a>
                             <Button
                               variant="outline-success"
                               size="sm"
@@ -332,8 +328,8 @@ function Materials({ className, showCreateModal: externalShowCreateModal, onShow
                             >
                               📥 Submissions
                             </Button>
-                      </div>
-                    </div>
+                          </div>
+                        </div>
                     <Button
                       variant="outline-danger"
                       size="sm"
@@ -357,7 +353,7 @@ function Materials({ className, showCreateModal: externalShowCreateModal, onShow
                     key={material._id}
                     className="d-flex justify-content-between align-items-center"
                   >
-                    <div>
+                    <div className="flex-grow-1">
                       <h5 className="mb-1">{material.title}</h5>
                       <div className="text-muted mb-1">{material.description}</div>
                       <div>
@@ -367,7 +363,7 @@ function Materials({ className, showCreateModal: externalShowCreateModal, onShow
                           rel="noopener noreferrer"
                           className="btn btn-sm btn-outline-primary"
                         >
-                          Open Link
+                          View
                         </a>
                       </div>
                     </div>
@@ -431,7 +427,7 @@ function Materials({ className, showCreateModal: externalShowCreateModal, onShow
                     key={material._id}
                     className="d-flex justify-content-between align-items-center"
                   >
-                    <div>
+                    <div className="flex-grow-1">
                       <h5 className="mb-1">{material.title}</h5>
                       <div className="text-muted mb-1">{material.description}</div>
                       <div>
@@ -441,7 +437,7 @@ function Materials({ className, showCreateModal: externalShowCreateModal, onShow
                           rel="noopener noreferrer"
                           className="btn btn-sm btn-outline-primary"
                         >
-                          Watch Video
+                          View
                         </a>
                       </div>
                     </div>
