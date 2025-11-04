@@ -1849,10 +1849,11 @@ function TeacherClassStream() {
                             <span>{attachment.originalName}</span>
                             <small className="text-muted ms-2">({(attachment.fileSize / 1024 / 1024).toFixed(2)} MB)</small>
                           </div>
-                          <div className="d-flex gap-2">
+                          <div className="flex-grow-1 ms-2">
                             <Button 
                               variant="outline-primary" 
                               size="sm"
+                              className="w-100"
                               onClick={() => window.open(`${API_BASE_URL}/${attachment.filePath}`, '_blank')}
                             >
                               View
@@ -1864,7 +1865,7 @@ function TeacherClassStream() {
                   )}
                   
                   {/* Display materialRef if present */}
-                  {a.materialRef && (
+                  {a.materialRef && (!a.attachments || a.attachments.length === 0) && (
                     <div className="mt-3">
                       <div className="fw-bold mb-2">Material:</div>
                       <Card className="mb-2">
@@ -1948,27 +1949,14 @@ function TeacherClassStream() {
                                 <span>{attachment.originalName}</span>
                                 <small className="text-muted ms-2">({(attachment.fileSize / 1024 / 1024).toFixed(2)} MB)</small>
                               </div>
-                              <div className="d-flex gap-2">
+                              <div className="flex-grow-1 ms-2">
                                 <Button 
                                   variant="outline-primary" 
                                   size="sm"
+                                  className="w-100"
                                   onClick={() => window.open(`${API_BASE_URL}/${attachment.filePath}`, '_blank')}
                                 >
                                   View
-                                </Button>
-                                <Button 
-                                  variant="outline-success" 
-                                  size="sm"
-                                  onClick={() => {
-                                    const link = document.createElement('a');
-                                    link.href = `${API_BASE_URL}/${attachment.filePath}`;
-                                    link.download = attachment.originalName;
-                                    document.body.appendChild(link);
-                                    link.click();
-                                    document.body.removeChild(link);
-                                  }}
-                                >
-                                  Download
                                 </Button>
                               </div>
                             </div>

@@ -291,10 +291,10 @@ function Materials({ className, showCreateModal: externalShowCreateModal, onShow
                               </a>
                             ) : (
                               <a 
-                                href={`${API_BASE_URL}/${material.content}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="btn btn-sm btn-outline-info me-2"
+                                  href={`${API_BASE_URL}/${material.content}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="btn btn-sm btn-outline-info w-100"
                               >
                                 View
                               </a>
@@ -369,7 +369,7 @@ function Materials({ className, showCreateModal: externalShowCreateModal, onShow
                           href={`${API_BASE_URL}/${material.content}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="btn btn-sm btn-outline-info me-2"
+                          className="btn btn-sm btn-outline-info w-100"
                         >
                           View
                         </a>

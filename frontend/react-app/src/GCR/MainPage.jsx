@@ -966,7 +966,7 @@ export default function LandingPage() {
                 </div>
                 <h5>Easy Classroom Management</h5>
                 <p>
-                  Create, manage, and join classes with just a few clicks. Everything you need in one place.
+                  Create, manage, and join classes. Everything you need in one place.
                 </p>
               </div>
             </div>
