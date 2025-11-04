@@ -1032,6 +1032,8 @@ function StudentClassStream() {
   const [selectedMaterial, setSelectedMaterial] = useState(null);
   const [showMaterialSubmissionModal, setShowMaterialSubmissionModal] = useState(false);
   const [materialSubmissionFile, setMaterialSubmissionFile] = useState(null);
+  const [materialSubmissionLink, setMaterialSubmissionLink] = useState('');
+  const [materialSubmissionType, setMaterialSubmissionType] = useState('file'); // 'file' or 'link'
   const [materialSubmissions, setMaterialSubmissions] = useState({});
   const [submittingMaterial, setSubmittingMaterial] = useState(null);
   
@@ -1288,38 +1290,59 @@ function StudentClassStream() {
   };
 
   const handleMaterialSubmit = async () => {
-    if (!selectedMaterial || !materialSubmissionFile) {
+    // Validate input based on submission type
+    if (materialSubmissionType === 'file' && !materialSubmissionFile) {
       alert("Please select a file to submit");
+      return;
+    }
+    if (materialSubmissionType === 'link' && !materialSubmissionLink.trim()) {
+      alert("Please enter a link to submit");
       return;
     }
 
     setSubmittingMaterial(selectedMaterial._id);
     try {
       const token = localStorage.getItem("token");
-      const formData = new FormData();
-      formData.append("file", materialSubmissionFile);
       
-      // First upload the file
-      const uploadRes = await axios.post(`${API_BASE_URL}/api/upload`, formData, {
-        headers: { 
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "multipart/form-data"
-        }
-      });
+      let submissionData = {};
+      
+      if (materialSubmissionType === 'file') {
+        // Handle file upload
+        const formData = new FormData();
+        formData.append("file", materialSubmissionFile);
+        
+        // First upload the file
+        const uploadRes = await axios.post(`${API_BASE_URL}/api/upload`, formData, {
+          headers: { 
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "multipart/form-data"
+          }
+        });
 
-      if (!uploadRes.data.file) {
-        throw new Error("File upload failed");
+        if (!uploadRes.data.file) {
+          throw new Error("File upload failed");
+        }
+
+        submissionData = {
+          fileName: materialSubmissionFile.name,
+          filePath: uploadRes.data.file,
+          fileSize: materialSubmissionFile.size,
+          mimeType: materialSubmissionFile.type
+        };
+      } else {
+        // Handle link submission
+        submissionData = {
+          fileName: "Link Submission",
+          filePath: materialSubmissionLink,
+          fileSize: 0,
+          mimeType: "text/uri-list"
+        };
       }
 
       // Then submit to material
       const submitRes = await axios.post(
         `${API_BASE_URL}/api/materials/${selectedMaterial._id}/submit`,
-        {
-          fileName: materialSubmissionFile.name,
-          filePath: uploadRes.data.file,
-          fileSize: materialSubmissionFile.size,
-          mimeType: materialSubmissionFile.type
-        },
+        submissionData,
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
@@ -1330,6 +1353,8 @@ function StudentClassStream() {
 
       setShowMaterialSubmissionModal(false);
       setMaterialSubmissionFile(null);
+      setMaterialSubmissionLink('');
+      setMaterialSubmissionType('file');
       setSelectedMaterial(null);
       alert("✅ Submission successful!");
     } catch (err) {
@@ -2237,37 +2262,94 @@ function StudentClassStream() {
       </Modal>
 
       {/* Material Submission Modal */}
-      <Modal show={showMaterialSubmissionModal} onHide={() => { setShowMaterialSubmissionModal(false); setMaterialSubmissionFile(null); }} size="lg">
+      <Modal show={showMaterialSubmissionModal} onHide={() => { 
+        setShowMaterialSubmissionModal(false); 
+        setMaterialSubmissionFile(null); 
+        setMaterialSubmissionLink('');
+        setMaterialSubmissionType('file');
+      }} size="lg">
         <Modal.Header closeButton>
           <Modal.Title>Submit Response: {selectedMaterial?.title}</Modal.Title>
         </Modal.Header>
         <Modal.Body>
           <Form>
+            {/* Submission Type Selector */}
             <Form.Group className="mb-3">
-              <Form.Label>Upload Your File</Form.Label>
-              <Form.Control
-                type="file"
-                onChange={(e) => setMaterialSubmissionFile(e.target.files[0])}
-                accept="*/*"
-              />
-              {materialSubmissionFile && (
-                <small className="text-success">
-                  ✅ Selected: {materialSubmissionFile.name} ({(materialSubmissionFile.size / 1024 / 1024).toFixed(2)} MB)
-                </small>
-              )}
+              <Form.Label>Submission Type</Form.Label>
+              <div className="d-flex gap-3">
+                <Form.Check
+                  type="radio"
+                  label="📄 Upload File"
+                  name="submissionType"
+                  checked={materialSubmissionType === 'file'}
+                  onChange={() => setMaterialSubmissionType('file')}
+                />
+                <Form.Check
+                  type="radio"
+                  label="🔗 Submit Link"
+                  name="submissionType"
+                  checked={materialSubmissionType === 'link'}
+                  onChange={() => setMaterialSubmissionType('link')}
+                />
+              </div>
             </Form.Group>
+
+            {/* File Upload Section */}
+            {materialSubmissionType === 'file' && (
+              <Form.Group className="mb-3">
+                <Form.Label>Upload Your File</Form.Label>
+                <Form.Control
+                  type="file"
+                  onChange={(e) => setMaterialSubmissionFile(e.target.files[0])}
+                  accept="*/*"
+                />
+                {materialSubmissionFile && (
+                  <small className="text-success d-block mt-2">
+                    ✅ Selected: {materialSubmissionFile.name} ({(materialSubmissionFile.size / 1024 / 1024).toFixed(2)} MB)
+                  </small>
+                )}
+                <Form.Text className="text-muted">
+                  Upload documents, images, videos, or any file type
+                </Form.Text>
+              </Form.Group>
+            )}
+
+            {/* Link Submission Section */}
+            {materialSubmissionType === 'link' && (
+              <Form.Group className="mb-3">
+                <Form.Label>Paste Your Link</Form.Label>
+                <Form.Control
+                  type="url"
+                  placeholder="https://example.com/your-document"
+                  value={materialSubmissionLink}
+                  onChange={(e) => setMaterialSubmissionLink(e.target.value)}
+                />
+                <Form.Text className="text-muted">
+                  Submit links to Google Docs, Dropbox, YouTube videos, or any URL
+                </Form.Text>
+              </Form.Group>
+            )}
           </Form>
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={() => { setShowMaterialSubmissionModal(false); setMaterialSubmissionFile(null); }}>
+          <Button variant="secondary" onClick={() => { 
+            setShowMaterialSubmissionModal(false); 
+            setMaterialSubmissionFile(null); 
+            setMaterialSubmissionLink('');
+            setMaterialSubmissionType('file');
+          }}>
             Cancel
           </Button>
           <Button 
             variant="success" 
             onClick={handleMaterialSubmit}
-            disabled={!materialSubmissionFile || submittingMaterial === selectedMaterial?._id}
+            disabled={
+              (materialSubmissionType === 'file' && !materialSubmissionFile) || 
+              (materialSubmissionType === 'link' && !materialSubmissionLink.trim()) ||
+              submittingMaterial === selectedMaterial?._id
+            }
           >
-            {submittingMaterial === selectedMaterial?._id ? "Uploading..." : "Submit"}
+            {submittingMaterial === selectedMaterial?._id ? "Submitting..." : "Submit"}
           </Button>
         </Modal.Footer>
       </Modal>
