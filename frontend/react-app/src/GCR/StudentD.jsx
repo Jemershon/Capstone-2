@@ -1319,13 +1319,15 @@ function StudentClassStream() {
           }
         });
 
-        if (!uploadRes.data.file) {
-          throw new Error("File upload failed");
+        console.log('Upload response:', uploadRes.data);
+
+        if (!uploadRes.data.filePath) {
+          throw new Error("File upload failed - no file path returned");
         }
 
         submissionData = {
           fileName: materialSubmissionFile.name,
-          filePath: uploadRes.data.file,
+          filePath: uploadRes.data.filePath,
           fileSize: materialSubmissionFile.size,
           mimeType: materialSubmissionFile.type
         };
