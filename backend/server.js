@@ -259,6 +259,27 @@ if (NODE_ENV === 'development') {
   }
 } else {
   console.log("ℹ️ Production mode: Using Cloudinary for file storage");
+  // Also serve local uploads if present (backward compatible) so files remain accessible
+  try {
+    const uploadsDir = path.join(__dirname, "uploads");
+    if (fs.existsSync(uploadsDir)) {
+      app.use("/uploads", express.static(uploadsDir, {
+        setHeaders: (res, path) => {
+          const isDownload = res.req && res.req.url && res.req.url.includes('?download=true');
+          res.setHeader('Content-Disposition', isDownload ? 'attachment' : 'inline');
+          res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+          res.setHeader('Access-Control-Allow-Origin', '*');
+          res.setHeader('Access-Control-Allow-Methods', 'GET');
+          res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+        }
+      }));
+      console.debug("Serving static files in production (uploads directory detected)");
+    } else {
+      console.debug("No local uploads directory in production; relying on Cloudinary URLs");
+    }
+  } catch (error) {
+    console.warn("⚠️ Could not configure uploads static in production:", error.message);
+  }
 }
 
 // Security headers

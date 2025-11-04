@@ -1689,7 +1689,12 @@ function StudentClassStream() {
                                   <Button 
                                     variant="outline-primary" 
                                     size="sm"
-                                    onClick={() => window.open(`${API_BASE_URL}/${attachment.filePath}`, '_blank')}
+                                    onClick={() => {
+                                      const url = attachment?.filePath && attachment.filePath.startsWith('http')
+                                        ? attachment.filePath
+                                        : `${API_BASE_URL}/${attachment.filePath}`;
+                                      window.open(url, '_blank');
+                                    }}
                                   >
                                     View
                                   </Button>
@@ -1791,31 +1796,22 @@ function StudentClassStream() {
                                     <Button 
                                       variant="outline-primary" 
                                       size="sm"
-                                      onClick={() => window.open(`${API_BASE_URL}/${attachment.filePath}`, '_blank')}
-                                    >
-                                      View
-                                    </Button>
-                                    <Button 
-                                      variant="outline-success" 
-                                      size="sm"
                                       onClick={() => {
-                                        const link = document.createElement('a');
-                                        link.href = `${API_BASE_URL}/${attachment.filePath}`;
-                                        link.download = attachment.originalName;
-                                        document.body.appendChild(link);
-                                        link.click();
-                                        document.body.removeChild(link);
+                                        const url = attachment?.filePath && attachment.filePath.startsWith('http')
+                                          ? attachment.filePath
+                                          : `${API_BASE_URL}/${attachment.filePath}`;
+                                        window.open(url, '_blank');
                                       }}
                                     >
-                                      Download
+                                      View
                                     </Button>
                                   </div>
                                 </div>
                               ))}
                             </div>
-                          </div>
-                        ))}
-                    </Card.Body>
+          </div>
+        ))}
+        </Card.Body>
                   </Card>
                 )}
               </div>

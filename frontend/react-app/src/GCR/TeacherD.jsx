@@ -1854,7 +1854,12 @@ function TeacherClassStream() {
                               variant="outline-primary" 
                               size="sm"
                               className="w-100"
-                              onClick={() => window.open(`${API_BASE_URL}/${attachment.filePath}`, '_blank')}
+                              onClick={() => {
+                                const url = attachment?.filePath && attachment.filePath.startsWith('http')
+                                  ? attachment.filePath
+                                  : `${API_BASE_URL}/${attachment.filePath}`;
+                                window.open(url, '_blank');
+                              }}
                             >
                               View
                             </Button>
@@ -1954,7 +1959,12 @@ function TeacherClassStream() {
                                   variant="outline-primary" 
                                   size="sm"
                                   className="w-100"
-                                  onClick={() => window.open(`${API_BASE_URL}/${attachment.filePath}`, '_blank')}
+                                  onClick={() => {
+                                    const url = attachment?.filePath && attachment.filePath.startsWith('http')
+                                      ? attachment.filePath
+                                      : `${API_BASE_URL}/${attachment.filePath}`;
+                                    window.open(url, '_blank');
+                                  }}
                                 >
                                   View
                                 </Button>
