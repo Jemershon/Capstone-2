@@ -19,7 +19,7 @@ const retry = async (fn, retries = 3, delay = 1000) => {
   }
 };
 
-function Materials({ className, showCreateModal: externalShowCreateModal, onShowCreateModalChange, onMaterialCreated, hideContent = false }) {
+function Materials({ className, showCreateModal: externalShowCreateModal, onShowCreateModalChange, onMaterialCreated, onMaterialDeleted, hideContent = false }) {
   const [materials, setMaterials] = useState([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [materialData, setMaterialData] = useState({
@@ -192,6 +192,12 @@ function Materials({ className, showCreateModal: externalShowCreateModal, onShow
         })
       );
       await fetchMaterials();
+      
+      // Notify parent component to refresh stream/announcements
+      if (onMaterialDeleted) {
+        onMaterialDeleted(materialId);
+      }
+      
       setError('Material deleted successfully.');
       setShowToast(true);
     } catch (err) {

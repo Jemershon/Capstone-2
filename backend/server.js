@@ -65,12 +65,19 @@ import uploadRoutes from "./routes/upload.js";
 import examsRoutes, { setupModels } from "./routes/exams.js";
 import reactionsRoutes from "./routes/reactions.js";
 import topicsRoutes from "./routes/topics.js";
+import messagesRoutes from "./routes/messages.js";
+import gradeExportRoutes, { setupGradeExportModels } from "./routes/gradeExport.js";
+import bulkActionsRoutes, { setupBulkActionModels } from "./routes/bulkActions.js";
+import reuseRoutes, { setupReuseModels } from "./routes/reuse.js";
+import analyticsRoutes, { setupAnalyticsModels } from "./routes/analytics.js";
 import { sendBulkAnnouncementEmails } from "./services/sendgridService.js";
 import Exam from "./models/Exam.js";
 import Notification from "./models/Notification.js";
 import User from "./models/User.js";
 import Class from "./models/Class.js";
 import Topic from "./models/Topic.js";
+import Message from "./models/Message.js";
+import MaterialSubmission from "./models/MaterialSubmission.js";
 
 // Fix __dirname for ES Modules
 const __filename = fileURLToPath(import.meta.url);
@@ -205,7 +212,7 @@ const corsOptions = {
     }
   },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 };
 
@@ -2789,6 +2796,12 @@ setupMaterialsModels({
   User
 });
 
+// Set up models for new routes
+setupGradeExportModels(Grade);
+setupBulkActionModels({ Grade, Announcement, Exam });
+setupReuseModels({ Announcement });
+setupAnalyticsModels({ Grade, Exam, ExamSubmission, MaterialSubmission, Announcement });
+
 // Use route modules
 app.use("/api", authRoutes);
 app.use("/api", classesRoutes);
@@ -2800,6 +2813,11 @@ app.use("/api", uploadRoutes);
 app.use("/api", reactionsRoutes);
 app.use("/api/topics", topicsRoutes);
 app.use("/api/exams", examsRoutes);
+app.use("/api", messagesRoutes);
+app.use("/api", gradeExportRoutes);
+app.use("/api", bulkActionsRoutes);
+app.use("/api", reuseRoutes);
+app.use("/api", analyticsRoutes);
 
 // Student: Submit exam answers
 app.use("/api", authRoutes);
@@ -2843,24 +2861,30 @@ app.post("/api/exam-submissions", authenticateToken, async (req, res) => {
     const { examId, answers, useCreditPoints = false } = req.body;
     const student = req.user.username;
 
+    // Get exam first to check resubmission setting
+    console.log("Looking for exam with ID:", examId);
+    const exam = await Exam.findById(examId);
+    if (!exam) {
+      console.log("Exam not found");
+      return res.status(404).json({ error: "Exam not found" });
+    }
+
     // Check if student has already submitted this exam
     const existingSubmission = await ExamSubmission.findOne({ examId, student });
     if (existingSubmission) {
-      console.log(`Student ${student} already submitted exam ${examId}`);
-      return res.status(400).json({ error: "You have already submitted this exam" });
+      // Check if resubmission is allowed
+      if (!exam.allowResubmission) {
+        console.log(`Student ${student} already submitted exam ${examId} and resubmission is not allowed`);
+        return res.status(400).json({ error: "You have already submitted this exam and resubmission is not allowed" });
+      }
+      // If resubmission is allowed, delete the old submission
+      console.log(`Student ${student} resubmitting exam ${examId} (resubmission allowed)`);
+      await ExamSubmission.deleteOne({ _id: existingSubmission._id });
     }
 
     if (!examId || !answers) {
       console.log("Missing examId or answers");
       return res.status(400).json({ error: "Exam ID and answers are required" });
-    }
-
-    console.log("Looking for exam with ID:", examId);
-    // Check if exam exists
-    const exam = await Exam.findById(examId);
-    if (!exam) {
-      console.log("Exam not found");
-      return res.status(404).json({ error: "Exam not found" });
     }
 
     console.log("Found exam:", exam.title);

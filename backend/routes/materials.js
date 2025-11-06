@@ -1,4 +1,5 @@
 import express from "express";
+import mongoose from "mongoose";
 import Material from "../models/Material.js";
 import MaterialSubmission from "../models/MaterialSubmission.js";
 import Notification from "../models/Notification.js";
@@ -50,11 +51,11 @@ router.get("/materials/:id", authenticateToken, async (req, res) => {
 router.post("/materials", authenticateToken, requireTeacherOrAdmin, async (req, res) => {
   try {
     const { title, description, type, content, class: className } = req.body;
-    
+
     if (!title || !type || !content || !className) {
       return res.status(400).json({ error: "Required fields: title, type, content, class" });
     }
-    
+
     const material = new Material({
       title,
       description,
@@ -63,97 +64,141 @@ router.post("/materials", authenticateToken, requireTeacherOrAdmin, async (req, 
       class: className,
       teacher: req.user.username
     });
-    
+
     await material.save();
-    
+
     // Send notifications to all students in the class
     try {
       const classDoc = await Class.findOne({ name: className });
       if (classDoc && classDoc.students && classDoc.students.length > 0) {
         console.log(`Sending material notifications to ${classDoc.students.length} students in class ${className}`);
-        
+
         const notifications = classDoc.students.map(studentUsername => ({
           recipient: studentUsername,
           sender: req.user.username,
-          type: 'material',
-          message: `New material posted in ${className}: "${title}"`,
+          senderName: req.user.name || req.user.username,
+          type: "material",
+          message: `${req.user.name || req.user.username} posted a new material "${title}"`,
           referenceId: material._id,
           class: className,
           read: false,
           createdAt: new Date()
         }));
-        
+
         await Notification.insertMany(notifications);
-        console.log(`✅ Material notifications sent to students in ${className}`);
-        
-        // Emit socket event to notify students in real-time
-        if (req.app.io) {
-          classDoc.students.forEach(studentUsername => {
-            req.app.io.to(`user:${studentUsername}`).emit('new-notification', {
-              type: 'material',
-              message: `New material posted in ${className}: "${title}"`,
-              class: className,
-              sender: req.user.username
+
+        // Emit socket notifications to connected students
+        try {
+          if (req.app.io) {
+            classDoc.students.forEach(studentUsername => {
+              req.app.io.to(`user:${studentUsername}`).emit('new-notification', {
+                type: 'material',
+                message: `${req.user.name || req.user.username} posted a new material "${title}"`,
+                class: className,
+                sender: req.user.username
+              });
             });
-          });
+          }
+        } catch (emitErr) {
+          console.warn('Failed to emit new-notification to students', emitErr);
         }
       }
     } catch (notifErr) {
-      console.error('Error sending material notifications:', notifErr);
-      // Don't fail the material creation if notifications fail
+      console.error('Failed to create/send material notifications', notifErr);
     }
-    
-    res.status(201).json({ message: "Material created successfully", material });
+
+    res.status(201).json({ material });
   } catch (err) {
     console.error("Create material error:", err);
     res.status(500).json({ error: "Failed to create material" });
   }
 });
 
-// Update material
-router.put("/materials/:id", authenticateToken, requireTeacherOrAdmin, async (req, res) => {
-  try {
-    const { title, description, type, content } = req.body;
-    const material = await Material.findById(req.params.id);
-    
-    if (!material) {
-      return res.status(404).json({ error: "Material not found" });
-    }
-    
-    // Verify teacher owns this material
-    if (material.teacher !== req.user.username && req.user.role !== "Admin") {
-      return res.status(403).json({ error: "Not authorized to update this material" });
-    }
-    
-    material.title = title || material.title;
-    material.description = description || material.description;
-    material.type = type || material.type;
-    material.content = content || material.content;
-    material.updatedAt = Date.now();
-    
-    await material.save();
-    res.json({ message: "Material updated successfully", material });
-  } catch (err) {
-    console.error("Update material error:", err);
-    res.status(500).json({ error: "Failed to update material" });
-  }
-});
-
-// Delete material
+// Delete a material and any related announcements
 router.delete("/materials/:id", authenticateToken, requireTeacherOrAdmin, async (req, res) => {
   try {
-    const material = await Material.findById(req.params.id);
-    
+    const materialId = req.params.id;
+    const material = await Material.findById(materialId);
     if (!material) {
       return res.status(404).json({ error: "Material not found" });
     }
-    
-    // Verify teacher owns this material
+
+    // Only the owner teacher or admin can delete
     if (material.teacher !== req.user.username && req.user.role !== "Admin") {
       return res.status(403).json({ error: "Not authorized to delete this material" });
     }
-    
-    await Material.findByIdAndDelete(req.params.id);
+
+    await Material.findByIdAndDelete(materialId);
+
+    // Delete related announcements that reference this material
+    try {
+      const Announcement = mongoose.models['Announcement'] || mongoose.model('Announcement');
+
+      // Find candidate announcements that either have materialRef or attachments
+      const candidates = await Announcement.find({
+        $or: [
+          { materialRef: { $exists: true, $ne: null } },
+          { attachments: { $exists: true, $ne: [] } }
+        ]
+      });
+
+      const toDelete = [];
+      const materialIdStr = materialId.toString();
+
+      for (const ann of candidates) {
+        let matched = false;
+
+        if (!matched && ann.materialRef && ann.materialRef._id) {
+          try {
+            if (ann.materialRef._id.toString() === materialIdStr) matched = true;
+          } catch (e) {
+            // ignore
+          }
+        }
+
+        if (!matched && ann.attachments && ann.attachments.length > 0 && material.content) {
+          for (const att of ann.attachments) {
+            if (!att) continue;
+            const filePath = (att.filePath || att.path || '').toString();
+            const materialContent = (material.content || '').toString();
+            if (filePath && materialContent && (filePath === materialContent || filePath.endsWith(materialContent) || materialContent.endsWith(filePath))) {
+              matched = true;
+              break;
+            }
+            const original = (att.originalName || att.filename || '').toString();
+            if (original && material.title && original === material.title) {
+              matched = true;
+              break;
+            }
+          }
+        }
+
+        if (matched) toDelete.push(ann._id);
+      }
+
+      if (toDelete.length > 0) {
+        const deleted = await Announcement.deleteMany({ _id: { $in: toDelete } });
+        console.log(`✅ Deleted ${deleted.deletedCount} related announcements for material ${materialId}`);
+
+        // Emit socket event to notify clients
+        try {
+          if (req.app.io && material.class) {
+            req.app.io.to(`class:${material.class}`).emit('announcement-deleted', {
+              materialId,
+              message: 'Material and related announcement deleted'
+            });
+            console.log(`📡 Emitted announcement-deleted event to class:${material.class}`);
+          }
+        } catch (emitErr) {
+          console.warn('Failed to emit announcement-deleted event', emitErr);
+        }
+      } else {
+        console.log(`⚠️ No announcements found related to material ${materialId}`);
+      }
+    } catch (annErr) {
+      console.error('Failed to delete related announcements for material', materialId, annErr);
+    }
+
     res.json({ message: "Material deleted successfully" });
   } catch (err) {
     console.error("Delete material error:", err);

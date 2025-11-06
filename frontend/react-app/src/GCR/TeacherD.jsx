@@ -436,7 +436,7 @@ function DashboardAndClasses() {
     try {
       const headers = { Authorization: `Bearer ${localStorage.getItem("token")}` };
       const [classesRes, userRes] = await Promise.all([
-        retry(() => axios.get(`${API_BASE_URL}/api/classes?page=1&limit=100`, { headers })),
+        retry(() => axios.get(`${API_BASE_URL}/api/classes?page=1&limit=100&includeArchived=true`, { headers })),
         retry(() => axios.get(`${API_BASE_URL}/api/profile`, { headers })),
       ]);
       setClasses(classesRes.data || []);
@@ -520,6 +520,38 @@ function DashboardAndClasses() {
     }
   };
 
+  const handleArchiveClass = async (classId) => {
+    try {
+      await retry(() => 
+        axios.patch(`${API_BASE_URL}/api/classes/${classId}/archive`, {}, 
+        { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } })
+      );
+      await fetchData();
+      setSuccessMessage("Class archived successfully!");
+      setShowToast(true);
+    } catch (err) {
+      console.error("Archive class error:", err.response?.data || err.message);
+      setError(err.response?.data?.error || "Failed to archive class.");
+      setShowToast(true);
+    }
+  };
+
+  const handleRestoreClass = async (classId) => {
+    try {
+      await retry(() => 
+        axios.patch(`${API_BASE_URL}/api/classes/${classId}/restore`, {}, 
+        { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } })
+      );
+      await fetchData();
+      setSuccessMessage("Class restored successfully!");
+      setShowToast(true);
+    } catch (err) {
+      console.error("Restore class error:", err.response?.data || err.message);
+      setError(err.response?.data?.error || "Failed to restore class.");
+      setShowToast(true);
+    }
+  };
+
   if (loading) {
     return (
       <div className="text-center py-4">
@@ -572,12 +604,16 @@ function DashboardAndClasses() {
           <Col key={cls._id || cls.id} md={4} className="mb-3">
             <Card
               className="class-card-modern h-100"
+              style={{ opacity: cls.archived ? 0.6 : 1 }}
               onClick={() => navigate(`/teacher/class/${encodeURIComponent(cls.name)}`)}
             >
               <Card.Body>
                 <div className="d-flex align-items-center justify-content-between">
                   <div>
-                    <Card.Title className="fw-bold">{cls.name}</Card.Title>
+                    <Card.Title className="fw-bold">
+                      {cls.name}
+                      {cls.archived && <Badge bg="secondary" className="ms-2">Archived</Badge>}
+                    </Card.Title>
                       <div className="mb-2 text-muted" style={{ lineHeight: 1.25 }}>
                         <div>{(cls.course ? `${cls.course}` : '')}{cls.year ? ` ${cls.year}` : ''}{!cls.course && !cls.year && cls.section ? `${cls.section}` : ''}</div>
                         {cls.schedule && <div>Schedule: {cls.schedule}</div>}
@@ -598,7 +634,34 @@ function DashboardAndClasses() {
                   <strong>Students:</strong> {(cls.students || []).length}
                 </p>
               </Card.Body>
-              <Card.Footer className="d-flex justify-content-end align-items-center">
+              <Card.Footer className="d-flex justify-content-end align-items-center gap-2">
+                {cls.archived ? (
+                  <Button 
+                    variant="outline-success" 
+                    size="sm" 
+                    aria-label={`Restore class ${cls.name}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleRestoreClass(cls._id || cls.id);
+                    }}
+                  >
+                    Restore
+                  </Button>
+                ) : (
+                  <Button 
+                    variant="outline-warning" 
+                    size="sm" 
+                    aria-label={`Archive class ${cls.name}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (window.confirm(`Archive "${cls.name}"? It will be hidden but can be restored later.`)) {
+                        handleArchiveClass(cls._id || cls.id);
+                      }
+                    }}
+                  >
+                    Archive
+                  </Button>
+                )}
                 <Button 
                   variant="outline-danger" 
                   size="sm" 
@@ -911,6 +974,7 @@ function TeacherClassStream() {
     title: "", 
     description: "", 
     due: "",
+    allowResubmission: true,
     questions: [{ text: "", type: "short", options: [], correctAnswer: "" }] 
   });
   const [activeTab, setActiveTab] = useState("stream");
@@ -933,6 +997,17 @@ function TeacherClassStream() {
   const [showTopicModal, setShowTopicModal] = useState(false);
   const [topicData, setTopicData] = useState({ name: '', color: '#6c757d' });
   const [editingTopic, setEditingTopic] = useState(null);
+  
+  // New features state
+  const [showReuseModal, setShowReuseModal] = useState(false);
+  const [reuseItem, setReuseItem] = useState(null);
+  const [reuseType, setReuseType] = useState(''); // 'announcement', 'exam', 'material'
+  const [targetClass, setTargetClass] = useState('');
+  const [availableClasses, setAvailableClasses] = useState([]);
+  const [showAnalytics, setShowAnalytics] = useState(false);
+  const [analytics, setAnalytics] = useState(null);
+  const [selectedItems, setSelectedItems] = useState([]); // For bulk actions
+  const [showBulkActions, setShowBulkActions] = useState(false);
   
   // Reference to socket.io connection
   const socketRef = useRef(null);  // Fetch class announcements
@@ -982,6 +1057,7 @@ function TeacherClassStream() {
         message: `New material: ${safeTitle} ${safeDescription ? '- ' + safeDescription : ''}`,
         attachments: material && material.type === 'file' ? [{ originalName: safeTitle, filePath: material.content, fileSize: material.fileSize || 0 }] : [],
         materialRef: material || null,
+        examId: material && material.examId ? material.examId : undefined,
       };
 
       // Post to backend so students see it
@@ -998,6 +1074,18 @@ function TeacherClassStream() {
       console.error('handleMaterialCreated error', err);
     }
   }, [className, fetchAnnouncements]);
+
+  const handleMaterialDeleted = useCallback(async (materialId) => {
+    try {
+      console.debug('handleMaterialDeleted: Material deleted, refreshing stream', materialId);
+      // Refresh announcements to remove the deleted material's post
+      await fetchAnnouncements();
+      setSuccessMessage('Material and related stream post removed.');
+      setShowToast(true);
+    } catch (err) {
+      console.error('handleMaterialDeleted error', err);
+    }
+  }, [fetchAnnouncements]);
   
   // Cache for API responses to prevent unnecessary refetches
   const [apiCache, setApiCache] = useState({});
@@ -1278,6 +1366,17 @@ function TeacherClassStream() {
               setAnnouncements(prev => [newAnnouncement, ...prev]);
             }
           });
+          
+          // Listen for announcement deletions (material deletions)
+          socket.on('announcement-deleted', (data) => {
+            if (!cancelled && data && data.materialId) {
+              console.log('Received material/announcement deletion:', data);
+              // Refresh announcements to remove deleted material posts
+              fetchAnnouncements();
+              setSuccessMessage(data.message || 'Material removed from stream');
+              setShowToast(true);
+            }
+          });
         } catch (err) {
           console.error('Error initializing socket connection:', err);
         }
@@ -1290,6 +1389,7 @@ function TeacherClassStream() {
       if (socketRef.current) {
         // Unsubscribe from all events to prevent memory leaks
         socketRef.current.off('announcement-created');
+        socketRef.current.off('announcement-deleted');
         socketRef.current.off('exam-created');
         socketRef.current.off('exam-updated');
         socketRef.current.off('exam-deleted');
@@ -1458,7 +1558,8 @@ function TeacherClassStream() {
             teacher: localStorage.getItem("username"), 
             class: className,
             attachments: attachments,
-            topic: selectedTopic || null
+            topic: selectedTopic || null,
+            examId: examData && examData._id ? examData._id : undefined,
           },
           { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
         )
@@ -1585,6 +1686,149 @@ function TeacherClassStream() {
     }
   };
 
+  // New Feature: Reuse content in another class
+  const handleReuseContent = async () => {
+    if (!targetClass || !reuseItem) {
+      setError("Please select a target class");
+      setShowToast(true);
+      return;
+    }
+
+    try {
+      const endpoint = reuseType === 'announcement' ? 'announcement' : 
+                      reuseType === 'exam' ? 'exam' : 'material';
+      
+      const payload = {
+        [`${reuseType}Id`]: reuseItem._id,
+        targetClass: targetClass
+      };
+      
+      if (reuseType === 'exam' && reuseItem.due) {
+        payload.newDueDate = reuseItem.due;
+      }
+
+      await axios.post(`${API_BASE_URL}/api/reuse/${endpoint}`, payload, {
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
+      });
+
+      setSuccessMessage(`${reuseType.charAt(0).toUpperCase() + reuseType.slice(1)} reused successfully in ${targetClass}!`);
+      setShowToast(true);
+      setShowReuseModal(false);
+      setReuseItem(null);
+      setTargetClass('');
+    } catch (err) {
+      console.error("Reuse content error:", err);
+      setError(err.response?.data?.error || "Failed to reuse content");
+      setShowToast(true);
+    }
+  };
+
+  // Fetch available classes for reuse
+  const fetchAvailableClasses = async () => {
+    try {
+      const res = await axios.get(`${API_BASE_URL}/api/classes`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
+      });
+      // Filter out current class
+      const otherClasses = res.data.filter(c => c.name !== className);
+      setAvailableClasses(otherClasses);
+    } catch (err) {
+      console.error("Fetch classes error:", err);
+    }
+  };
+
+  // Open reuse modal
+  const openReuseModal = (item, type) => {
+    setReuseItem(item);
+    setReuseType(type);
+    setShowReuseModal(true);
+    fetchAvailableClasses();
+  };
+
+  // Fetch analytics
+  const fetchAnalytics = async () => {
+    try {
+      const res = await axios.get(`${API_BASE_URL}/api/analytics/class/${encodeURIComponent(className)}`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
+      });
+      setAnalytics(res.data);
+    } catch (err) {
+      console.error("Fetch analytics error:", err);
+      setError("Failed to load analytics");
+      setShowToast(true);
+    }
+  };
+
+  // Bulk delete announcements
+  const handleBulkDeleteAnnouncements = async () => {
+    if (selectedItems.length === 0) {
+      setError("Please select items to delete");
+      setShowToast(true);
+      return;
+    }
+
+    if (!window.confirm(`Are you sure you want to delete ${selectedItems.length} announcement(s)?`)) {
+      return;
+    }
+
+    try {
+      await axios.post(`${API_BASE_URL}/api/bulk/announcements/delete`, {
+        ids: selectedItems
+      }, {
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
+      });
+
+      setSuccessMessage(`${selectedItems.length} announcements deleted successfully!`);
+      setShowToast(true);
+      setSelectedItems([]);
+      setShowBulkActions(false);
+      await fetchAnnouncements();
+    } catch (err) {
+      console.error("Bulk delete error:", err);
+      setError(err.response?.data?.error || "Failed to delete announcements");
+      setShowToast(true);
+    }
+  };
+
+  // Bulk delete exams
+  const handleBulkDeleteExams = async () => {
+    if (selectedItems.length === 0) {
+      setError("Please select items to delete");
+      setShowToast(true);
+      return;
+    }
+
+    if (!window.confirm(`Are you sure you want to delete ${selectedItems.length} exam(s)?`)) {
+      return;
+    }
+
+    try {
+      await axios.post(`${API_BASE_URL}/api/bulk/exams/delete`, {
+        ids: selectedItems
+      }, {
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
+      });
+
+      setSuccessMessage(`${selectedItems.length} exams deleted successfully!`);
+      setShowToast(true);
+      setSelectedItems([]);
+      setShowBulkActions(false);
+      await fetchExams();
+      fetchAnnouncements(); // Refresh stream to remove deleted exam announcements
+    } catch (err) {
+      console.error("Bulk delete error:", err);
+      setError(err.response?.data?.error || "Failed to delete exams");
+      setShowToast(true);
+    }
+  };
+
+  // Toggle item selection for bulk actions
+  const toggleItemSelection = (itemId) => {
+    setSelectedItems(prev => 
+      prev.includes(itemId) ? prev.filter(id => id !== itemId) : [...prev, itemId]
+    );
+  };
+
   // Debug information to trace loading state
   console.log('Teacher Dashboard Status:', {
     loading,
@@ -1675,6 +1919,17 @@ function TeacherClassStream() {
             onClick={() => setActiveTab("materials")}
           >
             Materials
+          </Nav.Link>
+        </Nav.Item>
+        <Nav.Item>
+          <Nav.Link 
+            active={activeTab === "analytics"} 
+            onClick={() => {
+              setActiveTab("analytics");
+              fetchAnalytics();
+            }}
+          >
+            Analytics
           </Nav.Link>
         </Nav.Item>
       </Nav>
@@ -1803,12 +2058,40 @@ function TeacherClassStream() {
                 <Button variant="outline-primary" onClick={() => setShowExamModal(true)} aria-label="Create exam for this class">
                   + Exam
                 </Button>
-                <Button type="button" variant="outline-secondary" onClick={() => { console.log('Stream Add Material clicked'); setShowMaterialsModal(true); }} aria-label="Add material for this class">
-                  + Material
-                </Button>
               </div>
             </Form>
           </Card>
+
+          {/* Bulk Actions for Announcements */}
+          {announcements.length > 0 && (
+            <Card className="mb-3 p-3">
+              <div className="d-flex justify-content-between align-items-center">
+                <Form.Check
+                  type="checkbox"
+                  label="Select All Announcements"
+                  checked={selectedItems.length === announcements.length && announcements.length > 0}
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      setSelectedItems(announcements.map(a => a._id || a.id));
+                      setShowBulkActions(true);
+                    } else {
+                      setSelectedItems([]);
+                      setShowBulkActions(false);
+                    }
+                  }}
+                />
+                {showBulkActions && selectedItems.length > 0 && (
+                  <Button
+                    variant="danger"
+                    size="sm"
+                    onClick={handleBulkDeleteAnnouncements}
+                  >
+                    🗑️ Delete Selected ({selectedItems.length})
+                  </Button>
+                )}
+              </div>
+            </Card>
+          )}
 
           {announcements.length === 0 ? (
             <Card className="p-4 text-center text-muted">No posts yet. Start the conversation!</Card>
@@ -1817,24 +2100,48 @@ function TeacherClassStream() {
               <Card key={a._id || a.id} className="mb-3">
                 <Card.Body>
                   <div className="d-flex justify-content-between align-items-start">
-                    <div>
-                      <div className="d-flex align-items-center gap-2">
-                        <div className="fw-bold">{a.teacherName || a.teacher}</div>
-                        {a.topic && (
-                          <span 
-                            className="badge" 
-                            style={{ 
-                              backgroundColor: a.topic.color,
-                              fontSize: '0.75rem'
-                            }}
-                          >
-                            {a.topic.name}
-                          </span>
-                        )}
+                    <div className="d-flex align-items-start gap-2 flex-grow-1">
+                      <Form.Check
+                        type="checkbox"
+                        checked={selectedItems.includes(a._id || a.id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedItems([...selectedItems, a._id || a.id]);
+                            setShowBulkActions(true);
+                          } else {
+                            const newSelected = selectedItems.filter(id => id !== (a._id || a.id));
+                            setSelectedItems(newSelected);
+                            if (newSelected.length === 0) setShowBulkActions(false);
+                          }
+                        }}
+                      />
+                      <div className="flex-grow-1">
+                        <div className="d-flex align-items-center gap-2">
+                          <div className="fw-bold">{a.teacherName || a.teacher}</div>
+                          {a.topic && (
+                            <span 
+                              className="badge" 
+                              style={{ 
+                                backgroundColor: a.topic.color,
+                                fontSize: '0.75rem'
+                              }}
+                            >
+                              {a.topic.name}
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-muted" style={{ fontSize: 12 }}>{new Date(a.date).toLocaleString()}</div>
                       </div>
-                      <div className="text-muted" style={{ fontSize: 12 }}>{new Date(a.date).toLocaleString()}</div>
                     </div>
                     <div className="d-flex gap-2">
+                      <Button
+                        variant="outline-info"
+                        size="sm"
+                        onClick={() => openReuseModal(a, 'announcement')}
+                        title="Reuse in another class"
+                      >
+                        <i className="bi bi-arrow-repeat"></i> Reuse
+                      </Button>
                       <Button
                         variant="outline-danger"
                         size="sm"
@@ -2000,6 +2307,37 @@ function TeacherClassStream() {
             <h5 className="mb-0">Exams</h5>
           </div>
           
+          {/* Bulk Actions for Exams */}
+          {exams && exams.length > 0 && (
+            <Card className="mb-3 p-3">
+              <div className="d-flex justify-content-between align-items-center">
+                <Form.Check
+                  type="checkbox"
+                  label="Select All Exams"
+                  checked={selectedItems.length === exams.length && exams.length > 0}
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      setSelectedItems(exams.map(ex => ex._id));
+                      setShowBulkActions(true);
+                    } else {
+                      setSelectedItems([]);
+                      setShowBulkActions(false);
+                    }
+                  }}
+                />
+                {showBulkActions && selectedItems.length > 0 && (
+                  <Button
+                    variant="danger"
+                    size="sm"
+                    onClick={handleBulkDeleteExams}
+                  >
+                    🗑️ Delete Selected ({selectedItems.length})
+                  </Button>
+                )}
+              </div>
+            </Card>
+          )}
+          
           {loading ? (
             <div className="text-center p-5">
               <div className="spinner-border text-primary" role="status">
@@ -2021,14 +2359,30 @@ function TeacherClassStream() {
                           key={exam._id || `exam-${Math.random()}`}
                           className="d-flex justify-content-between align-items-center"
                         >
-                          <div>
-                            <h6 className="mb-1">{exam.title || "Untitled Exam"}</h6>
-                            <small className="text-muted">
-                              {exam.createdBy && `Posted by ${exam.createdBy}`} 
-                              {exam.description && ` • ${exam.description}`}
-                              {exam.createdAt && ` • Created: ${new Date(exam.createdAt).toLocaleDateString()}`}
-                                {exam.due && ` • Due: ${new Date(exam.due).toLocaleString()}`}
-                            </small>
+                          <div className="d-flex align-items-start gap-2 flex-grow-1">
+                            <Form.Check
+                              type="checkbox"
+                              checked={selectedItems.includes(exam._id)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setSelectedItems([...selectedItems, exam._id]);
+                                  setShowBulkActions(true);
+                                } else {
+                                  const newSelected = selectedItems.filter(id => id !== exam._id);
+                                  setSelectedItems(newSelected);
+                                  if (newSelected.length === 0) setShowBulkActions(false);
+                                }
+                              }}
+                            />
+                            <div className="flex-grow-1">
+                              <h6 className="mb-1">{exam.title || "Untitled Exam"}</h6>
+                              <small className="text-muted">
+                                {exam.createdBy && `Posted by ${exam.createdBy}`} 
+                                {exam.description && ` • ${exam.description}`}
+                                {exam.createdAt && ` • Created: ${new Date(exam.createdAt).toLocaleDateString()}`}
+                                  {exam.due && ` • Due: ${new Date(exam.due).toLocaleString()}`}
+                              </small>
+                            </div>
                           </div>
                           <div>
                             <Button 
@@ -2076,6 +2430,15 @@ function TeacherClassStream() {
                               title="Edit this exam"
                             >
                               <i className="bi bi-pencil-square me-1"></i> Edit
+                            </Button>
+                            <Button 
+                              variant="outline-success" 
+                              size="sm"
+                              className="me-2"
+                              onClick={() => openReuseModal(exam, 'exam')}
+                              title="Reuse in another class"
+                            >
+                              <i className="bi bi-arrow-repeat me-1"></i> Reuse
                             </Button>
                             <Button 
                               variant="outline-danger" 
@@ -2495,6 +2858,7 @@ function TeacherClassStream() {
                     setShowDeleteExamModal(false);
                     setSelectedExam(null);
                     fetchExams(true); // Force refresh exams list
+                    fetchAnnouncements(); // Refresh stream to remove deleted exam announcements
                     
                     // Show success message with the assignment title
                     setSuccessMessage(`Assignment "${selectedExam.title}" deleted successfully`);
@@ -2628,12 +2992,99 @@ function TeacherClassStream() {
         </div>
       )}
 
+      {/* Analytics Tab */}
+      {activeTab === "analytics" && (
+        <div>
+          <Card className="mb-3">
+            <Card.Header>
+              <h5 className="mb-0">Class Analytics - {className}</h5>
+            </Card.Header>
+            <Card.Body>
+              {analytics ? (
+                <div>
+                  <Row className="mb-4">
+                    <Col md={4}>
+                      <Card className="text-center bg-primary text-white">
+                        <Card.Body>
+                          <h3>{analytics.studentCount}</h3>
+                          <p className="mb-0">Students</p>
+                        </Card.Body>
+                      </Card>
+                    </Col>
+                    <Col md={4}>
+                      <Card className="text-center bg-success text-white">
+                        <Card.Body>
+                          <h3>{analytics.examCount}</h3>
+                          <p className="mb-0">Exams</p>
+                        </Card.Body>
+                      </Card>
+                    </Col>
+                    <Col md={4}>
+                      <Card className="text-center bg-warning text-white">
+                        <Card.Body>
+                          <h3>{analytics.totalSubmissions}</h3>
+                          <p className="mb-0">Total Submissions</p>
+                        </Card.Body>
+                      </Card>
+                    </Col>
+                  </Row>
+                  
+                  <Row>
+                    <Col md={6}>
+                      <Card className="mb-3">
+                        <Card.Header>
+                          <h6 className="mb-0">Class Summary</h6>
+                        </Card.Header>
+                        <Card.Body>
+                          <p><strong>Teacher:</strong> {analytics.teacher}</p>
+                          <p><strong>Announcements:</strong> {analytics.announcementCount}</p>
+                          <p className="mb-0"><strong>Class Name:</strong> {analytics.className}</p>
+                        </Card.Body>
+                      </Card>
+                    </Col>
+                    <Col md={6}>
+                      <Card className="mb-3">
+                        <Card.Header>
+                          <h6 className="mb-0">Quick Actions</h6>
+                        </Card.Header>
+                        <Card.Body>
+                          <Button 
+                            variant="outline-primary" 
+                            className="w-100 mb-2"
+                            onClick={() => setActiveTab("classwork")}
+                          >
+                            View All Exams
+                          </Button>
+                          <Button 
+                            variant="outline-success" 
+                            className="w-100"
+                            onClick={() => setActiveTab("people")}
+                          >
+                            View Students
+                          </Button>
+                        </Card.Body>
+                      </Card>
+                    </Col>
+                  </Row>
+                </div>
+              ) : (
+                <div className="text-center py-4">
+                  <Spinner animation="border" />
+                  <p className="mt-2">Loading analytics...</p>
+                </div>
+              )}
+            </Card.Body>
+          </Card>
+        </div>
+      )}
+
       {/* Always mount Materials so the Add Material button in Stream can open its modal. Hide its main content unless the Materials tab is active. */}
       <Materials
         className={className}
         showCreateModal={showMaterialsModal}
         onShowCreateModalChange={setShowMaterialsModal}
         onMaterialCreated={handleMaterialCreated}
+        onMaterialDeleted={handleMaterialDeleted}
         hideContent={activeTab !== 'materials'}
       />
 
@@ -2698,6 +3149,42 @@ function TeacherClassStream() {
         </Modal.Footer>
       </Modal>
 
+      {/* Reuse Content Modal */}
+      <Modal show={showReuseModal} onHide={() => setShowReuseModal(false)} centered>
+        <Modal.Header closeButton>
+          <Modal.Title>Reuse {reuseType} in Another Class</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Form.Group className="mb-3">
+            <Form.Label>Select Target Class</Form.Label>
+            <Form.Select
+              value={targetClass}
+              onChange={(e) => setTargetClass(e.target.value)}
+            >
+              <option value="">Choose a class...</option>
+              {availableClasses.map((cls) => (
+                <option key={cls._id} value={cls.name}>
+                  {cls.name} {cls.section && `- ${cls.section}`}
+                </option>
+              ))}
+            </Form.Select>
+          </Form.Group>
+          {reuseItem && (
+            <Alert variant="info">
+              <strong>Content to reuse:</strong> {reuseItem.title || reuseItem.message}
+            </Alert>
+          )}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowReuseModal(false)}>
+            Cancel
+          </Button>
+          <Button variant="primary" onClick={handleReuseContent}>
+            Reuse in Selected Class
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
       {/* Exam Creation Modal */}
       <Modal
         show={showExamModal}
@@ -2754,6 +3241,19 @@ function TeacherClassStream() {
               />
               <Form.Text className="text-muted">
                 If checked, the system will NOT auto-grade this exam. You will grade submissions manually.
+              </Form.Text>
+            </Form.Group>
+
+            <Form.Group className="mb-3">
+              <Form.Check
+                type="checkbox"
+                id="allowResubmissionCheckbox"
+                label="Allow students to resubmit this exam"
+                checked={examData.allowResubmission}
+                onChange={e => setExamData({ ...examData, allowResubmission: e.target.checked })}
+              />
+              <Form.Text className="text-muted">
+                If unchecked, students can only submit once and cannot resubmit.
               </Form.Text>
             </Form.Group>
 
@@ -3189,10 +3689,13 @@ function Announcements() {
       return;
     }
     try {
+      // If announcementData has examId, include it in the post
+      const payload = { ...announcementData, teacher: localStorage.getItem("username") };
+      if (announcementData.examId) payload.examId = announcementData.examId;
       await retry(() =>
         axios.post(
           `${API_BASE_URL}/api/announcements`,
-          { ...announcementData, teacher: localStorage.getItem("username") },
+          payload,
           { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
         )
       );
@@ -3635,6 +4138,8 @@ function Grades() {
   const [showToast, setShowToast] = useState(false);
   // Removed sortBy and sortOrder state
   const [searchTerm, setSearchTerm] = useState("");
+  const [importing, setImporting] = useState(false);
+  const fileInputRef = useRef(null);
 
   const fetchLeaderboardData = useCallback(async () => {
     setLoading(true);
@@ -3696,6 +4201,67 @@ function Grades() {
       console.error("Clear all submissions error:", err.response?.data || err.message);
       setError(err.response?.data?.error || "Failed to clear submissions");
       setShowToast(true);
+    }
+  };
+
+  // Export grades to CSV
+  const handleExportGrades = async () => {
+    try {
+      const token = getAuthToken();
+      const response = await axios.get(`${API_BASE_URL}/api/grades/export`, { 
+        headers: { Authorization: `Bearer ${token}` },
+        responseType: 'blob' // Important for file download
+      });
+      
+      // Create a download link
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `grades_export_${new Date().toISOString().split('T')[0]}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      
+      setError("Grades exported successfully!");
+      setShowToast(true);
+    } catch (err) {
+      console.error("Export grades error:", err.response?.data || err.message);
+      setError("Failed to export grades");
+      setShowToast(true);
+    }
+  };
+
+  // Import grades from CSV
+  const handleImportGrades = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    setImporting(true);
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    try {
+      const token = getAuthToken();
+      const response = await axios.post(`${API_BASE_URL}/api/grades/import`, formData, { 
+        headers: { 
+          Authorization: `Bearer ${token}`
+          // Don't set Content-Type, axios will set it automatically for FormData
+        }
+      });
+      
+      await fetchLeaderboardData();
+      setError(`Successfully imported ${response.data.imported} grades!`);
+      setShowToast(true);
+    } catch (err) {
+      console.error("Import grades error:", err.response?.data || err.message);
+      setError(err.response?.data?.error || "Failed to import grades");
+      setShowToast(true);
+    } finally {
+      setImporting(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     }
   };
 
@@ -3816,6 +4382,35 @@ function Grades() {
                 onChange={(e) => setSearchTerm(e.target.value)}
                 size="sm"
               />
+            </Col>
+            <Col md={6} sm={12} className="mb-2">
+              <Form.Label className="fw-bold">Grade Management</Form.Label>
+              <div className="d-flex gap-2">
+                <Button 
+                  variant="outline-success" 
+                  size="sm"
+                  onClick={handleExportGrades}
+                  className="flex-grow-1"
+                >
+                  📥 Export CSV
+                </Button>
+                <Button 
+                  variant="outline-primary" 
+                  size="sm"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={importing}
+                  className="flex-grow-1"
+                >
+                  {importing ? "Importing..." : "📤 Import CSV"}
+                </Button>
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  accept=".csv"
+                  style={{ display: 'none' }}
+                  onChange={handleImportGrades}
+                />
+              </div>
             </Col>
           </Row>
         </Card.Body>
@@ -3953,7 +4548,8 @@ function Profile() {
   const [deletePassword, setDeletePassword] = useState("");
   const [editForm, setEditForm] = useState({
     name: '',
-    email: ''
+    email: '',
+    username: ''
   });
   const [stats, setStats] = useState({
     totalClasses: 0,
@@ -4047,11 +4643,12 @@ function Profile() {
   };
 
   const handleEditProfile = () => {
-    if (profile && profile.googleId) {
-      setEditForm({ name: profile.name || '' });
-    } else {
-      setEditForm({ name: profile.name || '', email: profile.email || '' });
-    }
+    // Always set email to current profile.email, even for Google users
+    setEditForm({
+      name: profile.name || '',
+      email: profile.email || '',
+      username: profile.username || ''
+    });
     setShowEditModal(true);
   };
 
@@ -4328,17 +4925,25 @@ function Profile() {
                 placeholder="Enter your name"
               />
             </Form.Group>
-                {!profile?.googleId && (
-                  <Form.Group className="mb-3">
-                    <Form.Label>Email</Form.Label>
-                    <Form.Control
-                      type="email"
-                      value={editForm.email || ''}
-                      onChange={(e) => setEditForm({...editForm, email: e.target.value})}
-                      placeholder="Enter your email"
-                    />
-                  </Form.Group>
-                )}
+            <Form.Group className="mb-3">
+              <Form.Label>Username</Form.Label>
+              <Form.Control
+                type="text"
+                value={editForm.username}
+                onChange={(e) => setEditForm({...editForm, username: e.target.value})}
+                placeholder="Enter your username"
+              />
+            </Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Label>Email</Form.Label>
+              <Form.Control
+                type="email"
+                value={editForm.email || ''}
+                onChange={(e) => setEditForm({...editForm, email: e.target.value})}
+                placeholder={!!profile?.googleId ? (editForm.email || '') : "Enter your email"}
+                disabled={!!profile?.googleId}
+              />
+            </Form.Group>
           </Form>
         </Modal.Body>
         <Modal.Footer className="border-0">
@@ -4719,6 +5324,7 @@ export default function TeacherDashboard() {
           </Button>
         </Modal.Footer>
       </Modal>
+      
       {/* Toast Notification */}
       <Toast
         show={showToast}

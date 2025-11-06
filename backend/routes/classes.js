@@ -6,8 +6,9 @@ const router = express.Router();
 // Get all classes
 router.get("/classes", async (req, res) => {
   try {
-    const { page = 1, limit = 100 } = req.query;
-    const classes = await Class.find()
+    const { page = 1, limit = 100, includeArchived = false } = req.query;
+    const filter = includeArchived === 'true' ? {} : { archived: { $ne: true } };
+    const classes = await Class.find(filter)
       .skip((page - 1) * limit)
       .limit(parseInt(limit));
     res.json(classes);
@@ -51,6 +52,48 @@ router.delete("/classes/:id", async (req, res) => {
   } catch (err) {
     console.error("Delete class error:", err);
     res.status(500).json({ error: "Failed to delete class" });
+  }
+});
+
+// Archive class
+router.patch("/classes/:id/archive", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const cls = await Class.findByIdAndUpdate(
+      id,
+      { archived: true, archivedAt: new Date() },
+      { new: true }
+    );
+    
+    if (!cls) {
+      return res.status(404).json({ error: "Class not found" });
+    }
+    
+    res.json({ message: "Class archived successfully", class: cls });
+  } catch (err) {
+    console.error("Archive class error:", err);
+    res.status(500).json({ error: "Failed to archive class" });
+  }
+});
+
+// Restore class
+router.patch("/classes/:id/restore", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const cls = await Class.findByIdAndUpdate(
+      id,
+      { archived: false, archivedAt: null },
+      { new: true }
+    );
+    
+    if (!cls) {
+      return res.status(404).json({ error: "Class not found" });
+    }
+    
+    res.json({ message: "Class restored successfully", class: cls });
+  } catch (err) {
+    console.error("Restore class error:", err);
+    res.status(500).json({ error: "Failed to restore class" });
   }
 });
 

@@ -16,6 +16,7 @@ const ExamSchema = new mongoose.Schema(
     ],
   createdBy: String,
   manualGrading: { type: Boolean, default: false },
+  allowResubmission: { type: Boolean, default: true },
   },
   { timestamps: true }
 );

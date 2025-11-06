@@ -699,7 +699,13 @@ export default function LandingPage() {
   };
 
   const handleChange = (e) => {
-    setFormData((f) => ({ ...f, [e.target.name]: e.target.value }));
+    // Prevent numbers in Name field
+    if (e.target.name === "name") {
+      const onlyLetters = e.target.value.replace(/\d+/g, "");
+      setFormData((f) => ({ ...f, name: onlyLetters }));
+    } else {
+      setFormData((f) => ({ ...f, [e.target.name]: e.target.value }));
+    }
   };
 
   const handleRegister = async (e) => {
@@ -1119,17 +1125,18 @@ export default function LandingPage() {
               </div>
             )}
             {!isLogin && (
-              <Form.Select
-                className="mb-3"
-                value={formData.role}
-                onChange={(e) =>
-                  setFormData({ ...formData, role: e.target.value })
-                }
-                aria-label="Select role"
-              >
-                <option value="Student">Student</option>
-                <option value="Teacher">Teacher</option>
-              </Form.Select>
+              <Form.Floating className="mb-3">
+                <Form.Control
+                  id="floatingRole"
+                  name="role"
+                  type="text"
+                  value={formData.role}
+                  disabled
+                  readOnly
+                  aria-label="Role"
+                />
+                <label htmlFor="floatingRole">Role</label>
+              </Form.Floating>
             )}
             <Button
               type="submit"

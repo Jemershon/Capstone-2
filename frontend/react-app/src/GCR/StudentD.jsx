@@ -2944,7 +2944,8 @@ function StudentProfile() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [editForm, setEditForm] = useState({
     name: '',
-    email: ''
+    email: '',
+    username: ''
   });
   const [stats, setStats] = useState({
     totalClasses: 0,
@@ -3052,11 +3053,12 @@ function StudentProfile() {
 
   const handleEditProfile = () => {
     // Allow adding email only if the account was not created via Google
-    if (profile && profile.googleId) {
-      setEditForm({ name: profile.name || '' });
-    } else {
-      setEditForm({ name: profile.name || '', email: profile.email || '' });
-    }
+    // Always set email to current profile.email, even for Google users
+    setEditForm({
+      name: profile.name || '',
+      email: profile.email || '',
+      username: profile.username || ''
+    });
     setShowEditModal(true);
   };
 
@@ -3373,17 +3375,25 @@ function StudentProfile() {
                 placeholder="Enter your name"
               />
             </Form.Group>
-            {!profile?.googleId && (
-              <Form.Group className="mb-3">
-                <Form.Label>Email</Form.Label>
-                <Form.Control
-                  type="email"
-                  value={editForm.email || ''}
-                  onChange={(e) => setEditForm({...editForm, email: e.target.value})}
-                  placeholder="Enter your email"
-                />
-              </Form.Group>
-            )}
+            <Form.Group className="mb-3">
+              <Form.Label>Username</Form.Label>
+              <Form.Control
+                type="text"
+                value={editForm.username}
+                onChange={(e) => setEditForm({...editForm, username: e.target.value})}
+                placeholder="Enter your username"
+              />
+            </Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Label>Email</Form.Label>
+              <Form.Control
+                type="email"
+                value={editForm.email || ''}
+                onChange={(e) => setEditForm({...editForm, email: e.target.value})}
+                placeholder={!!profile?.googleId ? (editForm.email || '') : "Enter your email"}
+                disabled={!!profile?.googleId}
+              />
+            </Form.Group>
           </Form>
         </Modal.Body>
         <Modal.Footer className="border-0">

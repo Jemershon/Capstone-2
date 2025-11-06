@@ -613,34 +613,41 @@ router.delete('/:id', authenticateToken, requireTeacherOrAdmin, async (req, res)
     // Delete announcements tied to this exam and remove any attached files
     try {
       const Announcement = mongoose.models['Announcement'] || mongoose.model('Announcement');
+      console.log(`Looking for announcements with examId: ${exam._id}`);
       const announcements = await Announcement.find({ examId: exam._id });
-      for (const ann of announcements) {
-        try {
-          if (ann.attachments && ann.attachments.length) {
-            for (const a of ann.attachments) {
-              if (a && a.filePath) {
-                try {
-                  fs.unlinkSync(a.filePath);
-                  console.log(`Deleted attachment file ${a.filePath}`);
-                } catch (fsErr) {
-                  console.warn('Failed to delete attachment file', a.filePath, fsErr.message || fsErr);
+      console.log(`Found ${announcements.length} announcements to delete for exam ${exam._id}`);
+      
+      if (announcements.length > 0) {
+        for (const ann of announcements) {
+          try {
+            if (ann.attachments && ann.attachments.length) {
+              for (const a of ann.attachments) {
+                if (a && a.filePath) {
+                  try {
+                    fs.unlinkSync(a.filePath);
+                    console.log(`Deleted attachment file ${a.filePath}`);
+                  } catch (fsErr) {
+                    console.warn('Failed to delete attachment file', a.filePath, fsErr.message || fsErr);
+                  }
                 }
               }
             }
-          }
-          // Delete notifications that reference this announcement
-          try {
-            const notifDel = await Notification.deleteMany({ referenceId: ann._id });
-            if (notifDel.deletedCount > 0) console.log(`Deleted ${notifDel.deletedCount} notifications for announcement ${ann._id}`);
-          } catch (notifErr) {
-            console.warn('Failed to delete notifications for announcement', ann._id, notifErr);
-          }
+            // Delete notifications that reference this announcement
+            try {
+              const notifDel = await Notification.deleteMany({ referenceId: ann._id });
+              if (notifDel.deletedCount > 0) console.log(`Deleted ${notifDel.deletedCount} notifications for announcement ${ann._id}`);
+            } catch (notifErr) {
+              console.warn('Failed to delete notifications for announcement', ann._id, notifErr);
+            }
 
-          await Announcement.deleteOne({ _id: ann._id });
-          console.log(`Deleted announcement ${ann._id} for exam ${exam._id}`);
-        } catch (annErr) {
-          console.error('Failed to delete announcement', ann._id, annErr);
+            await Announcement.deleteOne({ _id: ann._id });
+            console.log(`✓ Deleted announcement ${ann._id} for exam ${exam._id}`);
+          } catch (annErr) {
+            console.error('Failed to delete announcement', ann._id, annErr);
+          }
         }
+      } else {
+        console.log(`No announcements found with examId ${exam._id}`);
       }
     } catch (annErrOuter) {
       console.error('Failed to clean up announcements for exam', exam._id, annErrOuter);

@@ -10,6 +10,8 @@ const classSchema = new mongoose.Schema({
   teacher: String,
   students: [{ type: String }],
   bg: { type: String, default: "#FFF0D8" },
+  archived: { type: Boolean, default: false },
+  archivedAt: { type: Date, default: null },
 });
 
 export default mongoose.model("Class", classSchema);
