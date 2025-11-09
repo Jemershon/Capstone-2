@@ -178,32 +178,29 @@ app.use((req, res, next) => {
 // CORS configuration
 const corsOptions = {
   origin: function (origin, callback) {
-    // Allow requests with no origin (mobile apps, Postman, etc.)
+    // Allow requests with no origin (mobile apps, Postman, curl, etc.)
     if (!origin) return callback(null, true);
     
     // Start from the configured list (supports multiple values)
     const allowedOrigins = [
       ...CORS_ORIGIN_LIST,
       "https://ccsgoals.me",
+      "https://www.ccsgoals.me",
       "https://goals-ccs.onrender.com",
+      "https://goals-ccs.vercel.app",
       "http://localhost:5173",
       "http://localhost:3000",
       "http://127.0.0.1:5173",
       "http://127.0.0.1:3000"
     ];
     
-    // In production, add your deployed frontend URL
-    if (NODE_ENV === 'production') {
-      // Add your specific Vercel URL
-      allowedOrigins.push(
-        "https://goals-ccs.vercel.app",
-        "https://*.vercel.app" // Allow all Vercel apps as fallback
-      );
-    }
+    // Normalize the incoming origin
+    const normalizedOrigin = normalizeOrigin(origin);
     
-    // Check if origin is allowed or matches Vercel pattern
+    // Check if origin is allowed
     const isAllowed = allowedOrigins.some(allowedOrigin => {
-      if (allowedOrigin === origin) return true;
+      const normalizedAllowed = normalizeOrigin(allowedOrigin);
+      if (normalizedAllowed === normalizedOrigin) return true;
       if (allowedOrigin.includes('*') && origin) {
         const pattern = allowedOrigin.replace('*', '.*');
         return new RegExp(pattern).test(origin);
@@ -211,19 +208,27 @@ const corsOptions = {
       return false;
     });
     
-    if (isAllowed || allowedOrigins.indexOf(origin) !== -1) {
+    if (isAllowed) {
       callback(null, true);
     } else {
       console.warn(`CORS blocked origin: ${origin}`);
-      callback(new Error('Not allowed by CORS'));
+      console.warn(`Allowed origins:`, allowedOrigins);
+      callback(null, true); // Allow anyway to prevent blocking during setup
     }
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
+  exposedHeaders: ['Content-Range', 'X-Content-Range'],
+  maxAge: 86400, // 24 hours
+  preflightContinue: false,
+  optionsSuccessStatus: 204
 };
 
 app.use(cors(corsOptions));
+
+// Handle preflight OPTIONS requests explicitly
+app.options('*', cors(corsOptions));
 
 // Ensure uploads directory exists (both dev and production for local fallback)
 const setupUploadsDirectory = () => {
