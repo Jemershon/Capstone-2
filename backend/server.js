@@ -62,6 +62,7 @@ import commentsRoutes from "./routes/comments.js";
 import notificationsRoutes from "./routes/notifications.js";
 import testNotificationsRoutes from "./routes/testNotifications.js";
 import uploadRoutes from "./routes/upload.js";
+import { deleteFile } from "./services/uploadService.js";
 import examsRoutes, { setupModels } from "./routes/exams.js";
 import reactionsRoutes from "./routes/reactions.js";
 import topicsRoutes from "./routes/topics.js";
@@ -70,6 +71,7 @@ import gradeExportRoutes, { setupGradeExportModels } from "./routes/gradeExport.
 import bulkActionsRoutes, { setupBulkActionModels } from "./routes/bulkActions.js";
 import reuseRoutes, { setupReuseModels } from "./routes/reuse.js";
 import analyticsRoutes, { setupAnalyticsModels } from "./routes/analytics.js";
+import formsRoutes from "./routes/forms.js";
 import { sendBulkAnnouncementEmails } from "./services/sendgridService.js";
 import Exam from "./models/Exam.js";
 import Notification from "./models/Notification.js";
@@ -78,6 +80,11 @@ import Class from "./models/Class.js";
 import Topic from "./models/Topic.js";
 import Message from "./models/Message.js";
 import MaterialSubmission from "./models/MaterialSubmission.js";
+import Material from "./models/Material.js";
+import Comment from "./models/Comment.js";
+import Reaction from "./models/Reaction.js";
+import Form from "./models/Form.js";
+import FormResponse from "./models/FormResponse.js";
 
 // Fix __dirname for ES Modules
 const __filename = fileURLToPath(import.meta.url);
@@ -829,89 +836,98 @@ app.post("/api/register", async (req, res) => {
     }
 
   const hashedPassword = await bcrypt.hash(password, 10);
+  
+  console.log(`🧹 Cleaning up any stale data BEFORE creating user: ${cleanUsername}`);
+  
+  // COMPREHENSIVE CLEANUP: Remove all orphaned data that might exist for this username
+  // This ensures new users start with a completely clean slate
+  // DO THIS BEFORE SAVING THE USER to prevent race conditions
+  try {
+    const cleanupResults = await Promise.allSettled([
+      // Clean up notifications
+      Notification.deleteMany({ $or: [{ recipient: cleanUsername }, { sender: cleanUsername }] }),
+      
+      // Clean up classes where user is listed as teacher (for new teachers)
+      normalizedRole === 'Teacher' 
+        ? Class.deleteMany({ teacher: cleanUsername }) 
+        : Promise.resolve({ deletedCount: 0 }),
+      
+      // Remove user from student lists in classes (for new students)
+      normalizedRole === 'Student'
+        ? Class.updateMany(
+            { students: cleanUsername },
+            { $pull: { students: cleanUsername } }
+          )
+        : Promise.resolve({ modifiedCount: 0 }),
+      
+      // Clean up announcements created by this user
+      Announcement.deleteMany({ teacher: cleanUsername }),
+      
+      // Clean up assignments created by this user
+      Assignment.deleteMany({ createdBy: cleanUsername }),
+      
+      // Clean up exams created by this user
+      Exam.deleteMany({ createdBy: cleanUsername }),
+      
+      // Clean up exam submissions by this user (for students)
+      ExamSubmission.deleteMany({ studentUsername: cleanUsername }),
+      
+      // Clean up grades for this user
+      Grade.deleteMany({ student: cleanUsername }),
+      
+      // Clean up materials created by this user
+      Material.deleteMany({ teacher: cleanUsername }),
+      
+      // Clean up material submissions
+      MaterialSubmission.deleteMany({ student: cleanUsername }),
+      
+      // Clean up topics created by this user
+      Topic.deleteMany({ teacher: cleanUsername }),
+      
+      // Clean up comments by this user
+      Comment.deleteMany({ author: cleanUsername }),
+      
+      // Clean up reactions by this user
+      Reaction.deleteMany({ user: cleanUsername }),
+      
+      // Clean up messages
+      Message.deleteMany({ $or: [{ sender: cleanUsername }, { receiver: cleanUsername }] })
+    ]);
+    
+    // Log cleanup results
+    let totalCleaned = 0;
+    cleanupResults.forEach((result, index) => {
+      if (result.status === 'fulfilled' && result.value) {
+        const count = result.value.deletedCount || result.value.modifiedCount || 0;
+        totalCleaned += count;
+      }
+    });
+    
+    if (totalCleaned > 0) {
+      console.log(`✨ Cleaned up ${totalCleaned} stale records BEFORE creating new user ${cleanUsername}`);
+    } else {
+      console.log(`✓ No stale data found for ${cleanUsername} - fresh start!`);
+    }
+  } catch (cleanupErr) {
+    console.error('Warning: Failed to clean up some stale data:', cleanupErr.message);
+    // Non-fatal, continue with registration
+  }
+  
+  // NOW create and save the user AFTER cleanup
   const user = new User({ name: cleanName, username: cleanUsername, email: email || undefined, password: hashedPassword, role: normalizedRole });
   
   console.log("Creating user with role:", normalizedRole);
 
-    // Try to save. If a duplicate-key error occurs because of legacy documents that
-    // have `email: null` and a non-partial unique index existed, attempt an
-    // idempotent remediation: unset email:null documents and ensure a partial
-    // unique index on `email`, then retry the save once.
-    try {
-      await user.save();
-      
-      console.log(`🧹 Cleaning up any stale data for new user: ${cleanUsername}`);
-      
-      // COMPREHENSIVE CLEANUP: Remove all orphaned data that might exist for this username
-      // This ensures new users start with a completely clean slate
-      try {
-        const cleanupResults = await Promise.allSettled([
-          // Clean up notifications
-          Notification.deleteMany({ recipient: cleanUsername }),
-          
-          // Clean up classes where user is listed as teacher (for new teachers)
-          normalizedRole === 'Teacher' 
-            ? Class.deleteMany({ teacher: cleanUsername }) 
-            : Promise.resolve({ deletedCount: 0 }),
-          
-          // Remove user from student lists in classes (for new students)
-          normalizedRole === 'Student'
-            ? Class.updateMany(
-                { students: cleanUsername },
-                { $pull: { students: cleanUsername } }
-              )
-            : Promise.resolve({ modifiedCount: 0 }),
-          
-          // Clean up announcements created by this user
-          Announcement.deleteMany({ teacher: cleanUsername }),
-          
-          // Clean up assignments created by this user
-          Assignment.deleteMany({ createdBy: cleanUsername }),
-          
-          // Clean up exams created by this user
-          Exam.deleteMany({ createdBy: cleanUsername }),
-          
-          // Clean up exam submissions by this user (for students)
-          ExamSubmission.deleteMany({ studentUsername: cleanUsername }),
-          
-          // Clean up grades for this user
-          Grade.deleteMany({ student: cleanUsername }),
-          
-          // Clean up materials created by this user
-          Material.deleteMany({ createdBy: cleanUsername }),
-          
-          // Clean up topics created by this user
-          Topic.deleteMany({ teacher: cleanUsername }),
-          
-          // Clean up comments by this user
-          Comment.deleteMany({ author: cleanUsername }),
-          
-          // Clean up reactions by this user
-          Reaction.deleteMany({ user: cleanUsername })
-        ]);
-        
-        // Log cleanup results
-        let totalCleaned = 0;
-        cleanupResults.forEach((result, index) => {
-          if (result.status === 'fulfilled' && result.value) {
-            const count = result.value.deletedCount || result.value.modifiedCount || 0;
-            totalCleaned += count;
-          }
-        });
-        
-        if (totalCleaned > 0) {
-          console.log(`✨ Cleaned up ${totalCleaned} stale records for new user ${cleanUsername}`);
-        } else {
-          console.log(`✓ No stale data found for ${cleanUsername} - fresh start!`);
-        }
-      } catch (cleanupErr) {
-        console.error('Warning: Failed to clean up some stale data:', cleanupErr.message);
-        // Non-fatal, continue with registration
-      }
-      
-      console.log(`✅ User registered successfully: ${cleanUsername} as ${normalizedRole}`);
-      return res.status(201).json({ message: "User registered successfully", role: normalizedRole });
-    } catch (saveErr) {
+  // Try to save. If a duplicate-key error occurs because of legacy documents that
+  // have `email: null` and a non-partial unique index existed, attempt an
+  // idempotent remediation: unset email:null documents and ensure a partial
+  // unique index on `email`, then retry the save once.
+  try {
+    await user.save();
+    
+    console.log(`✅ User registered successfully: ${cleanUsername} as ${normalizedRole}`);
+    return res.status(201).json({ message: "User registered successfully", role: normalizedRole });
+  } catch (saveErr) {
       console.error('Register save error:', saveErr && saveErr.message ? saveErr.message : saveErr);
 
       // Detect Mongo duplicate key error
@@ -1172,6 +1188,50 @@ app.delete("/api/delete-account", authenticateToken, async (req, res) => {
     }
     
     // COMPREHENSIVE DATA DELETION - Remove ALL traces of this user
+    
+    // Step 1: Delete uploaded file attachments tied to user content
+    try {
+      // Find all announcements by this user with attachments
+      const userAnnouncements = await Announcement.find({ teacher: username });
+      for (const ann of userAnnouncements) {
+        if (ann.attachments && ann.attachments.length > 0) {
+          for (const attachment of ann.attachments) {
+            if (attachment.filePath || attachment.cloudinaryId) {
+              await deleteFile({
+                filePath: attachment.filePath,
+                cloudinaryId: attachment.cloudinaryId,
+                isCloudinary: !!attachment.cloudinaryId
+              });
+              console.log(`  Deleted attachment file: ${attachment.originalName || attachment.filePath}`);
+            }
+          }
+        }
+      }
+      
+      // Find all materials by this user
+      const userMaterials = await Material.find({ teacher: username });
+      for (const mat of userMaterials) {
+        if (mat.content) {
+          // If content is a file path, try to delete it
+          if (mat.type === 'file' || mat.type === 'document') {
+            await deleteFile({ filePath: mat.content, isCloudinary: false });
+            console.log(`  Deleted material file: ${mat.title}`);
+          }
+        }
+      }
+      
+      // Find and delete material submissions by this user
+      const userSubmissions = await MaterialSubmission.find({ student: username });
+      for (const sub of userSubmissions) {
+        if (sub.filePath) {
+          await deleteFile({ filePath: sub.filePath, isCloudinary: false });
+          console.log(`  Deleted submission file: ${sub.fileName}`);
+        }
+      }
+    } catch (fileErr) {
+      console.error('Failed to delete some user files:', fileErr);
+    }
+    
     const deletionResults = await Promise.allSettled([
       // Delete all notifications (both sent and received)
       Notification.deleteMany({ $or: [{ recipient: username }, { sender: username }] }),
@@ -1200,7 +1260,10 @@ app.delete("/api/delete-account", authenticateToken, async (req, res) => {
       Grade.deleteMany({ $or: [{ student: username }, { gradedBy: username }] }),
       
       // Delete all materials created by this user
-      Material.deleteMany({ createdBy: username }),
+      Material.deleteMany({ teacher: username }),
+      
+      // Delete all material submissions by this user
+      MaterialSubmission.deleteMany({ student: username }),
       
       // Delete all topics created by this user
       Topic.deleteMany({ teacher: username }),
@@ -1209,15 +1272,18 @@ app.delete("/api/delete-account", authenticateToken, async (req, res) => {
       Comment.deleteMany({ author: username }),
       
       // Delete all reactions by this user
-      Reaction.deleteMany({ user: username })
+      Reaction.deleteMany({ user: username }),
+      
+      // Delete all messages by this user
+      Message.deleteMany({ $or: [{ sender: username }, { receiver: username }] })
     ]);
     
     // Log deletion results
     let totalDeleted = 0;
     const deletionDetails = [
       'notifications', 'classes/memberships', 'announcements', 'assignments', 
-      'exams', 'exam submissions', 'grades', 'materials', 
-      'topics', 'comments', 'reactions'
+      'exams', 'exam submissions', 'grades', 'materials', 'material submissions',
+      'topics', 'comments', 'reactions', 'messages'
     ];
     
     deletionResults.forEach((result, index) => {
@@ -2818,6 +2884,7 @@ app.use("/api", gradeExportRoutes);
 app.use("/api", bulkActionsRoutes);
 app.use("/api", reuseRoutes);
 app.use("/api", analyticsRoutes);
+app.use("/api/forms", formsRoutes);
 
 // Student: Submit exam answers
 app.use("/api", authRoutes);

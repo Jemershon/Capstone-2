@@ -1961,115 +1961,15 @@ function StudentClassStream() {
                 )}
               </div>
 
+              {/* Exams section removed - Use Forms/Surveys instead */}
+              {/*
               <Row>
                 <Col md={12}>
                   <h5 className="mb-3">📊 Exams</h5>
-                  {exams.length === 0 ? (
-                    <Card className="text-center p-4">
-                      <p className="text-muted">No exams yet</p>
-                    </Card>
-                  ) : (
-                    exams.map((exam) => (
-                      <Card key={exam._id} className="mb-3">
-                        <Card.Body>
-                          <div className="d-flex justify-content-between align-items-start">
-                            <div>
-                              <h6 className="fw-bold">{exam.title}</h6>
-                              <p className="text-muted small mb-2">{exam.description}</p>
-                              <Badge bg="info" className="me-2">
-                                {exam.questions?.length || 0} {(exam.questions?.length || 0) === 1 ? 'question' : 'questions'}
-                              </Badge>
-                              {exam.due && (
-                                <Badge 
-                                  bg={timeRemaining[exam._id]?.total > 0 && timeRemaining[exam._id]?.total < 300000 ? "danger" : "warning"}
-                                  className="d-flex align-items-center px-3 py-2"
-                                  style={{ fontSize: '0.875rem', fontFamily: 'monospace' }}
-                                >
-                                  ⏱️ {timeRemaining[exam._id]?.formatted || 'Loading...'}
-                                </Badge>
-                              )}
-                              {submittedExams.includes(exam._id) && (
-                                <Badge bg="success" className="ms-2">
-                                  <i className="bi bi-check-circle-fill me-1"></i>
-                                  Completed
-                                </Badge>
-                              )}
-                            </div>
-                            {submittedExams.includes(exam._id) ? (
-                              <div className="d-flex align-items-center gap-2">
-                                <Badge 
-                                  bg="success" 
-                                  className="d-flex align-items-center px-3 py-2"
-                                  style={{ fontSize: '0.875rem' }}
-                                >
-                                  <i className="bi bi-check-circle-fill me-2"></i>
-                                  Exam Taken
-                                </Badge>
-                                <Button
-                                  variant="outline-primary"
-                                  size="sm"
-                                  onClick={() => {
-                                    console.log('🔍 View Result clicked for exam:', exam._id, exam.title);
-                                    console.log('📊 All examGrades:', examGrades);
-                                    console.log('📊 examGrades IDs:', examGrades.map(g => ({
-                                      examId: g.examId,
-                                      examTitle: g.examTitle,
-                                      finalScore: g.finalScore
-                                    })));
-                                    
-                                    const result = examGrades.find(g => {
-                                      console.log('  Comparing:', g.examId, '===', exam._id, '?', g.examId === exam._id);
-                                      return g.examId === exam._id;
-                                    });
-                                    
-                                    console.log('✅ Found result:', result);
-                                    
-                                    if (result) {
-                                      setSelectedResult(result);
-                                    } else {
-                                      setSelectedResult({ 
-                                        examTitle: exam.title, 
-                                        finalScore: 'Pending', 
-                                        feedback: 'Your exam is being graded. You will be notified when the results are available.',
-                                        totalQuestions: exam.questions?.length || 0,
-                                        returned: false
-                                      });
-                                    }
-                                    setShowResultModal(true);
-                                  }}
-                                >
-                                  <i className="bi bi-eye me-1"></i>
-                                  View Result
-                                </Button>
-                              </div>
-                            ) : (
-                              <div className="d-flex align-items-center">
-                                {exam.due && new Date(exam.due) < new Date() ? (
-                                  <Badge bg="secondary" className="me-2">Expired</Badge>
-                                ) : null}
-                                <Button 
-                                  variant="primary" 
-                                  size="sm"
-                                  onClick={() => handleTakeExam(exam)}
-                                  disabled={examLoading === exam._id || (exam.due && new Date(exam.due) < new Date())}
-                                  data-exam-id={exam._id}
-                                  data-status="not-submitted"
-                                >
-                                  {examLoading === exam._id ? (
-                                    <><span className="spinner-border spinner-border-sm me-1" /> Checking...</>
-                                  ) : (
-                                    "Take Exam"
-                                  )}
-                                </Button>
-                              </div>
-                            )}
-                          </div>
-                        </Card.Body>
-                      </Card>
-                    ))
-                  )}
+                  ... exam listing removed ...
                 </Col>
               </Row>
+              */}
             </Tab>
 
             {/* People Tab */}
@@ -2462,136 +2362,12 @@ function StudentClassStream() {
         </Modal.Footer>
       </Modal>
 
-      {/* Take Exam Modal */}
+      {/* Take Exam Modal - REMOVED: Use Forms/Surveys instead */}
+      {/*
       <Modal show={showExamModal} onHide={() => setShowExamModal(false)} size="lg">
-        <Modal.Header closeButton>
-          <div className="w-100">
-            <Modal.Title>
-              {examSubmitted ? 'Exam Submitted' : `Take Exam: ${selectedExam?.title}`}
-            </Modal.Title>
-            {selectedExam && selectedExam.due && !examSubmitted && (
-              <div className="mt-2">
-                <Badge 
-                  bg={timeRemaining[selectedExam._id]?.total > 0 && timeRemaining[selectedExam._id]?.total < 300000 ? "danger" : "warning"}
-                  className="d-flex align-items-center px-3 py-2"
-                  style={{ fontSize: '0.875rem', fontFamily: 'monospace', width: 'fit-content' }}
-                >
-                  ⏱️ Time Remaining: {timeRemaining[selectedExam._id]?.formatted || 'Loading...'}
-                </Badge>
-              </div>
-            )}
-          </div>
-        </Modal.Header>
-        <Modal.Body style={{ maxHeight: '70vh', overflowY: 'auto' }}>
-          {selectedExam ? (
-            <div>
-              {examSubmitted ? (
-                <div className="text-center py-4">
-                  <div className="animate__animated animate__fadeIn">
-                    <div className="d-flex justify-content-center mb-3">
-                      <div className="bg-success text-white rounded-circle p-3" style={{ width: '80px', height: '80px' }}>
-                        <i className="bi bi-check-lg" style={{ fontSize: '3rem' }}></i>
-                      </div>
-                    </div>
-                    <h4 className="text-success mb-4">Exam Submitted Successfully!</h4>
-                    <p className="lead">Your answers have been recorded.</p>
-                    <p>You can now close this window.</p>
-                  </div>
-                </div>
-              ) : (
-                <>
-                  <div className="mb-3">
-                    <p><strong>Description:</strong> {selectedExam.description}</p>
-                    <p><strong>Total Questions:</strong> {selectedExam.questions?.length || 0} {(selectedExam.questions?.length || 0) === 1 ? 'question' : 'questions'}</p>
-                    <hr />
-                  </div>
-                  
-                  {selectedExam.questions && selectedExam.questions.map((question, index) => (
-                    <div key={index} className="mb-4 p-3 border rounded">
-                      <h6 className="fw-bold">Question {index + 1}</h6>
-                      <p>{question.text}</p>
-                      
-                      {question.type === 'multiple' && question.options ? (
-                        <div>
-                          {question.options.map((option, optionIndex) => (
-                            <div key={optionIndex} className="form-check">
-                              <input
-                                className="form-check-input"
-                                type="radio"
-                                name={`question_${index}`}
-                                id={`q${index}_opt${optionIndex}`}
-                                value={option}
-                                onChange={(e) => handleAnswerChange(index, e.target.value)}
-                                checked={examAnswers[index] === option}
-                              />
-                              <label className="form-check-label" htmlFor={`q${index}_opt${optionIndex}`}>
-                                {option}
-                              </label>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <div>
-                          <textarea
-                            className="form-control"
-                            rows="3"
-                            placeholder="Enter your answer here..."
-                            value={examAnswers[index] || ''}
-                            onChange={(e) => handleAnswerChange(index, e.target.value)}
-                          />
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </>
-              )}
-            </div>
-          ) : (
-            <p>Loading exam...</p>
-          )}
-        </Modal.Body>
-        <Modal.Footer>
-          {!examSubmitted ? (
-            <>
-              <div className="d-flex align-items-center me-auto gap-2">
-                <Form.Label className="mb-0 fw-bold">
-                  Credit Points (Available: {userCreditPoints} ⭐)
-                </Form.Label>
-                <Form.Control
-                  type="number"
-                  min="0"
-                  max={userCreditPoints}
-                  value={useCreditPoints}
-                  onChange={(e) => {
-                    const value = parseInt(e.target.value) || 0;
-                    setUseCreditPoints(Math.min(Math.max(value, 0), userCreditPoints));
-                  }}
-                  placeholder="0"
-                  disabled={userCreditPoints === 0}
-                  style={{ width: '100px' }}
-                />
-                <small className="text-muted">
-                  {useCreditPoints > 0 ? `Using ${useCreditPoints} point${useCreditPoints !== 1 ? 's' : ''}` : 'Enter points to use'}
-                </small>
-              </div>
-              <Button variant="secondary" onClick={() => setShowExamModal(false)}>
-                Cancel
-              </Button>
-              <Button 
-                variant="primary" 
-                onClick={handleSubmitExam}
-                disabled={!selectedExam?.questions || Object.keys(examAnswers).length === 0}
-              >
-                Submit Exam
-              </Button>
-            </>
-          ) : (
-            <Button variant="primary" onClick={() => setShowExamModal(false)}>
-              Close
-            </Button>
-          )}
-        </Modal.Footer>
+        ... exam modal content removed ...
       </Modal>
+      */}
 
       {/* File Preview Modal */}
       <Modal 

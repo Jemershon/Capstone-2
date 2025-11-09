@@ -20,7 +20,8 @@ import {
   Tabs,
   Tab,
   ListGroup,
-  Badge
+  Badge,
+  Dropdown
 } from "react-bootstrap";
 import { useLocation } from 'react-router-dom';
 
@@ -30,6 +31,9 @@ import Materials from "./components/Materials";
 import Comments from "./components/Comments";
 import ExamCreator from "./components/ExamCreator";
 import ManualGradingPanel from "./components/ManualGradingPanel";
+import FormsList from "./components/FormsList";
+import FormBuilder from "./components/FormBuilder";
+import FormAnalytics from "./components/FormAnalytics";
 
 // Add custom styles for responsive design and modern UI
 const customStyles = `
@@ -385,6 +389,47 @@ const customStyles = `
   .fade-in-up {
     animation: fadeInUp 0.6s ease-out;
   }
+  
+  /* Three-dot menu dropdown */
+  .dropdown-toggle::after {
+    display: none !important;
+  }
+  
+  .dropdown-menu {
+    border-radius: 12px;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+    border: none;
+    padding: 8px 0;
+  }
+  
+  .dropdown-item {
+    padding: 10px 20px;
+    transition: all 0.2s ease;
+    font-size: 0.95rem;
+  }
+  
+  .dropdown-item:hover {
+    background-color: rgba(163, 12, 12, 0.08);
+    color: var(--brand-red);
+    transform: translateX(3px);
+  }
+  
+  .dropdown-item.text-danger:hover {
+    background-color: rgba(220, 53, 69, 0.1);
+    color: #dc3545;
+  }
+  
+  .dropdown-divider {
+    margin: 8px 0;
+    border-color: rgba(0, 0, 0, 0.1);
+  }
+  
+  /* Mobile optimization for three-dot menu */
+  @media (max-width: 768px) {
+    .dropdown-menu {
+      min-width: 150px;
+    }
+  }
 `;
 
 // Inject styles
@@ -635,45 +680,51 @@ function DashboardAndClasses() {
                 </p>
               </Card.Body>
               <Card.Footer className="d-flex justify-content-end align-items-center gap-2">
-                {cls.archived ? (
-                  <Button 
-                    variant="outline-success" 
+                <Dropdown align="end">
+                  <Dropdown.Toggle 
+                    variant="link" 
                     size="sm" 
-                    aria-label={`Restore class ${cls.name}`}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleRestoreClass(cls._id || cls.id);
-                    }}
+                    className="text-muted p-0"
+                    style={{ boxShadow: 'none', border: 'none' }}
+                    onClick={(e) => e.stopPropagation()}
                   >
-                    Restore
-                  </Button>
-                ) : (
-                  <Button 
-                    variant="outline-warning" 
-                    size="sm" 
-                    aria-label={`Archive class ${cls.name}`}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (window.confirm(`Archive "${cls.name}"? It will be hidden but can be restored later.`)) {
-                        handleArchiveClass(cls._id || cls.id);
-                      }
-                    }}
-                  >
-                    Archive
-                  </Button>
-                )}
-                <Button 
-                  variant="outline-danger" 
-                  size="sm" 
-                  aria-label={`Delete class ${cls.name}`}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setClassToDelete(cls);
-                    setShowDeleteModal(true);
-                  }}
-                >
-                  Delete
-                </Button>
+                    <i className="bi bi-three-dots-vertical" style={{ fontSize: '1.2rem' }}></i>
+                  </Dropdown.Toggle>
+                  <Dropdown.Menu>
+                    {cls.archived ? (
+                      <Dropdown.Item 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRestoreClass(cls._id || cls.id);
+                        }}
+                      >
+                        <i className="bi bi-arrow-counterclockwise me-2"></i> Restore
+                      </Dropdown.Item>
+                    ) : (
+                      <Dropdown.Item 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (window.confirm(`Archive "${cls.name}"? It will be hidden but can be restored later.`)) {
+                            handleArchiveClass(cls._id || cls.id);
+                          }
+                        }}
+                      >
+                        <i className="bi bi-archive me-2"></i> Archive
+                      </Dropdown.Item>
+                    )}
+                    <Dropdown.Divider />
+                    <Dropdown.Item 
+                      className="text-danger"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setClassToDelete(cls);
+                        setShowDeleteModal(true);
+                      }}
+                    >
+                      <i className="bi bi-trash me-2"></i> Delete
+                    </Dropdown.Item>
+                  </Dropdown.Menu>
+                </Dropdown>
               </Card.Footer>
             </Card>
           </Col>
@@ -2055,9 +2106,7 @@ function TeacherClassStream() {
                 <Button onClick={handlePost} disabled={(!message.trim() && selectedFiles.length === 0) || posting || uploading}>
                   {posting ? "Posting..." : uploading ? "Uploading..." : "Post"}
                 </Button>
-                <Button variant="outline-primary" onClick={() => setShowExamModal(true)} aria-label="Create exam for this class">
-                  + Exam
-                </Button>
+                {/* Exam button removed - use Forms/Surveys instead */}
               </div>
             </Form>
           </Card>
@@ -2133,32 +2182,39 @@ function TeacherClassStream() {
                         <div className="text-muted" style={{ fontSize: 12 }}>{new Date(a.date).toLocaleString()}</div>
                       </div>
                     </div>
-                    <div className="d-flex gap-2">
-                      <Button
-                        variant="outline-info"
-                        size="sm"
-                        onClick={() => openReuseModal(a, 'announcement')}
-                        title="Reuse in another class"
+                    <Dropdown align="end">
+                      <Dropdown.Toggle 
+                        variant="link" 
+                        size="sm" 
+                        className="text-muted p-0"
+                        style={{ boxShadow: 'none', border: 'none' }}
                       >
-                        <i className="bi bi-arrow-repeat"></i> Reuse
-                      </Button>
-                      <Button
-                        variant="outline-danger"
-                        size="sm"
-                        onClick={async () => {
-                          try {
-                            await retry(() => axios.delete(`${API_BASE_URL}/api/announcements/${a._id || a.id}`, { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }));
-                            await fetchAnnouncements();
-                          } catch (err) {
-                            console.error("Delete announcement error:", err.response?.data || err.message);
-                            setError(err.response?.data?.error || "Failed to delete post.");
-                            setShowToast(true);
-                          }
-                        }}
-                      >
-                        Delete
-                      </Button>
-                    </div>
+                        <i className="bi bi-three-dots-vertical" style={{ fontSize: '1.2rem' }}></i>
+                      </Dropdown.Toggle>
+                      <Dropdown.Menu>
+                        <Dropdown.Item 
+                          onClick={() => openReuseModal(a, 'announcement')}
+                        >
+                          <i className="bi bi-arrow-repeat me-2"></i> Reuse
+                        </Dropdown.Item>
+                        <Dropdown.Divider />
+                        <Dropdown.Item 
+                          className="text-danger"
+                          onClick={async () => {
+                            try {
+                              await retry(() => axios.delete(`${API_BASE_URL}/api/announcements/${a._id || a.id}`, { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }));
+                              await fetchAnnouncements();
+                            } catch (err) {
+                              console.error("Delete announcement error:", err.response?.data || err.message);
+                              setError(err.response?.data?.error || "Failed to delete post.");
+                              setShowToast(true);
+                            }
+                          }}
+                        >
+                          <i className="bi bi-trash me-2"></i> Delete
+                        </Dropdown.Item>
+                      </Dropdown.Menu>
+                    </Dropdown>
                   </div>
                   <div className="mt-2" style={{ whiteSpace: "pre-wrap" }}>{a.message}</div>
                   
@@ -2384,76 +2440,66 @@ function TeacherClassStream() {
                               </small>
                             </div>
                           </div>
-                          <div>
-                            <Button 
-                              variant="outline-info" 
+                          <Dropdown align="end">
+                            <Dropdown.Toggle 
+                              variant="link" 
                               size="sm" 
-                              className="me-2"
-                              onClick={async () => {
-                                setSelectedExam(exam);
-                                await fetchExamSubmissions(exam._id);
-                                setShowSubmissionsModal(true);
-                              }}
-                              title="View student submissions"
+                              className="text-muted p-0"
+                              style={{ boxShadow: 'none', border: 'none' }}
                             >
-                              <i className="bi bi-file-text me-1"></i> Submissions
-                            </Button>
-                            <Button 
-                              variant="outline-primary" 
-                              size="sm" 
-                              className="me-2"
-                              onClick={() => {
-                                // View exam details
-                                console.log("View exam:", exam);
-                                setSelectedExam(exam);
-                                setShowViewExamModal(true);
-                              }}
-                              title="View exam details"
-                            >
-                              <i className="bi bi-eye me-1"></i> View
-                            </Button>
-                            <Button 
-                              variant="outline-secondary" 
-                              size="sm"
-                              className="me-2"
-                              onClick={() => {
-                                // Edit exam 
-                                console.log("Edit exam:", exam);
-                                setSelectedExam(exam);
-                                setExamData({
-                                  title: exam.title || "",
-                                  description: exam.description || "",
-                                  questions: exam.questions || [{ text: "", type: "short", options: [], correctAnswer: "" }]
-                                });
-                                setShowEditExamModal(true);
-                              }}
-                              title="Edit this exam"
-                            >
-                              <i className="bi bi-pencil-square me-1"></i> Edit
-                            </Button>
-                            <Button 
-                              variant="outline-success" 
-                              size="sm"
-                              className="me-2"
-                              onClick={() => openReuseModal(exam, 'exam')}
-                              title="Reuse in another class"
-                            >
-                              <i className="bi bi-arrow-repeat me-1"></i> Reuse
-                            </Button>
-                            <Button 
-                              variant="outline-danger" 
-                              size="sm"
-                              onClick={() => {
-                                // Delete exam 
-                                console.log("Delete exam:", exam);
-                                setSelectedExam(exam);
-                                setShowDeleteExamModal(true);
-                              }}
-                              title="Delete this exam"
-                            >
-                              <i className="bi bi-trash me-1"></i> Delete
-                            </Button>
-                          </div>
+                              <i className="bi bi-three-dots-vertical" style={{ fontSize: '1.2rem' }}></i>
+                            </Dropdown.Toggle>
+                            <Dropdown.Menu>
+                              <Dropdown.Item 
+                                onClick={async () => {
+                                  setSelectedExam(exam);
+                                  await fetchExamSubmissions(exam._id);
+                                  setShowSubmissionsModal(true);
+                                }}
+                              >
+                                <i className="bi bi-file-text me-2"></i> Submissions
+                              </Dropdown.Item>
+                              <Dropdown.Item 
+                                onClick={() => {
+                                  console.log("View exam:", exam);
+                                  setSelectedExam(exam);
+                                  setShowViewExamModal(true);
+                                }}
+                              >
+                                <i className="bi bi-eye me-2"></i> View
+                              </Dropdown.Item>
+                              <Dropdown.Item 
+                                onClick={() => {
+                                  console.log("Edit exam:", exam);
+                                  setSelectedExam(exam);
+                                  setExamData({
+                                    title: exam.title || "",
+                                    description: exam.description || "",
+                                    questions: exam.questions || [{ text: "", type: "short", options: [], correctAnswer: "" }]
+                                  });
+                                  setShowEditExamModal(true);
+                                }}
+                              >
+                                <i className="bi bi-pencil-square me-2"></i> Edit
+                              </Dropdown.Item>
+                              <Dropdown.Item 
+                                onClick={() => openReuseModal(exam, 'exam')}
+                              >
+                                <i className="bi bi-arrow-repeat me-2"></i> Reuse
+                              </Dropdown.Item>
+                              <Dropdown.Divider />
+                              <Dropdown.Item 
+                                className="text-danger"
+                                onClick={() => {
+                                  console.log("Delete exam:", exam);
+                                  setSelectedExam(exam);
+                                  setShowDeleteExamModal(true);
+                                }}
+                              >
+                                <i className="bi bi-trash me-2"></i> Delete
+                              </Dropdown.Item>
+                            </Dropdown.Menu>
+                          </Dropdown>
                         </ListGroup.Item>
                       ))}
                     </ListGroup>
@@ -2468,7 +2514,7 @@ function TeacherClassStream() {
             </div>
           )}
           
-          {/* Exam Creation Modal */}
+          {/* Exam Creation Modal - REMOVED: Use Forms/Surveys instead
           <Modal show={showExamModal} onHide={() => setShowExamModal(false)} size="lg">
             <Modal.Header closeButton>
               <Modal.Title>Create New Exam</Modal.Title>
@@ -2485,8 +2531,11 @@ function TeacherClassStream() {
               />
             </Modal.Body>
           </Modal>
+          */}
           
-          {/* View Exam Modal */}
+          {/* View Exam Modal - REMOVED: Use Forms/Surveys instead */}
+          {/* Edit Exam Modal - REMOVED: Use Forms/Surveys instead */}
+          {/* Submissions Modal - Keep for now */}
           <Modal show={showViewExamModal} onHide={() => setShowViewExamModal(false)} size="lg">
             <Modal.Header closeButton>
               <Modal.Title>{selectedExam?.title || "Exam Details"}</Modal.Title>
@@ -3185,7 +3234,7 @@ function TeacherClassStream() {
         </Modal.Footer>
       </Modal>
 
-      {/* Exam Creation Modal */}
+      {/* Exam Creation Modal - REMOVED: Use Forms/Surveys instead
       <Modal
         show={showExamModal}
         onHide={() => setShowExamModal(false)}
@@ -3196,185 +3245,7 @@ function TeacherClassStream() {
           <Modal.Title>Create New Exam</Modal.Title>
         </Modal.Header>
         <Modal.Body>
-          <Form>
-            <Form.Group className="mb-3">
-              <Form.Label>Exam Title</Form.Label>
-              <Form.Control
-                type="text"
-                value={examData.title}
-                onChange={(e) => setExamData({ ...examData, title: e.target.value })}
-                placeholder="e.g., Midterm Exam"
-                required
-              />
-            </Form.Group>
-            <Form.Group className="mb-3">
-              <Form.Label>Description (Optional)</Form.Label>
-              <Form.Control
-                as="textarea"
-                rows={2}
-                value={examData.description}
-                onChange={(e) => setExamData({ ...examData, description: e.target.value })}
-                placeholder="Exam instructions or description"
-              />
-            </Form.Group>
-
-            <Form.Group className="mb-3">
-              <Form.Label>Due Date</Form.Label>
-              <Form.Control
-                type="datetime-local"
-                value={examData.due}
-                onChange={(e) => setExamData({ ...examData, due: e.target.value })}
-                placeholder="Select due date and time"
-              />
-              <Form.Text className="text-muted">
-                Students will earn +1 credit point for early submission, -2 for late submission
-              </Form.Text>
-            </Form.Group>
-
-            <Form.Group className="mb-3">
-              <Form.Check
-                type="checkbox"
-                id="manualGradingCheckbox"
-                label="Manual Grading (I will check this exam myself)"
-                checked={!!examData.manualGrading}
-                onChange={e => setExamData({ ...examData, manualGrading: e.target.checked })}
-              />
-              <Form.Text className="text-muted">
-                If checked, the system will NOT auto-grade this exam. You will grade submissions manually.
-              </Form.Text>
-            </Form.Group>
-
-            <Form.Group className="mb-3">
-              <Form.Check
-                type="checkbox"
-                id="allowResubmissionCheckbox"
-                label="Allow students to resubmit this exam"
-                checked={examData.allowResubmission}
-                onChange={e => setExamData({ ...examData, allowResubmission: e.target.checked })}
-              />
-              <Form.Text className="text-muted">
-                If unchecked, students can only submit once and cannot resubmit.
-              </Form.Text>
-            </Form.Group>
-
-            <div className="mt-4 mb-3">
-              <h5>Questions</h5>
-              {examData.questions.map((q, i) => (
-                <Card key={i} className="mb-3">
-                  <Card.Body>
-                    <Form.Group className="mb-3">
-                      <Form.Label>Question {i + 1}</Form.Label>
-                      <Form.Control
-                        type="text"
-                        value={q.text}
-                        onChange={(e) => handleQuestionChange(i, "text", e.target.value)}
-                        placeholder="Enter question text"
-                        required
-                      />
-                    </Form.Group>
-                    <Form.Group className="mb-3">
-                      <Form.Label>Question Type</Form.Label>
-                      <Form.Select
-                        value={q.type}
-                        onChange={(e) => handleQuestionChange(i, "type", e.target.value)}
-                      >
-                        <option value="short">Short Answer</option>
-                        <option value="multiple">Multiple Choice</option>
-                      </Form.Select>
-                    </Form.Group>
-
-                    {q.type === "multiple" && (
-                      <div className="mb-3">
-                        <Form.Label>Options</Form.Label>
-                        <div className="ms-3">
-                          {(q.options || []).map((opt, oi) => (
-                            <Form.Group className="mb-2 d-flex" key={oi}>
-                              <Form.Control
-                                type="text"
-                                value={opt}
-                                onChange={(e) => {
-                                  const newOptions = [...q.options];
-                                  newOptions[oi] = e.target.value;
-                                  handleQuestionChange(i, "options", newOptions);
-                                }}
-                                placeholder={`Option ${oi + 1}`}
-                              />
-                              <Button
-                                variant="outline-danger"
-                                size="sm"
-                                className="ms-2"
-                                onClick={() => {
-                                  const newOptions = [...q.options];
-                                  newOptions.splice(oi, 1);
-                                  handleQuestionChange(i, "options", newOptions);
-                                }}
-                              >
-                                <i className="bi bi-trash"></i>
-                              </Button>
-                            </Form.Group>
-                          ))}
-                          <Button
-                            variant="outline-secondary"
-                            size="sm"
-                            onClick={() => {
-                              const newOptions = [...(q.options || []), ""];
-                              handleQuestionChange(i, "options", newOptions);
-                            }}
-                          >
-                            + Add Option
-                          </Button>
-                        </div>
-
-                        <Form.Group className="mt-3">
-                          <Form.Label>Correct Answer</Form.Label>
-                          <Form.Select
-                            value={q.correctAnswer}
-                            onChange={(e) => handleQuestionChange(i, "correctAnswer", e.target.value)}
-                          >
-                            <option value="">Select correct option</option>
-                            {q.options?.map((opt, oi) => (
-                              <option key={oi} value={opt}>
-                                {opt}
-                              </option>
-                            ))}
-                          </Form.Select>
-                        </Form.Group>
-                      </div>
-                    )}
-
-                    {q.type === "short" && (
-                      <Form.Group className="mb-3">
-                        <Form.Label>Answer Key (Optional)</Form.Label>
-                        <Form.Control
-                          type="text"
-                          value={q.correctAnswer}
-                          onChange={(e) => handleQuestionChange(i, "correctAnswer", e.target.value)}
-                          placeholder="Correct answer (optional)"
-                        />
-                      </Form.Group>
-                    )}
-                    
-                    {examData.questions.length > 1 && (
-                      <Button 
-                        variant="outline-danger" 
-                        size="sm" 
-                        onClick={() => {
-                          const newQuestions = [...examData.questions];
-                          newQuestions.splice(i, 1);
-                          setExamData({...examData, questions: newQuestions});
-                        }}
-                      >
-                        Remove Question
-                      </Button>
-                    )}
-                  </Card.Body>
-                </Card>
-              ))}
-              <Button variant="outline-primary" onClick={handleAddQuestion}>
-                + Add Question
-              </Button>
-            </div>
-          </Form>
+          ... exam creation form ...
         </Modal.Body>
         <Modal.Footer>
           <Button variant="secondary" onClick={() => setShowExamModal(false)}>
@@ -3385,6 +3256,7 @@ function TeacherClassStream() {
           </Button>
         </Modal.Footer>
       </Modal>
+      */}
       
       {/* Invite Students functionality removed */}
 
@@ -5180,6 +5052,14 @@ export default function TeacherDashboard() {
             {/* Remove Exams from sidebar to merge into class stream */}
             <Nav.Link
               as={NavLink}
+              to="/teacher/forms"
+              className="nav-link-custom"
+              aria-label="Forms & Surveys"
+            >
+              📋 Forms & Surveys
+            </Nav.Link>
+            <Nav.Link
+              as={NavLink}
               to="/teacher/grades"
               className="nav-link-custom"
               aria-label="Grades"
@@ -5229,6 +5109,14 @@ export default function TeacherDashboard() {
                   </Nav.Link>
                   <Nav.Link
                     as={NavLink}
+                    to="/teacher/forms"
+                    className="mobile-nav-link"
+                    onClick={() => setMobileNavOpen(false)}
+                  >
+                    Forms & Surveys
+                  </Nav.Link>
+                  <Nav.Link
+                    as={NavLink}
                     to="/teacher/grades"
                     className="mobile-nav-link"
                     onClick={() => setMobileNavOpen(false)}
@@ -5271,6 +5159,10 @@ export default function TeacherDashboard() {
             <Route path="dashboard" element={<DashboardAndClasses />} />
             {/* Removed global Assignments and Announcements to match per-class stream */}
             {/* Removed Exams route; exams are managed within class stream */}
+            <Route path="forms" element={<FormsList />} />
+            <Route path="forms/new" element={<FormBuilder />} />
+            <Route path="forms/:formId/edit" element={<FormBuilder />} />
+            <Route path="forms/:formId/responses" element={<FormAnalytics />} />
             <Route path="grades" element={<Grades />} />
             <Route path="class/:name" element={<TeacherClassStream />} />
             <Route path="profile" element={<Profile />} />

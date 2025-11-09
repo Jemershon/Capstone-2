@@ -16,6 +16,7 @@ import {
   Form,
   Spinner,
   Alert,
+  Dropdown,
 } from "react-bootstrap";
 // NotificationsDropdown not shown for Admin dashboard per request
 
@@ -629,21 +630,37 @@ function DashboardHome() {
                               <h6 className="mb-0 fw-bold">{cls.name}</h6>
                               <small className="text-muted">{cls.section}</small>
                             </div>
-                            <div className="card-action-btns d-flex">
-                              <Button
-                                variant="outline-danger"
-                                size="sm"
-                                onClick={async (e) => {
-                                  e.stopPropagation();
-                                  if (window.confirm(`Are you sure you want to delete class "${cls.name}"?`)) {
-                                    await handleDeleteClass(cls._id || cls.id);
-                                  }
-                                }}
-                                aria-label={`Delete class ${cls.name}`}
+                            <Dropdown align="end" onClick={(e) => e.stopPropagation()}>
+                              <Dropdown.Toggle 
+                                variant="link" 
+                                size="sm" 
+                                className="text-muted p-0"
+                                style={{ boxShadow: 'none', border: 'none' }}
                               >
-                                <i className="bi bi-trash"></i>
-                              </Button>
-                            </div>
+                                <i className="bi bi-three-dots-vertical" style={{ fontSize: '1.2rem' }}></i>
+                              </Dropdown.Toggle>
+                              <Dropdown.Menu>
+                                <Dropdown.Item 
+                                  onClick={() => {
+                                    setSelectedClass(cls);
+                                    setShowClassDetailModal(true);
+                                  }}
+                                >
+                                  <i className="bi bi-eye me-2"></i> View Details
+                                </Dropdown.Item>
+                                <Dropdown.Divider />
+                                <Dropdown.Item 
+                                  className="text-danger"
+                                  onClick={async () => {
+                                    if (window.confirm(`Are you sure you want to delete class "${cls.name}"?`)) {
+                                      await handleDeleteClass(cls._id || cls.id);
+                                    }
+                                  }}
+                                >
+                                  <i className="bi bi-trash me-2"></i> Delete
+                                </Dropdown.Item>
+                              </Dropdown.Menu>
+                            </Dropdown>
                           </div>
                           <div className="mt-2">
                             <small className="text-muted d-block">
@@ -723,21 +740,37 @@ function DashboardHome() {
                                 {user.role}
                               </small>
                             </div>
-                            <div className="card-action-btns d-flex">
-                              <Button
-                                variant="outline-danger"
-                                size="sm"
-                                onClick={async (e) => {
-                                  e.stopPropagation();
-                                  if (window.confirm(`Are you sure you want to delete user "${user.name || user.username}"?`)) {
-                                    await handleDeleteUser(user._id || user.id);
-                                  }
-                                }}
-                                aria-label={`Delete user ${user.name || user.username}`}
+                            <Dropdown align="end" onClick={(e) => e.stopPropagation()}>
+                              <Dropdown.Toggle 
+                                variant="link" 
+                                size="sm" 
+                                className="text-muted p-0"
+                                style={{ boxShadow: 'none', border: 'none' }}
                               >
-                                <i className="bi bi-trash"></i>
-                              </Button>
-                            </div>
+                                <i className="bi bi-three-dots-vertical" style={{ fontSize: '1.2rem' }}></i>
+                              </Dropdown.Toggle>
+                              <Dropdown.Menu>
+                                <Dropdown.Item 
+                                  onClick={() => {
+                                    setSelectedUser(user);
+                                    setShowUserDetailModal(true);
+                                  }}
+                                >
+                                  <i className="bi bi-eye me-2"></i> View Details
+                                </Dropdown.Item>
+                                <Dropdown.Divider />
+                                <Dropdown.Item 
+                                  className="text-danger"
+                                  onClick={async () => {
+                                    if (window.confirm(`Are you sure you want to delete user "${user.name || user.username}"?`)) {
+                                      await handleDeleteUser(user._id || user.id);
+                                    }
+                                  }}
+                                >
+                                  <i className="bi bi-trash me-2"></i> Delete
+                                </Dropdown.Item>
+                              </Dropdown.Menu>
+                            </Dropdown>
                           </div>
                           <div className="mt-2">
                             <small className="text-muted d-block text-truncate">
@@ -794,32 +827,38 @@ function DashboardHome() {
                               <small className="text-muted d-block">Role: {gUser.role}</small>
                               <small className="text-muted d-block">Google ID: <code style={{fontSize: '0.75rem'}}>{gUser.googleId}</code></small>
                             </div>
-                            <div className="card-action-btns d-flex">
-                              <Button
-                                variant="outline-danger"
-                                size="sm"
-                                onClick={async () => {
-                                  if (window.confirm(`Are you sure you want to delete user "${gUser.name || gUser.username}"?`)) {
-                                    await handleDeleteUser(gUser._id || gUser.id);
-                                  }
-                                }}
-                                aria-label={`Delete user ${gUser.name || gUser.username}`}
+                            <Dropdown align="end">
+                              <Dropdown.Toggle 
+                                variant="link" 
+                                size="sm" 
+                                className="text-muted p-0"
+                                style={{ boxShadow: 'none', border: 'none' }}
                               >
-                                <i className="bi bi-trash"></i>
-                              </Button>
-                              <Button
-                                variant="outline-secondary"
-                                size="sm"
-                                onClick={async () => {
-                                  if (window.confirm(`Unlink Google account from "${gUser.name || gUser.username}"? This will keep the user but remove Google sign-in.`)) {
-                                    await handleUnlinkGoogle(gUser._id || gUser.id);
-                                  }
-                                }}
-                                aria-label={`Unlink google for ${gUser.name || gUser.username}`}
-                              >
-                                Unlink
-                              </Button>
-                            </div>
+                                <i className="bi bi-three-dots-vertical" style={{ fontSize: '1.2rem' }}></i>
+                              </Dropdown.Toggle>
+                              <Dropdown.Menu>
+                                <Dropdown.Item 
+                                  onClick={async () => {
+                                    if (window.confirm(`Unlink Google account from "${gUser.name || gUser.username}"? This will keep the user but remove Google sign-in.`)) {
+                                      await handleUnlinkGoogle(gUser._id || gUser.id);
+                                    }
+                                  }}
+                                >
+                                  <i className="bi bi-link-45deg me-2"></i> Unlink Google
+                                </Dropdown.Item>
+                                <Dropdown.Divider />
+                                <Dropdown.Item 
+                                  className="text-danger"
+                                  onClick={async () => {
+                                    if (window.confirm(`Are you sure you want to delete user "${gUser.name || gUser.username}"?`)) {
+                                      await handleDeleteUser(gUser._id || gUser.id);
+                                    }
+                                  }}
+                                >
+                                  <i className="bi bi-trash me-2"></i> Delete
+                                </Dropdown.Item>
+                              </Dropdown.Menu>
+                            </Dropdown>
                           </div>
                         </Card.Body>
                       </Card>

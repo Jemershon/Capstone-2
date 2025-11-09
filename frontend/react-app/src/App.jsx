@@ -11,6 +11,7 @@ import TeacherDashboard from "./GCR/TeacherD";
 import ResetPassword from "./GCR/ResetPassword";
 import RequestOTP from "./GCR/RequestOTP";
 import VerifyOTP from "./GCR/VerifyOTP";
+import FormViewer from "./GCR/components/FormViewer";
 
 function App() {
   return (
@@ -23,6 +24,8 @@ function App() {
         <Route path="/admin/*" element={<AdminDashboard />} />
         <Route path="/student/*" element={<StudentDashboard />} />
         <Route path="/teacher/*" element={<TeacherDashboard />} />
+        {/* Public form viewer route */}
+        <Route path="/forms/:formId" element={<FormViewer />} />
       </Routes>
     </Router>
   );
