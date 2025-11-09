@@ -443,9 +443,9 @@ function StudentDashboard() {
               as={NavLink}
               to="/student/dashboard"
               className="text-white nav-link-custom"
-              aria-label="Dashboard and Classes"
+              aria-label="Classes"
             >
-              🏠 Dashboard & Classes
+              🏠 Classes
             </Nav.Link>
 
             <Nav.Link
@@ -743,7 +743,7 @@ function StudentMainDashboard() {
 
   return (
     <div className="dashboard-content">
-      <h2 className="fw-bold mb-4">Dashboard & Classes</h2>
+  <h2 className="fw-bold mb-4">Classes</h2>
       
       {error && (
         <Toast

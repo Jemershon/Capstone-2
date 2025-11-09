@@ -609,7 +609,7 @@ function DashboardAndClasses() {
   return (
     <div className="dashboard-content">
       <h2 className="fw-bold mb-4">Dashboard & Classes</h2>
-      {(error || successMessage) && (
+        {(error || successMessage) && ( 
         <Toast
           show={showToast}
           onClose={() => {
@@ -627,7 +627,7 @@ function DashboardAndClasses() {
       )}
       
       <h4 className="fw-bold mb-3 d-flex justify-content-between align-items-center">
-        <span>Your classes:</span>
+        <span>Your classes:</span> 
         <Button
           size="sm"
           variant="outline-primary"
@@ -641,7 +641,7 @@ function DashboardAndClasses() {
         {classes.length === 0 && (
           <Col xs={12}>
             <Card className="p-4 text-center text-muted">
-              No classes found. Create a class to get started!
+                No classes found. Create a class to get started!
             </Card>
           </Col>
         )}

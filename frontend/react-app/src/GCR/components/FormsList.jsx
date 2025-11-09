@@ -179,7 +179,7 @@ const FormsList = () => {
       <Row className="mb-4">
         <Col>
           <div className="d-flex justify-content-between align-items-center">
-            <h2>📋 Forms & Surveys</h2>
+            <h2>📋 Forms</h2>
             <div className="d-flex gap-2">
               <Button 
                 variant="outline-primary" 

@@ -637,9 +637,6 @@ const FormBuilder = () => {
                     })}
                     className="mb-3"
                   />
-                  <small className="text-muted d-block mb-3">
-                    Enables exam header, sections (Part I, Part II, etc.), and Philippine question types like Identification, Enumeration, True/False, and Matching Type.
-                  </small>
                   
                   {form.settings.usePhilippineStyle && (
                     <>

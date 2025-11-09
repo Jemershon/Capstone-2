@@ -2,7 +2,7 @@
 
 ## ✅ Feature Implemented: Philippine-Style Examination System
 
-Your Forms & Surveys system now supports the traditional Philippine exam format with sections, exam headers, and specialized question types commonly used in Philippine schools and universities.
+
 
 ---
 

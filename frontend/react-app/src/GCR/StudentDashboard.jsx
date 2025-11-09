@@ -132,9 +132,9 @@ function StudentDashboard() {
               as={NavLink}
               to="/student/dashboard"
               className="text-white nav-link-custom"
-              aria-label="Dashboard and Classes"
+              aria-label="Classes"
             >
-              🏠 Dashboard & Classes
+              🏠 Classes
             </Nav.Link>
             <Nav.Link
               as={NavLink}
@@ -173,9 +173,9 @@ function StudentDashboard() {
                   as={Link}
                   to="/student/dashboard"
                   className="text-white"
-                  aria-label="Dashboard and Classes"
+                  aria-label="Classes"
                 >
-                  🏠 Dashboard & Classes
+                  🏠 Classes
                 </Nav.Link>
                 <Nav.Link
                   as={Link}
@@ -414,7 +414,7 @@ function StudentMainDashboard() {
 
   return (
     <div style={{ marginTop: '60px', padding: '20px' }}>
-      <h2 className="fw-bold mb-4">Dashboard & Classes</h2>
+  <h2 className="fw-bold mb-4">Classes</h2>
       
       {error && (
         <Toast
