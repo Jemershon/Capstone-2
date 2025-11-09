@@ -16,6 +16,7 @@ const commentSchema = new mongoose.Schema({
     required: true 
   },
   class: { type: String, required: true },
+  parentComment: { type: mongoose.Schema.Types.ObjectId, ref: 'Comment', default: null }, // For nested replies
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now }
 });

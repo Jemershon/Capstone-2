@@ -17,6 +17,7 @@ const ExamSchema = new mongoose.Schema(
   createdBy: String,
   manualGrading: { type: Boolean, default: false },
   allowResubmission: { type: Boolean, default: true },
+  returned: { type: Boolean, default: false }, // Whether teacher has returned scores to students
   },
   { timestamps: true }
 );

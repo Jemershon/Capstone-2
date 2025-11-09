@@ -288,6 +288,47 @@ const customStyles = `
       margin-top: 0 !important;
     }
   }
+  
+  /* Three-dot menu dropdown */
+  .dropdown-toggle::after {
+    display: none !important;
+  }
+  
+  .dropdown-menu {
+    border-radius: 12px;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+    border: none;
+    padding: 8px 0;
+  }
+  
+  .dropdown-item {
+    padding: 10px 20px;
+    transition: all 0.2s ease;
+    font-size: 0.95rem;
+  }
+  
+  .dropdown-item:hover {
+    background-color: rgba(163, 12, 12, 0.08);
+    color: var(--brand-red);
+    transform: translateX(3px);
+  }
+  
+  .dropdown-item.text-danger:hover {
+    background-color: rgba(220, 53, 69, 0.1);
+    color: #dc3545;
+  }
+  
+  .dropdown-divider {
+    margin: 8px 0;
+    border-color: rgba(0, 0, 0, 0.1);
+  }
+  
+  /* Mobile optimization for three-dot menu */
+  @media (max-width: 768px) {
+    .dropdown-menu {
+      min-width: 150px;
+    }
+  }
 `;
 
 // Inject styles
@@ -774,9 +815,9 @@ function StudentMainDashboard() {
                     size="sm"
                     className="d-flex align-items-center px-2"
                     id={`dropdown-${cls._id || cls.id}`}
-                    style={{ minWidth: '35px' }}
+                    style={{ minWidth: '35px', boxShadow: 'none', border: 'none' }}
                   >
-                    •••
+                    <i className="bi bi-three-dots-vertical" style={{ fontSize: '1.2rem' }}></i>
                   </Dropdown.Toggle>
                   <Dropdown.Menu>
                     <Dropdown.Item 
@@ -2599,6 +2640,8 @@ function StudentGrades() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showToast, setShowToast] = useState(false);
+  const [activeTab, setActiveTab] = useState("all"); // "all", "auto", "manual"
+  const [filterClass, setFilterClass] = useState("all");
   
   // Helper function to handle API errors gracefully for students
   const handleApiError = (err, fallbackMessage = "An error occurred") => {
@@ -2637,6 +2680,51 @@ function StudentGrades() {
       setLoading(false);
     }
   };
+  
+  // Filter grades based on active tab and class
+  const getFilteredGrades = () => {
+    let filtered = [...grades];
+    
+    // Filter by grading type
+    if (activeTab === "auto") {
+      filtered = filtered.filter(g => !g.manualGrading);
+    } else if (activeTab === "manual") {
+      filtered = filtered.filter(g => g.manualGrading);
+    }
+    
+    // Filter by class
+    if (filterClass !== "all") {
+      filtered = filtered.filter(g => g.class === filterClass);
+    }
+    
+    return filtered;
+  };
+  
+  // Get unique classes
+  const getUniqueClasses = () => {
+    const classes = [...new Set(grades.map(g => g.class))];
+    return classes.sort();
+  };
+  
+  // Get counts
+  const getAutoGradedCount = () => grades.filter(g => !g.manualGrading).length;
+  const getManualGradedCount = () => grades.filter(g => g.manualGrading).length;
+  
+  // Get score color
+  const getScoreColor = (grade) => {
+    if (typeof grade === 'string' && grade.includes('/')) {
+      const [score, total] = grade.split('/').map(Number);
+      const percentage = (score / total) * 100;
+      if (percentage >= 90) return "success";
+      if (percentage >= 80) return "info";
+      if (percentage >= 70) return "warning";
+      return "danger";
+    }
+    if (grade >= 90) return "success";
+    if (grade >= 80) return "info";
+    if (grade >= 70) return "warning";
+    return "danger";
+  };
 
   if (loading) {
     return (
@@ -2646,10 +2734,18 @@ function StudentGrades() {
       </div>
     );
   }
+  
+  const filteredGrades = getFilteredGrades();
+  const uniqueClasses = getUniqueClasses();
+  const autoCount = getAutoGradedCount();
+  const manualCount = getManualGradedCount();
 
   return (
     <div className="dashboard-content">
-      <h2 className="fw-bold mb-4">My Grades</h2>
+      <div className="mb-4">
+        <h2 className="fw-bold mb-0">📊 My Grades</h2>
+        <p className="text-muted mb-0">View your performance and feedback</p>
+      </div>
       
       {error && (
         <Toast
@@ -2664,46 +2760,184 @@ function StudentGrades() {
         </Toast>
       )}
       
+      {/* Summary Cards */}
+      {grades.length > 0 && (
+        <Row className="mb-4">
+          <Col md={4}>
+            <Card 
+              className="modern-card border-0 bg-primary text-white"
+              style={{ cursor: 'pointer' }}
+              onClick={() => {
+                setActiveTab("all");
+                setFilterClass("all");
+              }}
+            >
+              <Card.Body>
+                <h3 className="mb-0">{grades.length}</h3>
+                <small>Total Grades</small>
+              </Card.Body>
+            </Card>
+          </Col>
+          <Col md={4}>
+            <Card 
+              className="modern-card border-0 bg-success text-white"
+              style={{ cursor: 'pointer' }}
+              onClick={() => {
+                setActiveTab("auto");
+                setFilterClass("all");
+              }}
+            >
+              <Card.Body>
+                <h3 className="mb-0">{autoCount}</h3>
+                <small>Auto-Graded</small>
+              </Card.Body>
+            </Card>
+          </Col>
+          <Col md={4}>
+            <Card 
+              className="modern-card border-0 bg-warning text-white"
+              style={{ cursor: 'pointer' }}
+              onClick={() => {
+                setActiveTab("manual");
+                setFilterClass("all");
+              }}
+            >
+              <Card.Body>
+                <h3 className="mb-0">{manualCount}</h3>
+                <small>Manual Graded</small>
+              </Card.Body>
+            </Card>
+          </Col>
+        </Row>
+      )}
+      
       {grades.length === 0 ? (
-        <Card className="p-4 text-center text-muted">
-          <h5>No grades available yet</h5>
-          <p>Your grades will appear here once your teachers have graded your assignments and exams.</p>
+        <Card className="modern-card p-5 text-center text-muted">
+          <i className="bi bi-inbox" style={{ fontSize: '4rem', opacity: 0.3 }}></i>
+          <h5 className="mt-3">No grades available yet</h5>
+          <p>Your grades will appear here once your teachers have graded your submissions.</p>
         </Card>
       ) : (
-        <Row>
-          {grades.map((grade, index) => (
-            <Col key={grade._id || index} md={6} lg={4} className="mb-3">
-              <Card className="h-100">
-                <Card.Body>
-                  <div className="d-flex justify-content-between align-items-start">
-                    <div>
-                      <div className="fw-bold">{grade.class}</div>
-                      <div className="text-muted" style={{ fontSize: 12 }}>
-                        {grade.assignment || 'Assignment'}
+        <>
+          {/* Tabs and Filters */}
+          <Card className="modern-card mb-4">
+            <Card.Body>
+              <Nav variant="tabs" className="mb-3">
+                <Nav.Item>
+                  <Nav.Link 
+                    active={activeTab === "all"} 
+                    onClick={() => setActiveTab("all")}
+                  >
+                    All Grades
+                    <Badge bg="primary" pill className="ms-2">{grades.length}</Badge>
+                  </Nav.Link>
+                </Nav.Item>
+                <Nav.Item>
+                  <Nav.Link 
+                    active={activeTab === "auto"} 
+                    onClick={() => setActiveTab("auto")}
+                  >
+                    <i className="bi bi-robot"></i> Auto-Graded
+                    <Badge bg="success" pill className="ms-2">{autoCount}</Badge>
+                  </Nav.Link>
+                </Nav.Item>
+                <Nav.Item>
+                  <Nav.Link 
+                    active={activeTab === "manual"} 
+                    onClick={() => setActiveTab("manual")}
+                  >
+                    <i className="bi bi-pencil-square"></i> Manual Graded
+                    <Badge bg="warning" pill className="ms-2">{manualCount}</Badge>
+                  </Nav.Link>
+                </Nav.Item>
+              </Nav>
+              
+              {/* Filter by Class */}
+              {uniqueClasses.length > 1 && (
+                <Row>
+                  <Col md={4}>
+                    <Form.Label className="small fw-bold">Filter by Class</Form.Label>
+                    <Form.Select
+                      value={filterClass}
+                      onChange={(e) => setFilterClass(e.target.value)}
+                      size="sm"
+                    >
+                      <option value="all">All Classes</option>
+                      {uniqueClasses.map(className => (
+                        <option key={className} value={className}>{className}</option>
+                      ))}
+                    </Form.Select>
+                  </Col>
+                </Row>
+              )}
+            </Card.Body>
+          </Card>
+          
+          {/* Grades Grid */}
+          {filteredGrades.length === 0 ? (
+            <Card className="modern-card p-4 text-center text-muted">
+              <h6>No grades found for this filter</h6>
+            </Card>
+          ) : (
+            <Row>
+              {filteredGrades.map((grade, index) => (
+                <Col key={grade._id || index} md={6} lg={4} className="mb-3">
+                  <Card className="modern-card h-100 border-0 shadow-sm">
+                    <Card.Body>
+                      <div className="d-flex justify-content-between align-items-start mb-3">
+                        <div className="flex-grow-1">
+                          <h6 className="fw-bold mb-1">{grade.class}</h6>
+                          <small className="text-muted">
+                            {grade.feedback?.includes('Exam:') 
+                              ? grade.feedback.split('Exam:')[1]?.split('(')[0]?.trim() || 'Assignment'
+                              : grade.assignment || 'Assignment'}
+                          </small>
+                        </div>
+                        <Badge 
+                          bg={getScoreColor(grade.grade)} 
+                          className="px-3 py-2"
+                          style={{ fontSize: '1rem' }}
+                        >
+                          {grade.grade}
+                        </Badge>
                       </div>
-                    </div>
-                    <span className={`badge ${grade.grade >= 90 ? 'bg-success' : grade.grade >= 80 ? 'bg-warning' : 'bg-danger'}`}>
-                      {grade.grade}
-                    </span>
-                  </div>
-                  {grade.feedback && (
-                    <div className="mt-2">
-                      <small className="text-muted">Feedback:</small>
-                      <div style={{ whiteSpace: "pre-wrap", fontSize: 14 }}>{grade.feedback}</div>
-                    </div>
-                  )}
-                  {grade.submittedAt && (
-                    <div className="mt-2">
-                      <small className="text-muted">
-                        Submitted: {new Date(grade.submittedAt).toLocaleDateString()}
-                      </small>
-                    </div>
-                  )}
-                </Card.Body>
-              </Card>
-            </Col>
-          ))}
-        </Row>
+                      
+                      {grade.feedback && (
+                        <div className="mb-2">
+                          <small className="text-muted fw-bold">Feedback:</small>
+                          <div className="small mt-1" style={{ 
+                            whiteSpace: "pre-wrap", 
+                            background: '#f8f9fa', 
+                            padding: '8px', 
+                            borderRadius: '8px',
+                            border: '1px solid #dee2e6'
+                          }}>
+                            {grade.feedback}
+                          </div>
+                        </div>
+                      )}
+                      
+                      <div className="d-flex justify-content-between align-items-center mt-3 pt-2 border-top">
+                        <small className="text-muted">
+                          <i className="bi bi-calendar3"></i> {new Date(grade.submittedAt || Date.now()).toLocaleDateString()}
+                        </small>
+                        {grade.manualGrading ? (
+                          <Badge bg="warning" pill>
+                            <i className="bi bi-pencil"></i> Manual
+                          </Badge>
+                        ) : (
+                          <Badge bg="success" pill>
+                            <i className="bi bi-robot"></i> Auto
+                          </Badge>
+                        )}
+                      </div>
+                    </Card.Body>
+                  </Card>
+                </Col>
+              ))}
+            </Row>
+          )}
+        </>
       )}
     </div>
   );
@@ -2731,6 +2965,14 @@ function StudentProfile() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deletePassword, setDeletePassword] = useState("");
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  
+  // Statistics modals
+  const [showClassesModal, setShowClassesModal] = useState(false);
+  const [showMaterialsModal, setShowMaterialsModal] = useState(false);
+  const [showExamsModal, setShowExamsModal] = useState(false);
+  const [classes, setClasses] = useState([]);
+  const [materials, setMaterials] = useState([]);
+  const [exams, setExams] = useState([]);
 
   const navigate = useNavigate();
   
@@ -2782,6 +3024,7 @@ function StudentProfile() {
       });
       
       const classes = classesResponse.data || [];
+      setClasses(classes); // Store classes for modal
       
       // Fetch materials and exams for all classes
       let totalMaterials = 0;
@@ -2819,6 +3062,60 @@ function StudentProfile() {
         totalMaterials: 0,
         totalExams: 0
       });
+    }
+  };
+
+  const fetchMaterialsForModal = async () => {
+    try {
+      const token = getAuthToken();
+      let allMaterials = [];
+      
+      for (const cls of classes) {
+        try {
+          const response = await axios.get(`${API_BASE_URL}/api/materials?className=${encodeURIComponent(cls.name)}`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          const classMaterials = (response.data || []).map(mat => ({
+            ...mat,
+            className: cls.name
+          }));
+          allMaterials = [...allMaterials, ...classMaterials];
+        } catch (err) {
+          console.warn(`Failed to fetch materials for class ${cls.name}:`, err);
+        }
+      }
+      
+      setMaterials(allMaterials);
+      setShowMaterialsModal(true);
+    } catch (err) {
+      console.error("Error fetching materials:", err);
+    }
+  };
+
+  const fetchExamsForModal = async () => {
+    try {
+      const token = getAuthToken();
+      let allExams = [];
+      
+      for (const cls of classes) {
+        try {
+          const response = await axios.get(`${API_BASE_URL}/api/exams?className=${encodeURIComponent(cls.name)}`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          const classExams = (response.data || []).map(exam => ({
+            ...exam,
+            className: cls.name
+          }));
+          allExams = [...allExams, ...classExams];
+        } catch (err) {
+          console.warn(`Failed to fetch exams for class ${cls.name}:`, err);
+        }
+      }
+      
+      setExams(allExams);
+      setShowExamsModal(true);
+    } catch (err) {
+      console.error("Error fetching exams:", err);
     }
   };
 
@@ -3057,21 +3354,33 @@ function StudentProfile() {
             <Card.Body>
               <div className="row g-3">
                 <div className="col-6">
-                  <div className="text-center p-3 bg-primary bg-opacity-10 rounded">
+                  <div 
+                    className="text-center p-3 bg-primary bg-opacity-10 rounded" 
+                    style={{ cursor: 'pointer' }}
+                    onClick={() => setShowClassesModal(true)}
+                  >
                     <i className="bi bi-journal-bookmark-fill text-primary fs-3"></i>
                     <h3 className="fw-bold text-primary mb-0">{stats.totalClasses}</h3>
                     <small className="text-muted">Enrolled Classes</small>
                   </div>
                 </div>
                 <div className="col-6">
-                  <div className="text-center p-3 bg-success bg-opacity-10 rounded">
+                  <div 
+                    className="text-center p-3 bg-success bg-opacity-10 rounded"
+                    style={{ cursor: 'pointer' }}
+                    onClick={fetchMaterialsForModal}
+                  >
                     <i className="bi bi-book-fill text-success fs-3"></i>
                     <h3 className="fw-bold text-success mb-0">{stats.totalMaterials}</h3>
                     <small className="text-muted">Materials</small>
                   </div>
                 </div>
                 <div className="col-12">
-                  <div className="text-center p-3 bg-info bg-opacity-10 rounded">
+                  <div 
+                    className="text-center p-3 bg-info bg-opacity-10 rounded"
+                    style={{ cursor: 'pointer' }}
+                    onClick={fetchExamsForModal}
+                  >
                     <i className="bi bi-clipboard-check-fill text-info fs-3"></i>
                     <h3 className="fw-bold text-info mb-0">{stats.totalExams}</h3>
                     <small className="text-muted">Available Exams</small>
@@ -3274,6 +3583,145 @@ function StudentProfile() {
             Logout
           </Button>
         </Modal.Footer>
+      </Modal>
+
+      {/* Classes Modal */}
+      <Modal show={showClassesModal} onHide={() => setShowClassesModal(false)} size="lg" centered>
+        <Modal.Header closeButton className="border-0 modern-card-header">
+          <Modal.Title>
+            <i className="bi bi-journal-bookmark-fill me-2"></i>
+            My Enrolled Classes
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {classes.length === 0 ? (
+            <div className="text-center py-5 text-muted">
+              <i className="bi bi-inbox fs-1"></i>
+              <p className="mt-3">You are not enrolled in any classes yet.</p>
+            </div>
+          ) : (
+            <div className="row g-3">
+              {classes.map((cls, index) => (
+                <div key={index} className="col-md-6">
+                  <Card className="modern-card h-100 border-0 shadow-sm" style={{ cursor: 'pointer' }} onClick={() => {
+                    setShowClassesModal(false);
+                    navigate(`/student/class/${encodeURIComponent(cls.name)}`);
+                  }}>
+                    <Card.Body>
+                      <div className="d-flex align-items-start">
+                        <div className="p-3 bg-primary bg-opacity-10 rounded me-3">
+                          <i className="bi bi-book text-primary fs-4"></i>
+                        </div>
+                        <div className="flex-grow-1">
+                          <h6 className="fw-bold mb-1">{cls.name}</h6>
+                          <small className="text-muted">
+                            <i className="bi bi-person me-1"></i>
+                            {cls.teacher || 'Unknown Teacher'}
+                          </small>
+                          {cls.code && (
+                            <div className="mt-2">
+                              <Badge bg="secondary" className="font-monospace">
+                                {cls.code}
+                              </Badge>
+                            </div>
+                          )}
+                        </div>
+                        <i className="bi bi-chevron-right text-muted"></i>
+                      </div>
+                    </Card.Body>
+                  </Card>
+                </div>
+              ))}
+            </div>
+          )}
+        </Modal.Body>
+      </Modal>
+
+      {/* Materials Modal */}
+      <Modal show={showMaterialsModal} onHide={() => setShowMaterialsModal(false)} size="lg" centered>
+        <Modal.Header closeButton className="border-0 modern-card-header">
+          <Modal.Title>
+            <i className="bi bi-book-fill me-2"></i>
+            All Materials
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body style={{ maxHeight: '500px', overflowY: 'auto' }}>
+          {materials.length === 0 ? (
+            <div className="text-center py-5 text-muted">
+              <i className="bi bi-inbox fs-1"></i>
+              <p className="mt-3">No materials available yet.</p>
+            </div>
+          ) : (
+            <div className="list-group">
+              {materials.map((material, index) => (
+                <div key={index} className="list-group-item list-group-item-action border-0 mb-2 rounded" style={{ cursor: 'pointer' }} onClick={() => {
+                  setShowMaterialsModal(false);
+                  navigate(`/student/class/${encodeURIComponent(material.className)}`);
+                }}>
+                  <div className="d-flex align-items-start">
+                    <div className="p-2 bg-success bg-opacity-10 rounded me-3">
+                      <i className={`bi ${material.file ? 'bi-file-earmark-pdf' : 'bi-link-45deg'} text-success fs-5`}></i>
+                    </div>
+                    <div className="flex-grow-1">
+                      <h6 className="mb-1 fw-bold">{material.title}</h6>
+                      <p className="mb-1 text-muted small">{material.description || 'No description'}</p>
+                      <small className="text-muted">
+                        <Badge bg="secondary" className="me-2">{material.className}</Badge>
+                        {material.createdAt && new Date(material.createdAt).toLocaleDateString()}
+                      </small>
+                    </div>
+                    <i className="bi bi-chevron-right text-muted"></i>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </Modal.Body>
+      </Modal>
+
+      {/* Exams Modal */}
+      <Modal show={showExamsModal} onHide={() => setShowExamsModal(false)} size="lg" centered>
+        <Modal.Header closeButton className="border-0 modern-card-header">
+          <Modal.Title>
+            <i className="bi bi-clipboard-check-fill me-2"></i>
+            All Available Exams
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body style={{ maxHeight: '500px', overflowY: 'auto' }}>
+          {exams.length === 0 ? (
+            <div className="text-center py-5 text-muted">
+              <i className="bi bi-inbox fs-1"></i>
+              <p className="mt-3">No exams available yet.</p>
+            </div>
+          ) : (
+            <div className="list-group">
+              {exams.map((exam, index) => (
+                <div key={index} className="list-group-item list-group-item-action border-0 mb-2 rounded" style={{ cursor: 'pointer' }} onClick={() => {
+                  setShowExamsModal(false);
+                  navigate(`/student/class/${encodeURIComponent(exam.className)}`);
+                }}>
+                  <div className="d-flex align-items-start">
+                    <div className="p-2 bg-info bg-opacity-10 rounded me-3">
+                      <i className="bi bi-clipboard-check text-info fs-5"></i>
+                    </div>
+                    <div className="flex-grow-1">
+                      <h6 className="mb-1 fw-bold">{exam.title}</h6>
+                      <p className="mb-1 text-muted small">{exam.instructions || 'No instructions'}</p>
+                      <small className="text-muted">
+                        <Badge bg="secondary" className="me-2">{exam.className}</Badge>
+                        <Badge bg={exam.manualGrading ? 'warning' : 'success'} className="me-2">
+                          {exam.manualGrading ? 'Manual Grading' : 'Auto Graded'}
+                        </Badge>
+                        {exam.questions?.length || 0} Questions
+                      </small>
+                    </div>
+                    <i className="bi bi-chevron-right text-muted"></i>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </Modal.Body>
       </Modal>
     </div>
   );

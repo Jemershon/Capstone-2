@@ -8,21 +8,36 @@ const router = express.Router();
 // Get comments for a specific item (assignment, announcement, etc.)
 router.get("/comments", authenticateToken, async (req, res) => {
   try {
-    const { referenceType, referenceId, page = 1, limit = 20 } = req.query;
+    const { referenceType, referenceId, page = 1, limit = 50 } = req.query;
     
     if (!referenceType || !referenceId) {
       return res.status(400).json({ error: "Required fields: referenceType, referenceId" });
     }
     
-    const comments = await Comment.find({ 
+    // Fetch all comments (both top-level and replies) for this reference
+    const allComments = await Comment.find({ 
       referenceType, 
       referenceId 
     })
-    .sort({ createdAt: -1 })
-    .skip((page - 1) * limit)
-    .limit(parseInt(limit));
+    .sort({ createdAt: -1 }); // Latest first
     
-    res.json(comments);
+    // Separate top-level comments and replies
+    const topLevelComments = allComments.filter(c => !c.parentComment);
+    const replies = allComments.filter(c => c.parentComment);
+    
+    // Attach replies to their parent comments
+    const commentsWithReplies = topLevelComments.map(comment => {
+      const commentReplies = replies
+        .filter(r => r.parentComment.toString() === comment._id.toString())
+        .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt)); // Oldest reply first
+      
+      return {
+        ...comment.toObject(),
+        replies: commentReplies
+      };
+    });
+    
+    res.json(commentsWithReplies);
   } catch (err) {
     console.error("Get comments error:", err);
     res.status(500).json({ error: "Failed to fetch comments" });
@@ -32,7 +47,7 @@ router.get("/comments", authenticateToken, async (req, res) => {
 // Add a comment
 router.post("/comments", authenticateToken, async (req, res) => {
   try {
-    const { content, referenceType, referenceId, class: className } = req.body;
+    const { content, referenceType, referenceId, class: className, parentComment } = req.body;
     
     if (!content || !referenceType || !referenceId || !className) {
       return res.status(400).json({ error: "Required fields: content, referenceType, referenceId, class" });
@@ -46,47 +61,72 @@ router.post("/comments", authenticateToken, async (req, res) => {
       referenceType,
       referenceId,
       class: className,
+      parentComment: parentComment || null, // Support for replies
     });
     
     await comment.save();
     
-    // Notify the original post creator about the comment
+    // Notify the original post creator or parent comment author
     try {
-      // Import the appropriate model based on referenceType
-      let postCreator = null;
+      let recipientUsername = null;
       
-      if (referenceType === 'exam') {
-        const Exam = req.app.models.Exam;
-        const exam = await Exam.findById(referenceId);
-        if (exam) postCreator = exam.createdBy;
-      } else if (referenceType === 'announcement') {
-        const Announcement = req.app.models.Announcement;
-        const announcement = await Announcement.findById(referenceId);
-        if (announcement) postCreator = announcement.createdBy;
-      } else if (referenceType === 'material') {
-        const Material = req.app.models.Material;
-        const material = await Material.findById(referenceId);
-        if (material) postCreator = material.createdBy;
-      }
-      
-      // Only notify if the commenter is not the post creator (don't notify yourself)
-      if (postCreator && postCreator !== req.user.username) {
-        const notification = new Notification({
-          recipient: postCreator,
-          sender: req.user.username,
-          senderName: req.user.name || req.user.username,
-          type: 'comment',
-          message: `${req.user.name || req.user.username} commented on your ${referenceType}: "${content.substring(0, 50)}${content.length > 50 ? '...' : ''}"`,
-          referenceId: referenceId,
-          class: className
-        });
-        await notification.save();
-        
-        // Send real-time notification
-        if (req.app.io) {
-          req.app.io.to(`user:${postCreator}`).emit('new-notification', notification);
+      // If this is a reply to a comment, notify the parent comment author
+      if (parentComment) {
+        const parentCommentDoc = await Comment.findById(parentComment);
+        if (parentCommentDoc && parentCommentDoc.author !== req.user.username) {
+          recipientUsername = parentCommentDoc.author;
+          
+          const notification = new Notification({
+            recipient: recipientUsername,
+            sender: req.user.username,
+            senderName: req.user.name || req.user.username,
+            type: 'reply',
+            message: `${req.user.name || req.user.username} replied to your comment: "${content.substring(0, 50)}${content.length > 50 ? '...' : ''}"`,
+            referenceId: referenceId,
+            class: className
+          });
+          await notification.save();
+          
+          if (req.app.io) {
+            req.app.io.to(`user:${recipientUsername}`).emit('new-notification', notification);
+          }
+          console.log(`✅ Notified ${recipientUsername} about reply from ${req.user.username}`);
         }
-        console.log(`✅ Notified ${postCreator} about comment from ${req.user.username}`);
+      } else {
+        // Notify the original post creator about the comment
+        let postCreator = null;
+        
+        if (referenceType === 'exam') {
+          const Exam = req.app.models.Exam;
+          const exam = await Exam.findById(referenceId);
+          if (exam) postCreator = exam.createdBy;
+        } else if (referenceType === 'announcement') {
+          const Announcement = req.app.models.Announcement;
+          const announcement = await Announcement.findById(referenceId);
+          if (announcement) postCreator = announcement.createdBy;
+        } else if (referenceType === 'material') {
+          const Material = req.app.models.Material;
+          const material = await Material.findById(referenceId);
+          if (material) postCreator = material.createdBy;
+        }
+        
+        if (postCreator && postCreator !== req.user.username) {
+          const notification = new Notification({
+            recipient: postCreator,
+            sender: req.user.username,
+            senderName: req.user.name || req.user.username,
+            type: 'comment',
+            message: `${req.user.name || req.user.username} commented on your ${referenceType}: "${content.substring(0, 50)}${content.length > 50 ? '...' : ''}"`,
+            referenceId: referenceId,
+            class: className
+          });
+          await notification.save();
+          
+          if (req.app.io) {
+            req.app.io.to(`user:${postCreator}`).emit('new-notification', notification);
+          }
+          console.log(`✅ Notified ${postCreator} about comment from ${req.user.username}`);
+        }
       }
     } catch (notifError) {
       console.log("Comment notification failed, but continuing:", notifError.message);

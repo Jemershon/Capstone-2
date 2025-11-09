@@ -25,6 +25,10 @@ function Comments({ referenceType, referenceId, className }) {
   const [userRole, setUserRole] = useState(localStorage.getItem('userRole') || '');
   const [username, setUsername] = useState(localStorage.getItem('username') || '');
   
+  // Reply state
+  const [replyTo, setReplyTo] = useState(null); // ID of comment being replied to
+  const [replyContent, setReplyContent] = useState('');
+  
   // Reactions state
   const [reactions, setReactions] = useState({});
   const [userReaction, setUserReaction] = useState(null);
@@ -113,9 +117,11 @@ function Comments({ referenceType, referenceId, className }) {
     }
   };
   
-  const handleAddComment = async (e) => {
+  const handleAddComment = async (e, parentCommentId = null) => {
     e.preventDefault();
-    if (!newComment.trim()) return;
+    const content = parentCommentId ? replyContent : newComment;
+    
+    if (!content.trim()) return;
     
     setPosting(true);
     try {
@@ -123,16 +129,23 @@ function Comments({ referenceType, referenceId, className }) {
         axios.post(
           `${API_BASE_URL}/api/comments`,
           {
-            content: newComment,
+            content,
             referenceType,
             referenceId,
             class: className,
+            parentComment: parentCommentId,
           },
           { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
         )
       );
       
-      setNewComment('');
+      if (parentCommentId) {
+        setReplyContent('');
+        setReplyTo(null);
+      } else {
+        setNewComment('');
+      }
+      
       await fetchComments();
     } catch (err) {
       console.error('Add comment error:', err.response?.data || err.message);
@@ -231,10 +244,16 @@ function Comments({ referenceType, referenceId, className }) {
           <div className="text-muted text-center py-2">No comments yet</div>
         ) : (
           comments.map(comment => (
-            <ListGroup.Item key={comment._id} className="px-0 py-2">
-              <div className="d-flex justify-content-between">
-                <div>
-                  <div className="fw-bold">{comment.authorName || comment.author}</div>
+            <ListGroup.Item key={comment._id} className="px-0 py-3 border-bottom">
+              {/* Main Comment */}
+              <div className="d-flex justify-content-between align-items-start mb-2">
+                <div className="flex-grow-1">
+                  <div className="d-flex align-items-center gap-2">
+                    <div className="fw-bold">{comment.authorName || comment.author}</div>
+                    <Badge bg="secondary" pill style={{ fontSize: '0.65rem' }}>
+                      {comment.authorRole}
+                    </Badge>
+                  </div>
                   <div className="text-muted" style={{ fontSize: '0.75rem' }}>
                     {new Date(comment.createdAt).toLocaleString()}
                   </div>
@@ -246,11 +265,96 @@ function Comments({ referenceType, referenceId, className }) {
                     className="text-danger p-0"
                     onClick={() => handleDeleteComment(comment._id)}
                   >
-                    Delete
+                    <i className="bi bi-trash"></i>
                   </Button>
                 )}
               </div>
-              <div className="mt-1">{comment.content}</div>
+              
+              <div className="mb-2">{comment.content}</div>
+              
+              {/* Reply Button */}
+              <Button
+                variant="link"
+                size="sm"
+                className="p-0 text-primary"
+                onClick={() => setReplyTo(replyTo === comment._id ? null : comment._id)}
+                style={{ fontSize: '0.85rem' }}
+              >
+                <i className="bi bi-reply"></i> Reply
+                {comment.replies && comment.replies.length > 0 && ` (${comment.replies.length})`}
+              </Button>
+              
+              {/* Reply Form */}
+              {replyTo === comment._id && (
+                <Form onSubmit={(e) => handleAddComment(e, comment._id)} className="mt-2 ms-4">
+                  <Form.Group className="d-flex">
+                    <Form.Control
+                      type="text"
+                      placeholder={`Reply to ${comment.authorName || comment.author}...`}
+                      value={replyContent}
+                      onChange={(e) => setReplyContent(e.target.value)}
+                      disabled={posting}
+                      size="sm"
+                    />
+                    <Button
+                      type="submit"
+                      variant="primary"
+                      size="sm"
+                      className="ms-2"
+                      disabled={!replyContent.trim() || posting}
+                    >
+                      {posting ? 'Posting...' : 'Reply'}
+                    </Button>
+                    <Button
+                      variant="outline-secondary"
+                      size="sm"
+                      className="ms-2"
+                      onClick={() => {
+                        setReplyTo(null);
+                        setReplyContent('');
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                  </Form.Group>
+                </Form>
+              )}
+              
+              {/* Display Replies */}
+              {comment.replies && comment.replies.length > 0 && (
+                <div className="ms-4 mt-3 border-start border-2 ps-3">
+                  {comment.replies.map(reply => (
+                    <div key={reply._id} className="mb-3">
+                      <div className="d-flex justify-content-between align-items-start mb-1">
+                        <div className="flex-grow-1">
+                          <div className="d-flex align-items-center gap-2">
+                            <div className="fw-bold" style={{ fontSize: '0.9rem' }}>
+                              {reply.authorName || reply.author}
+                            </div>
+                            <Badge bg="secondary" pill style={{ fontSize: '0.6rem' }}>
+                              {reply.authorRole}
+                            </Badge>
+                          </div>
+                          <div className="text-muted" style={{ fontSize: '0.7rem' }}>
+                            {new Date(reply.createdAt).toLocaleString()}
+                          </div>
+                        </div>
+                        {(username === reply.author || userRole === 'Teacher' || userRole === 'Admin') && (
+                          <Button
+                            variant="link"
+                            size="sm"
+                            className="text-danger p-0"
+                            onClick={() => handleDeleteComment(reply._id)}
+                          >
+                            <i className="bi bi-trash" style={{ fontSize: '0.85rem' }}></i>
+                          </Button>
+                        )}
+                      </div>
+                      <div style={{ fontSize: '0.9rem' }}>{reply.content}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </ListGroup.Item>
           ))
         )}

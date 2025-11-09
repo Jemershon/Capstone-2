@@ -746,14 +746,8 @@ router.post('/:id/submit', authenticateToken, requireStudent, async (req, res) =
       user.creditPoints = Math.max(0, user.creditPoints - creditsToUse);
       await user.save();
       feedback = `Exam: ${exam.title} (raw ${rawScore}/${total}, +${creditsToUse} credits)`;
-      gradeEntry = new Grade({ 
-        class: exam.class, 
-        student: req.user.username, 
-        grade: `${finalScore}/${total}`, 
-        feedback,
-        examId: exam._id
-      });
-      await gradeEntry.save();
+      // Do NOT create Grade entry here - wait for teacher to return scores
+      // gradeEntry will be created when teacher calls /api/exams/:examId/return-scores
     }
     const submission = new ExamSubmission({ 
       examId: exam._id, 
@@ -800,6 +794,87 @@ router.get('/:id/submissions', authenticateToken, requireTeacherOrAdmin, async (
   } catch (err) {
     console.error('List submissions error:', err);
     res.status(500).json({ error: 'Failed to fetch submissions' });
+  }
+});
+
+// Teacher: Return scores to students for an exam
+router.post('/:examId/return-scores', authenticateToken, requireTeacherOrAdmin, async (req, res) => {
+  try {
+    const exam = await Exam.findById(req.params.examId);
+    if (!exam) return res.status(404).json({ error: 'Exam not found' });
+    
+    if (req.user.role === 'Teacher' && exam.createdBy !== req.user.username) {
+      return res.status(403).json({ error: 'Not authorized to return scores for this exam' });
+    }
+    
+    // Mark exam as returned
+    exam.returned = true;
+    await exam.save();
+    
+    // Get all submissions for this exam
+    const submissions = await ExamSubmission.find({ examId: exam._id });
+    
+    // Create Grade entries and send notifications for each graded submission
+    for (const submission of submissions) {
+      // Only process graded submissions
+      if (submission.finalScore !== undefined && submission.finalScore !== null) {
+        // Create or update Grade entry
+        let gradeEntry = await Grade.findOne({ 
+          student: submission.student, 
+          examId: exam._id 
+        });
+        
+        if (!gradeEntry) {
+          gradeEntry = new Grade({
+            student: submission.student,
+            class: exam.class,
+            assignment: exam.title,
+            grade: `${submission.finalScore}/${submission.totalQuestions}`,
+            feedback: submission.feedback || `Exam: ${exam.title} (${submission.rawScore}/${submission.totalQuestions} correct)`,
+            submittedAt: submission.createdAt,
+            examId: exam._id,
+            manualGrading: exam.manualGrading
+          });
+        } else {
+          gradeEntry.grade = `${submission.finalScore}/${submission.totalQuestions}`;
+          gradeEntry.feedback = submission.feedback || `Exam: ${exam.title} (${submission.rawScore}/${submission.totalQuestions} correct)`;
+        }
+        
+        await gradeEntry.save();
+        
+        // Send notification to student
+        try {
+          const notification = new Notification({
+            recipient: submission.student,
+            sender: req.user.username,
+            senderName: req.user.name || req.user.username,
+            type: 'grade',
+            message: `Your score for "${exam.title}" has been returned: ${submission.finalScore}/${submission.totalQuestions}`,
+            referenceId: exam._id,
+            class: exam.class
+          });
+          await notification.save();
+          
+          // Send real-time notification via Socket.IO
+          if (req.app.io) {
+            req.app.io.to(`user:${submission.student}`).emit('new-notification', notification);
+          }
+          
+          console.log(`✅ Notified ${submission.student} about returned score for ${exam.title}`);
+        } catch (notifError) {
+          console.log(`Failed to notify ${submission.student}:`, notifError.message);
+        }
+      }
+    }
+    
+    res.json({ 
+      message: 'Scores returned to students successfully', 
+      examTitle: exam.title,
+      studentsNotified: submissions.filter(s => s.finalScore !== undefined).length
+    });
+  } catch (err) {
+    console.error('Return scores error:', err);
+    res.status(500).json({ error: 'Failed to return scores' });
   }
 });
 

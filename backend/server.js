@@ -2184,9 +2184,28 @@ app.get("/api/student-grades/:username", authenticateToken, requireStudent, asyn
       return res.status(403).json({ error: "Access denied" });
     }
     
-    const grades = await Grade.find({ student: username });
-    console.log(`Found ${grades.length} grades for student ${username}`);
-    res.json(grades);
+    // Get all grades for the student
+    const allGrades = await Grade.find({ student: username });
+    
+    // Filter out grades for unreturned exams
+    const returnedGrades = [];
+    
+    for (const grade of allGrades) {
+      // If the grade has an associated examId, check if it's been returned
+      if (grade.examId) {
+        const exam = await Exam.findById(grade.examId);
+        // Only include if exam is returned or exam doesn't exist (legacy grades)
+        if (!exam || exam.returned) {
+          returnedGrades.push(grade);
+        }
+      } else {
+        // No examId means it's not from an exam, include it
+        returnedGrades.push(grade);
+      }
+    }
+    
+    console.log(`Found ${returnedGrades.length} returned grades out of ${allGrades.length} total for student ${username}`);
+    res.json(returnedGrades);
   } catch (err) {
     console.error("Get student grades error:", err);
     res.status(500).json({ error: "Failed to fetch student grades" });
