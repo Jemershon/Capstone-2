@@ -32,6 +32,59 @@ const customStyles = `
   .nav-link-custom.active {
     background-color: rgba(255, 255, 255, 0.2);
   }
+
+  /* Three-dot menu dropdown (match teacher) */
+  .dropdown-toggle::after {
+    display: none !important;
+  }
+  
+  /* Force remove all hover effects from dropdown toggle button */
+  button.btn-link.dropdown-toggle,
+  button.btn-link.dropdown-toggle:hover,
+  button.btn-link.dropdown-toggle:focus,
+  button.btn-link.dropdown-toggle:active,
+  button.btn-link.dropdown-toggle:focus-visible,
+  .btn-link:hover,
+  .btn-link:focus,
+  .btn-link:active {
+    color: #6c757d !important;
+    text-decoration: none !important;
+    background: transparent !important;
+    background-color: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    outline: none !important;
+    -webkit-box-shadow: none !important;
+  }
+  
+  .dropdown-menu {
+    border-radius: 12px;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+    border: none;
+    padding: 8px 0;
+  }
+  
+  .dropdown-item {
+    padding: 10px 20px;
+    transition: all 0.2s ease;
+    font-size: 0.95rem;
+  }
+  
+  .dropdown-item:hover {
+    background-color: rgba(163, 12, 12, 0.08);
+    color: #a30c0c;
+    transform: translateX(3px);
+  }
+  
+  .dropdown-item.text-danger:hover {
+    background-color: rgba(220, 53, 69, 0.1);
+    color: #dc3545;
+  }
+  
+  .dropdown-divider {
+    margin: 8px 0;
+    border-color: rgba(0, 0, 0, 0.1);
+  }
 `;
 
 // Inject styles
@@ -495,16 +548,30 @@ function StudentMainDashboard() {
                   <strong>Classmates:</strong> {(cls.students?.length || 1) - 1}
                 </p>
               </Card.Body>
-              <Card.Footer className="d-flex justify-content-end">
-                <Button 
-                  variant="primary" 
-                  size="sm" 
-                  aria-label={`Enter class ${cls.name}`}
-                  as={Link}
-                  to={`/student/class/${encodeURIComponent(cls.name)}`}
-                >
-                  Enter Class
-                </Button>
+              <Card.Footer className="d-flex justify-content-end align-items-center gap-2">
+                <Dropdown align="end" onClick={(e) => e.stopPropagation()}>
+                  <Dropdown.Toggle 
+                    variant="link" 
+                    size="sm" 
+                    className="text-muted p-0"
+                    style={{ boxShadow: 'none', border: 'none' }}
+                  >
+                    <i className="bi bi-three-dots-vertical" style={{ fontSize: '1.2rem' }}></i>
+                  </Dropdown.Toggle>
+                  <Dropdown.Menu>
+                    <Dropdown.Item 
+                      className="text-danger"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (window.confirm(`Are you sure you want to leave "${cls.name}"?`)) {
+                          // Handle unenroll
+                        }
+                      }}
+                    >
+                      <i className="bi bi-box-arrow-right me-2"></i> Leave Class
+                    </Dropdown.Item>
+                  </Dropdown.Menu>
+                </Dropdown>
               </Card.Footer>
             </Card>
           </Col>
@@ -793,129 +860,366 @@ function StudentClassStream() {
         }
       );
 
-      setShowSubmissionModal(false);
       setSubmissionText("");
       setSubmissionFile(null);
-      alert("Assignment submitted successfully!");
-      fetchAssignments(getAuthToken());
+      setSelectedAssignment(null);
+      setShowSubmissionModal(false);
+      setError("Assignment submitted successfully!");
+      setShowToast(true);
+      
+      // Refresh assignments and grades
+      fetchAssignments(token);
+      fetchGrades(token, username);
     } catch (err) {
-      console.error("Submission error:", err);
-      alert("Failed to submit assignment");
+      console.error("Error submitting assignment:", err);
+      setError(err.response?.data?.error || "Failed to submit assignment. Please try again.");
+      setShowToast(true);
     }
   };
 
-  const handleTakeExam = (exam) => {
-    window.location.href = `/student/exam/${exam._id}`;
+  const handleConfirmLeaveClass = async () => {
+    setShowLeaveModal(false);
+    
+    try {
+      const token = getAuthToken();
+      const classId = currentClass._id || currentClass.id;
+      
+      if (!classId) {
+        throw new Error("Class ID not found");
+      }
+      
+      // Leave class API call
+      await axios.delete(`${API_BASE_URL}/api/leave-class/${classId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      // Navigate back to dashboard
+      navigate("/student/dashboard");
+    } catch (err) {
+      console.error("Error leaving class:", err);
+      setError(err.response?.data?.error || "Failed to leave class. Please try again.");
+      setShowToast(true);
+    }
   };
 
   if (loading) {
     return (
-      <Container className="d-flex justify-content-center align-items-center" style={{ minHeight: "50vh" }}>
-        <div className="text-center">
-          <div className="spinner-border text-primary mb-3"></div>
-          <p>Loading class content...</p>
-        </div>
-      </Container>
-    );
-  }
-
-  if (error) {
-    return (
-      <Container className="mt-4">
-        <Alert variant="danger">{error}</Alert>
-      </Container>
+      <div className="text-center py-4">
+        <Spinner animation="border" role="status" aria-label="Loading class data" />
+        <p>Loading class details...</p>
+      </div>
     );
   }
 
   return (
-    <Container fluid className="p-4">
-      <Row>
+    <div style={{ marginTop: '60px', padding: '20px' }}>
+      <h2 className="fw-bold mb-4">
+        <i className="bi bi-class"></i> {currentClass?.name || className}
+      </h2>
+      
+      {error && (
+        <Toast
+          show={true}
+          onClose={() => setError("")}
+          delay={5000}
+          autohide
+          bg="danger"
+          style={{ position: "fixed", top: "20px", right: "20px", zIndex: 10000 }}
+        >
+          <Toast.Body className="text-white">{error}</Toast.Body>
+        </Toast>
+      )}
+      
+      {/* Class details header */}
+      <Row className="mb-4">
         <Col>
-          <div className="d-flex justify-content-between align-items-center mb-4">
-            <h2 className="fw-bold text-primary">{className}</h2>
-            <div className="d-flex align-items-center gap-3">
-              {/* Leave class dropdown menu */}
-              <Dropdown align="end">
-                <Dropdown.Toggle 
-                  variant="outline-secondary" 
-                  size="sm"
-                  className="d-flex align-items-center px-2"
-                  style={{ minWidth: '35px' }}
-                >
-                  •••
-                </Dropdown.Toggle>
-                
-                <Dropdown.Menu>
-                  <Dropdown.Item 
-                    className="text-danger d-flex align-items-center"
-                    onClick={() => setShowLeaveModal(true)}
-                  >
-                    <span style={{ marginRight: '8px' }}>🚪</span>
-                    Leave class
-                  </Dropdown.Item>
-                </Dropdown.Menu>
-              </Dropdown>
-            </div>
-          </div>
-
-          <Tabs activeKey={activeTab} onSelect={(tab) => setActiveTab(tab)} className="mb-4">
-            {/* Stream Tab */}
-            <Tab eventKey="stream" title="Stream">
-              <div className="stream-content">
-                {announcements.length === 0 ? (
-                  <Card className="text-center p-4">
-                    <p className="text-muted">No announcements yet</p>
-                  </Card>
-                ) : (
-                  announcements.map((announcement, index) => (
-                    <Card key={index} className="mb-3">
-                      <Card.Body>
-                        <div className="d-flex align-items-center mb-2">
-                          <div className="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-3" 
-                               style={{ width: 40, height: 40 }}>
-                            {teacher ? teacher[0].toUpperCase() : 'T'}
-                          </div>
-                          <div>
-                            <strong>{teacher}</strong>
-                            <br />
-                            <small className="text-muted">{new Date(announcement.date).toLocaleString()}</small>
-                          </div>
-                        </div>
-                        <p>{announcement.text}</p>
-                        {announcement.examId && (
-                          <Badge bg="info" className="me-2">Exam Posted</Badge>
-                        )}
-                      </Card.Body>
-                    </Card>
-                  ))
-                )}
+          <Card className="bg-light p-3">
+            <div className="d-flex justify-content-between align-items-center">
+              <div>
+                <h5 className="mb-0">{currentClass?.name}</h5>
+                <small className="text-muted">{currentClass?.section}</small>
               </div>
-            </Tab>
-
-            {/* Other tabs... */}
-            <Tab eventKey="classwork" title="Classwork">
-              {/* Tab content... */}
-            </Tab>
-            <Tab eventKey="people" title="People">
-              {/* Tab content... */}
-            </Tab>
-            <Tab eventKey="materials" title="Materials">
-              {/* Tab content... */}
-            </Tab>
-            <Tab eventKey="grades" title="Grades">
-              {/* Tab content... */}
-            </Tab>
-          </Tabs>
+              <div>
+                <Button
+                  variant="outline-danger"
+                  size="sm"
+                  onClick={handleLeaveClass}
+                  aria-label="Leave class"
+                >
+                  <i className="bi bi-box-arrow-right"></i> Leave Class
+                </Button>
+              </div>
+            </div>
+          </Card>
         </Col>
       </Row>
 
-      {/* Assignment Submission Modal */}
-      <Modal show={showSubmissionModal} onHide={() => setShowSubmissionModal(false)} size="lg">
+      {/* Tabs for stream, assignments, exams, materials, classmates, grades */}
+      <Tabs
+        activeKey={activeTab}
+        onSelect={(k) => setActiveTab(k)}
+        className="mb-4"
+        fill
+      >
+        <Tab eventKey="stream" title={<span><i className="bi bi-house-door"></i> Stream</span>}>
+          {/* Stream content - announcements */}
+          <Card className="p-3">
+            <h5 className="mb-3">Announcements</h5>
+            {announcements.length === 0 ? (
+              <p className="text-muted">No announcements yet.</p>
+            ) : (
+              <ListGroup>
+                {announcements.map((ann, idx) => (
+                  <ListGroup.Item key={ann._id} className="border-0 ps-0 pe-0">
+                    <div className="d-flex justify-content-between align-items-start">
+                      <div>
+                        <strong>{ann.title}</strong>
+                        <div className="text-muted" style={{ fontSize: '0.9rem' }}>
+                          {new Date(ann.date).toLocaleString()}
+                        </div>
+                      </div>
+                      <div>
+                        <Button
+                          variant="link"
+                          size="sm"
+                          className="text-muted"
+                          onClick={() => {
+                            // TODO: Add mark as read functionality
+                          }}
+                        >
+                          <i className="bi bi-check-circle"></i>
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="mt-2">
+                      <p className="mb-1" style={{ whiteSpace: 'pre-wrap' }}>
+                        {ann.content}
+                      </p>
+                    </div>
+                  </ListGroup.Item>
+                ))}
+              </ListGroup>
+            )}
+          </Card>
+        </Tab>
+        <Tab eventKey="assignments" title={<span><i className="bi bi-file-earmark-text"></i> Assignments</span>}>
+          {/* Assignments content */}
+          <Card className="p-3">
+            <h5 className="mb-3">Assignments</h5>
+            {assignments.length === 0 ? (
+              <p className="text-muted">No assignments due.</p>
+            ) : (
+              <ListGroup>
+                {assignments.map((assign) => (
+                  <ListGroup.Item key={assign._id} className="border-0 ps-0 pe-0">
+                    <div className="d-flex justify-content-between align-items-center">
+                      <div>
+                        <strong>{assign.title}</strong>
+                        <div className="text-muted" style={{ fontSize: '0.9rem' }}>
+                          Due: {new Date(assign.dueDate).toLocaleString()}
+                        </div>
+                      </div>
+                      <div>
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          onClick={() => {
+                            setSelectedAssignment(assign);
+                            setShowSubmissionModal(true);
+                          }}
+                        >
+                          <i className="bi bi-pencil"></i> Submit
+                        </Button>
+                      </div>
+                    </div>
+                  </ListGroup.Item>
+                ))}
+              </ListGroup>
+            )}
+          </Card>
+        </Tab>
+        <Tab eventKey="exams" title={<span><i className="bi bi-journal-check"></i> Exams</span>}>
+          {/* Exams content */}
+          <Card className="p-3">
+            <h5 className="mb-3">Exams</h5>
+            {exams.length === 0 ? (
+              <p className="text-muted">No upcoming exams.</p>
+            ) : (
+              <ListGroup>
+                {exams.map((exam) => (
+                  <ListGroup.Item key={exam._id} className="border-0 ps-0 pe-0">
+                    <div className="d-flex justify-content-between align-items-center">
+                      <div>
+                        <strong>{exam.title}</strong>
+                        <div className="text-muted" style={{ fontSize: '0.9rem' }}>
+                          Date: {new Date(exam.date).toLocaleString()}
+                        </div>
+                      </div>
+                      <div>
+                        <Button
+                          variant="outline-primary"
+                          size="sm"
+                          onClick={() => {
+                            // TODO: Add view exam functionality
+                          }}
+                        >
+                          <i className="bi bi-eye"></i> View Exam
+                        </Button>
+                      </div>
+                    </div>
+                  </ListGroup.Item>
+                ))}
+              </ListGroup>
+            )}
+          </Card>
+        </Tab>
+        <Tab eventKey="materials" title={<span><i className="bi bi-file-earmark-text"></i> Materials</span>}>
+          {/* Materials content */}
+          <Card className="p-3">
+            <h5 className="mb-3">Materials</h5>
+            {materials.length === 0 ? (
+              <p className="text-muted">No materials uploaded yet.</p>
+            ) : (
+              <ListGroup>
+                {materials.map((material) => (
+                  <ListGroup.Item key={material._id} className="border-0 ps-0 pe-0">
+                    <div className="d-flex justify-content-between align-items-center">
+                      <div>
+                        <strong>{material.title}</strong>
+                        <div className="text-muted" style={{ fontSize: '0.9rem' }}>
+                          Uploaded on: {new Date(material.uploadDate).toLocaleString()}
+                        </div>
+                      </div>
+                      <div>
+                        <Button
+                          variant="outline-success"
+                          size="sm"
+                          onClick={() => {
+                            // TODO: Add download material functionality
+                          }}
+                        >
+                          <i className="bi bi-download"></i> Download
+                        </Button>
+                      </div>
+                    </div>
+                  </ListGroup.Item>
+                ))}
+              </ListGroup>
+            )}
+          </Card>
+        </Tab>
+        <Tab eventKey="classmates" title={<span><i className="bi bi-people"></i> Classmates</span>}>
+          {/* Classmates content */}
+          <Card className="p-3">
+            <h5 className="mb-3">Classmates</h5>
+            {classmates.length === 0 ? (
+              <p className="text-muted">No classmates found.</p>
+            ) : (
+              <ListGroup>
+                {classmates.map((student) => (
+                  <ListGroup.Item key={student._id} className="border-0 ps-0 pe-0">
+                    <div className="d-flex justify-content-between align-items-center">
+                      <div>
+                        <strong>{student.name}</strong>
+                        <div className="text-muted" style={{ fontSize: '0.9rem' }}>
+                          {student.email}
+                        </div>
+                      </div>
+                      <div>
+                        <Button
+                          variant="outline-info"
+                          size="sm"
+                          onClick={() => {
+                            // TODO: Add message or view profile functionality
+                          }}
+                        >
+                          <i className="bi bi-info-circle"></i> Info
+                        </Button>
+                      </div>
+                    </div>
+                  </ListGroup.Item>
+                ))}
+              </ListGroup>
+            )}
+          </Card>
+        </Tab>
+        <Tab eventKey="grades" title={<span><i className="bi bi-bar-chart"></i> Grades</span>}>
+          {/* Grades content */}
+          <Card className="p-3">
+            <h5 className="mb-3">Grades</h5>
+            {grades.length === 0 ? (
+              <p className="text-muted">No grades available.</p>
+            ) : (
+              <Table striped bordered hover size="sm">
+                <thead>
+                  <tr>
+                    <th>Assignment/Exam</th>
+                    <th>Grade</th>
+                    <th>Weight</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {grades.map((grade) => (
+                    <tr key={grade._id}>
+                      <td>{grade.title}</td>
+                      <td>{grade.grade !== undefined ? grade.grade : "N/A"}</td>
+                      <td>{grade.weight !== undefined ? `${grade.weight}%` : "N/A"}</td>
+                      <td>
+                        {grade.submitted ? (
+                          <Badge bg="success" text="white">
+                            Submitted
+                          </Badge>
+                        ) : (
+                          <Badge bg="danger" text="white">
+                            Not Submitted
+                          </Badge>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </Table>
+            )}
+          </Card>
+        </Tab>
+      </Tabs>
+
+      {/* Submission Modal for assignments */}
+      <Modal
+        show={showSubmissionModal}
+        onHide={() => setShowSubmissionModal(false)}
+        centered
+        size="lg"
+      >
         <Modal.Header closeButton>
           <Modal.Title>Submit Assignment: {selectedAssignment?.title}</Modal.Title>
         </Modal.Header>
         <Modal.Body>
-          {/* Form content... */}
+          <Form>
+            <Form.Group controlId="formSubmissionText">
+              <Form.Label>Submission Comments</Form.Label>
+              <Form.Control
+                as="textarea"
+                rows={3}
+                placeholder="Optional: Add any comments about your submission"
+                value={submissionText}
+                onChange={(e) => setSubmissionText(e.target.value)}
+              />
+            </Form.Group>
+
+            <Form.Group controlId="formFileUpload">
+              <Form.Label>Upload File</Form.Label>
+              <Form.Control
+                type="file"
+                accept=".pdf,.doc,.docx,.ppt,.pptx,.txt,.jpg,.jpeg,.png"
+                onChange={(e) => setSubmissionFile(e.target.files[0])}
+              />
+              <Form.Text className="text-muted">
+                Max file size: 10MB. Accepted formats: PDF, DOC, PPT, TXT, JPG, PNG.
+              </Form.Text>
+            </Form.Group>
+          </Form>
         </Modal.Body>
         <Modal.Footer>
           <Button variant="secondary" onClick={() => setShowSubmissionModal(false)}>
@@ -928,124 +1232,32 @@ function StudentClassStream() {
       </Modal>
 
       {/* Leave Class Confirmation Modal */}
-      <Modal 
-        show={showLeaveModal} 
-        onHide={() => setShowLeaveModal(false)} 
+      <Modal
+        show={showLeaveModal}
+        onHide={() => setShowLeaveModal(false)}
         centered
         size="sm"
       >
         <Modal.Header closeButton>
-          <Modal.Title>Leave class?</Modal.Title>
+          <Modal.Title>Leave Class Confirmation</Modal.Title>
         </Modal.Header>
         <Modal.Body>
-          <div className="text-center">
-            <div className="mb-3">
-              <i className="bi bi-exclamation-triangle text-warning" style={{ fontSize: '48px' }}></i>
-            </div>
-            <p className="mb-2">
-              <strong>{className}</strong>
-            </p>
-            <p className="text-muted">
-              You'll no longer have access to class posts, assignments, and materials. 
-              You can rejoin this class if your teacher shares the class code again.
-            </p>
-          </div>
+          <p>Are you sure you want to leave the class <strong>{currentClass?.name}</strong>?</p>
+          <p className="text-danger">
+            Warning: You will lose access to all class materials, assignments, and announcements.
+          </p>
         </Modal.Body>
-        <Modal.Footer className="d-flex flex-column w-100">
-          <div className="d-flex justify-content-between w-100">
-            <Button 
-              variant="outline-secondary" 
-              onClick={() => setShowLeaveModal(false)}
-            >
-              Cancel
-            </Button>
-            <Button 
-              variant="danger" 
-              onClick={async () => {
-                setShowLeaveModal(false);
-                
-                try {
-                  // If we have class data, try API call
-                  if (currentClass) {
-                    const classId = currentClass._id || currentClass.id;
-                    if (classId) {
-                      const token = getAuthToken();
-                      await axios.delete(`${API_BASE_URL}/api/leave-class/${classId}`, {
-                        headers: { Authorization: `Bearer ${token}` }
-                      });
-                      console.log(`✅ Successfully left class ${className} via API`);
-                    }
-                  }
-                } catch (err) {
-                  console.error("❌ Leave class API error:", err);
-                  // Continue anyway - we'll force navigation
-                }
-                
-                // Update local storage to remove the class
-                try {
-                  const cachedClasses = localStorage.getItem('studentClasses');
-                  if (cachedClasses) {
-                    const classes = JSON.parse(cachedClasses);
-                    const updatedClasses = classes.filter(c => c.name !== className);
-                    localStorage.setItem('studentClasses', JSON.stringify(updatedClasses));
-                  }
-                } catch (storageErr) {
-                  console.error("❌ Local storage error:", storageErr);
-                }
-                
-                // Always navigate back to dashboard
-                navigate('/student/dashboard');
-              }}
-            >
-              Leave class
-            </Button>
-          </div>
-          
-          {/* Emergency force leave option */}
-          <div className="mt-2 text-center w-100">
-            <hr className="my-2" />
-            <small className="text-muted mb-2 d-block">
-              If you're having trouble leaving the class:
-            </small>
-            <Button 
-              variant="outline-secondary" 
-              size="sm"
-              className="w-100 text-muted"
-              onClick={() => {
-                setShowLeaveModal(false);
-                // Update local storage to remove the class
-                try {
-                  const cachedClasses = localStorage.getItem('studentClasses');
-                  if (cachedClasses) {
-                    const classes = JSON.parse(cachedClasses);
-                    const updatedClasses = classes.filter(c => c.name !== className);
-                    localStorage.setItem('studentClasses', JSON.stringify(updatedClasses));
-                  }
-                } catch (err) {
-                  console.error("❌ Local storage error:", err);
-                }
-                navigate('/student/dashboard');
-              }}
-            >
-              <small>Force remove from my classes</small>
-            </Button>
-          </div>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowLeaveModal(false)}>
+            Cancel
+          </Button>
+          <Button variant="danger" onClick={handleConfirmLeaveClass}>
+            Leave Class
+          </Button>
         </Modal.Footer>
       </Modal>
-    </Container>
+    </div>
   );
-}
-
-// ================= Student Grades =================
-function StudentGrades() {
-  // Implementation...
-  return <div>Student Grades Component</div>;
-}
-
-// ================= Student Profile =================
-function StudentProfile() {
-  // Implementation...
-  return <div>Student Profile Component</div>;
 }
 
 export default StudentDashboard;
