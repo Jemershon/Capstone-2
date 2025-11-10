@@ -184,17 +184,54 @@ function Comments({ referenceType, referenceId, className }) {
     <div className="comments-section mt-3">
       {/* Reactions Section */}
       <div className="reactions-section mb-3">
+        <style>
+          {`
+            .btn-react {
+              display: inline-flex;
+              align-items: center;
+              gap: 0.25rem;
+              padding: 0.25rem 0.75rem;
+              font-size: 0.875rem;
+              font-weight: 500;
+              border-radius: 20px;
+              border: 2px solid #dc3545;
+              background: transparent;
+              color: #dc3545;
+              cursor: pointer;
+              transition: all 0.3s ease;
+            }
+            
+            .btn-react:hover:not(:disabled) {
+              background: rgba(220, 53, 69, 0.1);
+              transform: translateY(-2px);
+              box-shadow: 0 4px 8px rgba(220, 53, 69, 0.2);
+            }
+            
+            .btn-react.active {
+              background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+              color: white;
+              box-shadow: 0 4px 12px rgba(220, 53, 69, 0.4);
+            }
+            
+            .btn-react:disabled {
+              opacity: 0.6;
+              cursor: not-allowed;
+            }
+            
+            .btn-react i {
+              font-size: 1rem;
+            }
+          `}
+        </style>
         <div className="d-flex align-items-center gap-2">
-          <Button
-            variant={userReaction === 'heart' ? 'danger' : 'outline-danger'}
-            size="sm"
+          <button
+            className={`btn-react ${userReaction === 'heart' ? 'active' : ''}`}
             onClick={() => handleReaction('heart')}
             disabled={reacting}
-            className="d-flex align-items-center gap-1"
           >
             <i className="bi bi-heart-fill"></i>
             {reactions.heart || 0}
-          </Button>
+          </button>
           
           {totalReactions > 0 && (
             <small className="text-muted">

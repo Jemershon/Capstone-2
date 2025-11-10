@@ -301,6 +301,218 @@ const customStyles = `
     padding: 25px;
   }
   
+  /* Modern Tabs */
+  .nav-tabs {
+    border-bottom: 2px solid #e2e8f0 !important;
+  }
+
+  .nav-tabs .nav-link {
+    border: none !important;
+    border-radius: 12px 12px 0 0 !important;
+    padding: 12px 24px !important;
+    font-weight: 600 !important;
+    color: #6c757d !important;
+    transition: all 0.3s ease !important;
+    margin-right: 4px;
+  }
+
+  .nav-tabs .nav-link:hover {
+    background: rgba(163, 12, 12, 0.05) !important;
+    color: var(--brand-red) !important;
+  }
+
+  .nav-tabs .nav-link.active {
+    background: linear-gradient(135deg, var(--brand-red) 0%, var(--brand-red-dark) 100%) !important;
+    color: white !important;
+    box-shadow: 0 4px 12px rgba(163, 12, 12, 0.3) !important;
+  }
+  
+  /* Custom Button Styles */
+  .btn-custom-primary {
+    background: linear-gradient(135deg, var(--brand-red) 0%, var(--brand-red-dark) 100%);
+    border: none;
+    border-radius: 8px;
+    padding: 10px 20px;
+    font-weight: 600;
+    color: white;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 12px rgba(163, 12, 12, 0.2);
+  }
+  
+  .btn-custom-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(163, 12, 12, 0.35);
+    background: linear-gradient(135deg, var(--brand-red-dark) 0%, var(--brand-red) 100%);
+    color: white;
+  }
+  
+  .btn-custom-primary:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 8px rgba(163, 12, 12, 0.3);
+  }
+  
+  .btn-custom-secondary {
+    background: white;
+    border: 2px solid #6c757d;
+    border-radius: 8px;
+    padding: 10px 20px;
+    font-weight: 600;
+    color: #6c757d;
+    transition: all 0.3s ease;
+  }
+  
+  .btn-custom-secondary:hover {
+    background: #6c757d;
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(108, 117, 125, 0.2);
+  }
+  
+  .btn-custom-secondary:active {
+    transform: translateY(0);
+  }
+  
+  .btn-custom-danger {
+    background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+    border: none;
+    border-radius: 8px;
+    padding: 10px 20px;
+    font-weight: 600;
+    color: white;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 12px rgba(220, 53, 69, 0.2);
+  }
+  
+  .btn-custom-danger:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(220, 53, 69, 0.35);
+    background: linear-gradient(135deg, #c82333 0%, #bd2130 100%);
+    color: white;
+  }
+  
+  .btn-custom-danger:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 8px rgba(220, 53, 69, 0.3);
+  }
+  
+  .btn-custom-success {
+    background: linear-gradient(135deg, #28a745 0%, #218838 100%);
+    border: none;
+    border-radius: 8px;
+    padding: 10px 20px;
+    font-weight: 600;
+    color: white;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 12px rgba(40, 167, 69, 0.2);
+  }
+  
+  .btn-custom-success:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(40, 167, 69, 0.35);
+    background: linear-gradient(135deg, #218838 0%, #1e7e34 100%);
+    color: white;
+  }
+  
+  .btn-custom-success:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 8px rgba(40, 167, 69, 0.3);
+  }
+  
+  .btn-custom-outline-primary {
+    background: transparent;
+    border: 2px solid var(--brand-red);
+    border-radius: 8px;
+    padding: 10px 20px;
+    font-weight: 600;
+    color: var(--brand-red);
+    transition: all 0.3s ease;
+  }
+  
+  .btn-custom-outline-primary:hover {
+    background: var(--brand-red);
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(163, 12, 12, 0.2);
+  }
+  
+  .btn-custom-outline-primary:active {
+    transform: translateY(0);
+  }
+  
+  .btn-custom-outline-secondary {
+    background: transparent;
+    border: 2px solid #6c757d;
+    border-radius: 8px;
+    padding: 10px 20px;
+    font-weight: 600;
+    color: #6c757d;
+    transition: all 0.3s ease;
+  }
+  
+  .btn-custom-outline-secondary:hover {
+    background: #6c757d;
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(108, 117, 125, 0.2);
+  }
+  
+  .btn-custom-outline-secondary:active {
+    transform: translateY(0);
+  }
+  
+  .btn-custom-outline-danger {
+    background: transparent;
+    border: 2px solid #dc3545;
+    border-radius: 8px;
+    padding: 10px 20px;
+    font-weight: 600;
+    color: #dc3545;
+    transition: all 0.3s ease;
+  }
+  
+  .btn-custom-outline-danger:hover {
+    background: #dc3545;
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(220, 53, 69, 0.2);
+  }
+  
+  .btn-custom-outline-danger:active {
+    transform: translateY(0);
+  }
+  
+  .btn-custom-outline-success {
+    background: transparent;
+    border: 2px solid #28a745;
+    border-radius: 8px;
+    padding: 10px 20px;
+    font-weight: 600;
+    color: #28a745;
+    transition: all 0.3s ease;
+  }
+  
+  .btn-custom-outline-success:hover {
+    background: #28a745;
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(40, 167, 69, 0.2);
+  }
+  
+  .btn-custom-outline-success:active {
+    transform: translateY(0);
+  }
+  
+  /* Button size variations */
+  .btn-custom-sm {
+    padding: 6px 14px;
+    font-size: 0.875rem;
+  }
+  
+  .btn-custom-lg {
+    padding: 14px 28px;
+    font-size: 1.125rem;
+  }
+  
   /* Futuristic Profile Card */
   .profile-card-modern {
     background: linear-gradient(135deg, var(--brand-red) 0%, var(--brand-red-dark) 100%);
@@ -1137,7 +1349,7 @@ function DashboardAndClasses() {
         </Modal.Body>
         <Modal.Footer className="d-flex justify-content-end gap-2">
           <Button
-            variant="secondary"
+            className="btn-custom-secondary"
             onClick={() => {
               setShowCreateModal(false);
               setClassData({ name: "", section: "", code: "", bg: "#FFF0D8", course: "", year: "", schedule: "" });
@@ -1168,8 +1380,8 @@ function DashboardAndClasses() {
           <p className="mb-2">Share this class code with your students so they can join:</p>
           <h4><code>{createdCode}</code></h4>
           <div className="mt-3">
-            <Button variant="primary" onClick={() => { navigator.clipboard?.writeText(createdCode); setShowCreatedCodeModal(false); setError('Class code copied to clipboard'); setShowToast(true); }}>Copy</Button>
-            <Button variant="secondary" className="ms-2" onClick={() => setShowCreatedCodeModal(false)}>Close</Button>
+            <Button className="btn-custom-primary" onClick={() => { navigator.clipboard?.writeText(createdCode); setShowCreatedCodeModal(false); setError('Class code copied to clipboard'); setShowToast(true); }}>Copy</Button>
+            <Button className="btn-custom-secondary ms-2" onClick={() => setShowCreatedCodeModal(false)}>Close</Button>
           </div>
         </Modal.Body>
       </Modal>
@@ -1192,7 +1404,7 @@ function DashboardAndClasses() {
         </Modal.Body>
         <Modal.Footer className="d-flex justify-content-end gap-2">
           <Button 
-            variant="secondary" 
+            className="btn-custom-secondary" 
             onClick={() => {
               setShowDeleteModal(false);
               setClassToDelete(null);
@@ -1202,7 +1414,7 @@ function DashboardAndClasses() {
             Cancel
           </Button>
           <Button 
-            variant="danger" 
+            className="btn-custom-danger" 
             onClick={handleDeleteClass}
             style={{ minWidth: '120px' }}
           >
@@ -1342,7 +1554,7 @@ function DashboardAndClasses() {
           )}
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowStatsModal(false)}>
+          <Button className="btn-custom-secondary" onClick={() => setShowStatsModal(false)}>
             Close
           </Button>
         </Modal.Footer>
@@ -2274,10 +2486,10 @@ function TeacherClassStream() {
     console.error('Class information not loaded:', { className });
     return (
       <div className="text-center py-4">
-        <Alert variant="danger">
+        <Alert className="btn-custom-danger">
           <h4>Error Loading Class</h4>
           <p>Could not load information for class: {className}</p>
-          <Button variant="outline-primary" onClick={fetchClassInfo}>Retry</Button>
+          <Button className="btn-custom-outline-primary" onClick={fetchClassInfo}>Retry</Button>
         </Alert>
       </div>
     );
@@ -2363,8 +2575,7 @@ function TeacherClassStream() {
             <div className="d-flex align-items-center justify-content-between mb-2">
               <h6 className="mb-0">📁 Topics</h6>
               <Button 
-                variant="outline-primary" 
-                size="sm" 
+                className="btn-custom-outline-primary btn-custom-sm" 
                 onClick={() => {
                   setEditingTopic(null);
                   setTopicData({ name: '', color: '#6c757d' });
@@ -2397,8 +2608,7 @@ function TeacherClassStream() {
                     {topic.name}
                   </Button>
                   <Button 
-                    variant="outline-secondary" 
-                    size="sm"
+                    className="btn-custom-outline-secondary btn-custom-sm"
                     style={{ padding: '2px 8px', fontSize: '16px' }}
                     title="Edit topic"
                     onClick={() => {
@@ -2410,8 +2620,7 @@ function TeacherClassStream() {
                     ✎
                   </Button>
                   <Button 
-                    variant="outline-danger" 
-                    size="sm"
+                    className="btn-custom-outline-danger btn-custom-sm"
                     style={{ padding: '2px 8px', fontSize: '18px', fontWeight: 'bold' }}
                     title="Delete topic"
                     onClick={() => handleDeleteTopic(topic._id)}
@@ -2461,8 +2670,7 @@ function TeacherClassStream() {
                       <div key={index} className="d-flex align-items-center justify-content-between bg-light p-2 rounded mt-1">
                         <span className="small">{file.name} ({(file.size / 1024 / 1024).toFixed(2)} MB)</span>
                         <Button 
-                          variant="outline-danger" 
-                          size="sm" 
+                          className="btn-custom-outline-danger btn-custom-sm" 
                           onClick={() => removeFile(index)}
                         >
                           ×
@@ -2520,8 +2728,7 @@ function TeacherClassStream() {
                 />
                 {showBulkActions && selectedItems.length > 0 && (
                   <Button
-                    variant="danger"
-                    size="sm"
+                    className="btn-custom-danger btn-custom-sm"
                     onClick={handleBulkDeleteAnnouncements}
                   >
                     🗑️ Delete Selected ({selectedItems.length})
@@ -2620,9 +2827,7 @@ function TeacherClassStream() {
                           </div>
                           <div className="flex-grow-1 ms-2">
                             <Button 
-                              variant="outline-primary" 
-                              size="sm"
-                              className="w-100"
+                              className="btn-custom-outline-primary btn-custom-sm w-100"
                               onClick={() => {
                                 const url = attachment?.filePath && attachment.filePath.startsWith('http')
                                   ? attachment.filePath
@@ -2650,9 +2855,7 @@ function TeacherClassStream() {
                           )}
                             {a.materialRef.type === 'file' && a.materialRef.content && (
                               <Button
-                                variant="outline-primary"
-                                size="sm"
-                                className="flex-grow-1"
+                                className="btn-custom-outline-primary btn-custom-sm flex-grow-1"
                                 onClick={() => window.open(
                                   a.materialRef.content.startsWith('http') ? a.materialRef.content : `${API_BASE_URL}/${a.materialRef.content}`,
                                   '_blank'
@@ -2663,9 +2866,7 @@ function TeacherClassStream() {
                             )}
                           {(a.materialRef.type === 'video' || a.materialRef.type === 'link') && a.materialRef.content && (
                             <Button
-                              variant="outline-primary"
-                              size="sm"
-                              className="w-100"
+                              className="btn-custom-outline-primary btn-custom-sm w-100"
                               as="a"
                               href={a.materialRef.content}
                               target="_blank"
@@ -2725,9 +2926,7 @@ function TeacherClassStream() {
                               </div>
                               <div className="flex-grow-1 ms-2">
                                 <Button 
-                                  variant="outline-primary" 
-                                  size="sm"
-                                  className="w-100"
+                                  className="btn-custom-outline-primary btn-custom-sm w-100"
                                   onClick={() => {
                                     const url = attachment?.filePath && attachment.filePath.startsWith('http')
                                       ? attachment.filePath
@@ -2772,8 +2971,7 @@ function TeacherClassStream() {
                 />
                 {showBulkActions && selectedItems.length > 0 && (
                   <Button
-                    variant="danger"
-                    size="sm"
+                    className="btn-custom-danger btn-custom-sm"
                     onClick={handleBulkDeleteExams}
                   >
                     🗑️ Delete Selected ({selectedItems.length})
@@ -2987,12 +3185,12 @@ function TeacherClassStream() {
               )}
             </Modal.Body>
             <Modal.Footer>
-              <Button variant="secondary" onClick={() => setShowViewExamModal(false)}>
+              <Button className="btn-custom-secondary" onClick={() => setShowViewExamModal(false)}>
                 Close
               </Button>
               <Button 
-                variant="danger" 
-                className="me-2"
+                className="btn-custom-danger me-2" 
+                
                 onClick={() => {
                   setShowViewExamModal(false);
                   setShowDeleteExamModal(true);
@@ -3001,7 +3199,7 @@ function TeacherClassStream() {
                 <i className="bi bi-trash me-1"></i> Delete
               </Button>
               <Button 
-                variant="primary" 
+                className="btn-custom-primary" 
                 onClick={() => {
                   setShowViewExamModal(false);
                   setSelectedExam(selectedExam);
@@ -3052,8 +3250,7 @@ function TeacherClassStream() {
                         <div className="d-flex justify-content-between">
                           <h6>Question {index + 1}</h6>
                           <Button 
-                            variant="outline-danger" 
-                            size="sm"
+                            className="btn-custom-outline-danger btn-custom-sm"
                             onClick={() => {
                               const updatedQuestions = [...examData.questions];
                               updatedQuestions.splice(index, 1);
@@ -3150,7 +3347,7 @@ function TeacherClassStream() {
                   
                   <div className="text-center mt-3 mb-3">
                     <Button 
-                      variant="outline-primary"
+                      className="btn-custom-outline-primary"
                       onClick={() => {
                         setExamData({
                           ...examData,
@@ -3170,11 +3367,11 @@ function TeacherClassStream() {
               )}
             </Modal.Body>
             <Modal.Footer>
-              <Button variant="secondary" onClick={() => setShowEditExamModal(false)}>
+              <Button className="btn-custom-secondary" onClick={() => setShowEditExamModal(false)}>
                 Cancel
               </Button>
               <Button 
-                variant="primary" 
+                className="btn-custom-primary" 
                 onClick={async () => {
                   try {
                     setPosting(true);
@@ -3278,11 +3475,11 @@ function TeacherClassStream() {
               )}
             </Modal.Body>
             <Modal.Footer>
-              <Button variant="secondary" onClick={() => setShowDeleteExamModal(false)}>
+              <Button className="btn-custom-secondary" onClick={() => setShowDeleteExamModal(false)}>
                 Cancel
               </Button>
               <Button 
-                variant="danger" 
+                className="btn-custom-danger" 
                 onClick={async () => {
                   if (!selectedExam) return;
                   
@@ -3368,7 +3565,7 @@ function TeacherClassStream() {
               )}
             </Modal.Body>
             <Modal.Footer>
-              <Button variant="secondary" onClick={() => setShowSubmissionsModal(false)}>
+              <Button className="btn-custom-secondary" onClick={() => setShowSubmissionsModal(false)}>
                 Close
               </Button>
             </Modal.Footer>
@@ -3415,8 +3612,7 @@ function TeacherClassStream() {
                         </div>
                       </div>
                       <Button 
-                        variant="outline-danger" 
-                        size="sm"
+                        className="btn-custom-outline-danger btn-custom-sm"
                         onClick={() => showRemoveConfirmation(student)}
                       >
                         Remove
@@ -3487,15 +3683,15 @@ function TeacherClassStream() {
                         </Card.Header>
                         <Card.Body>
                           <Button 
-                            variant="outline-primary" 
-                            className="w-100 mb-2"
+                            className="btn-custom-outline-primary w-100 mb-2" 
+                            
                             onClick={() => setActiveTab("classwork")}
                           >
                             View All Exams
                           </Button>
                           <Button 
-                            variant="outline-success" 
-                            className="w-100"
+                            className="btn-custom-outline-success w-100" 
+                            
                             onClick={() => setActiveTab("people")}
                           >
                             View Students
@@ -3570,7 +3766,7 @@ function TeacherClassStream() {
           </Form>
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={() => {
+          <Button className="btn-custom-secondary" onClick={() => {
             setShowTopicModal(false);
             setEditingTopic(null);
             setTopicData({ name: '', color: '#6c757d' });
@@ -3578,7 +3774,7 @@ function TeacherClassStream() {
             Cancel
           </Button>
           <Button 
-            variant="primary" 
+            className="btn-custom-primary" 
             onClick={editingTopic ? handleUpdateTopic : handleCreateTopic}
             disabled={!topicData.name.trim()}
           >
@@ -3614,10 +3810,10 @@ function TeacherClassStream() {
           )}
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowReuseModal(false)}>
+          <Button className="btn-custom-secondary" onClick={() => setShowReuseModal(false)}>
             Cancel
           </Button>
-          <Button variant="primary" onClick={handleReuseContent}>
+          <Button className="btn-custom-primary" onClick={handleReuseContent}>
             Reuse in Selected Class
           </Button>
         </Modal.Footer>
@@ -3637,7 +3833,7 @@ function TeacherClassStream() {
           ... exam creation form ...
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowExamModal(false)}>
+          <Button className="btn-custom-secondary" onClick={() => setShowExamModal(false)}>
             Cancel
           </Button>
           <Button className="btn-modern-primary" onClick={handleCreateExam}>
@@ -3667,7 +3863,7 @@ function TeacherClassStream() {
         </Modal.Body>
         <Modal.Footer>
           <Button 
-            variant="secondary" 
+            className="btn-custom-secondary" 
             onClick={() => {
               setShowRemoveModal(false);
               setStudentToRemove(null);
@@ -3676,7 +3872,7 @@ function TeacherClassStream() {
             Cancel
           </Button>
           <Button 
-            variant="danger" 
+            className="btn-custom-danger" 
             onClick={handleRemoveStudent}
           >
             Remove Student
@@ -3778,8 +3974,8 @@ function Assignments() {
         </Toast>
       )}
       <Button
-        variant="outline-primary"
-        className="mb-3"
+        className="btn-custom-outline-primary mb-3"
+        
         onClick={() => setShowCreateModal(true)}
         aria-label="Create new assignment"
       >
@@ -3882,7 +4078,7 @@ function Assignments() {
         </Modal.Body>
         <Modal.Footer>
           <Button
-            variant="secondary"
+            className="btn-custom-secondary"
             onClick={() => {
               setShowCreateModal(false);
               setAssignmentData({ class: "", title: "", description: "", due: "", status: "Pending" });
@@ -3892,7 +4088,7 @@ function Assignments() {
             Cancel
           </Button>
           <Button
-            variant="success"
+            className="btn-custom-success"
             onClick={handleCreateAssignment}
             disabled={!assignmentData.class || !assignmentData.title || !assignmentData.due}
             aria-label="Create assignment"
@@ -3997,8 +4193,8 @@ function Announcements() {
         </Toast>
       )}
       <Button
-        variant="outline-primary"
-        className="mb-3"
+        className="btn-custom-outline-primary mb-3"
+        
         onClick={() => setShowCreateModal(true)}
         aria-label="Post new announcement"
       >
@@ -4073,7 +4269,7 @@ function Announcements() {
         </Modal.Body>
         <Modal.Footer>
           <Button
-            variant="secondary"
+            className="btn-custom-secondary"
             onClick={() => {
               setShowCreateModal(false);
               setAnnouncementData({ message: "", date: new Date().toISOString().split("T")[0] });
@@ -4083,7 +4279,7 @@ function Announcements() {
             Cancel
           </Button>
           <Button
-            variant="success"
+            className="btn-custom-success"
             onClick={handleCreateAnnouncement}
             disabled={!announcementData.message || !announcementData.date}
             aria-label="Post announcement"
@@ -4207,8 +4403,8 @@ function Exams() {
         </Toast>
       )}
       <Button
-        variant="outline-primary"
-        className="mb-3"
+        className="btn-custom-outline-primary mb-3"
+        
         onClick={() => setShowCreateModal(true)}
         aria-label="Create new exam"
       >
@@ -4358,7 +4554,7 @@ function Exams() {
                   </Form.Group>
                 )}
                 <div className="d-flex justify-content-end">
-                  <Button variant="outline-secondary" size="sm" onClick={handleAddQuestion} aria-label="Add another question">
+                  <Button className="btn-custom-outline-secondary btn-custom-sm" onClick={handleAddQuestion} aria-label="Add another question">
                     + Add Question
                   </Button>
                 </div>
@@ -4368,7 +4564,7 @@ function Exams() {
         </Modal.Body>
         <Modal.Footer>
           <Button
-            variant="secondary"
+            className="btn-custom-secondary"
             onClick={() => {
               setShowCreateModal(false);
               setExamData({ title: "", description: "", class: "", questions: [{ text: "", type: "short", options: [], correctAnswer: "" }] });
@@ -4378,7 +4574,7 @@ function Exams() {
             Cancel
           </Button>
           <Button
-            variant="success"
+            className="btn-custom-success"
             onClick={handleCreateExam}
             disabled={!examData.title || !examData.class || examData.questions.some((q) => !q.text)}
             aria-label="Create exam"
@@ -4724,8 +4920,7 @@ function Grades() {
                 .map(exam => (
                   <Button
                     key={exam.examId}
-                    variant="success"
-                    size="sm"
+                    className="btn-custom-success btn-custom-sm"
                     onClick={() => handleReturnScores(exam.examId, exam.examTitle)}
                     disabled={returning}
                   >
@@ -4910,16 +5105,14 @@ function Grades() {
               <Form.Label className="small fw-bold">Actions</Form.Label>
               <div className="d-flex gap-1">
                 <Button 
-                  variant="outline-success" 
-                  size="sm"
+                  className="btn-custom-outline-success btn-custom-sm"
                   onClick={handleExportGrades}
                   title="Export CSV"
                 >
                   <i className="bi bi-download"></i>
                 </Button>
                 <Button 
-                  variant="outline-primary" 
-                  size="sm"
+                  className="btn-custom-outline-primary btn-custom-sm"
                   onClick={() => fileInputRef.current?.click()}
                   disabled={importing}
                   title="Import CSV"
@@ -4934,8 +5127,7 @@ function Grades() {
                   onChange={handleImportGrades}
                 />
                 <Button 
-                  variant="outline-danger" 
-                  size="sm" 
+                  className="btn-custom-outline-danger btn-custom-sm" 
                   onClick={handleClearAllSubmissions}
                   title="Clear All"
                 >
@@ -5060,8 +5252,7 @@ function Grades() {
                     </td>
                     <td className="text-center">
                       <Button
-                        variant="outline-danger"
-                        size="sm"
+                        className="btn-custom-outline-danger btn-custom-sm"
                         onClick={() => handleDeleteSubmission(submission._id)}
                         title="Delete submission"
                       >
@@ -5552,10 +5743,8 @@ function Profile() {
                   </small>
                 </div>
                 <Button 
-                  variant="outline-danger" 
-                  size="sm" 
+                  className="btn-custom-outline-danger btn-custom-sm ms-3" 
                   onClick={() => setShowDeleteModal(true)}
-                  className="ms-3"
                 >
                   <i className="bi bi-exclamation-triangle me-1"></i>
                   Delete Account
@@ -5606,7 +5795,7 @@ function Profile() {
           </Form>
         </Modal.Body>
         <Modal.Footer className="border-0">
-          <Button variant="outline-secondary" onClick={() => setShowEditModal(false)}>
+          <Button className="btn-custom-outline-secondary" onClick={() => setShowEditModal(false)}>
             Cancel
           </Button>
           <Button className="btn-modern-primary" onClick={handleSaveProfile}>
@@ -5670,13 +5859,13 @@ function Profile() {
         </Modal.Body>
         <Modal.Footer className="border-0">
           <Button 
-            variant="outline-secondary" 
+            className="btn-custom-outline-secondary" 
             onClick={() => { setShowDeleteModal(false); setDeletePassword(''); }}
           >
             Cancel
           </Button>
           <Button 
-            variant="danger" 
+            className="btn-custom-danger" 
             onClick={handleDeleteAccount}
             disabled={!profile?.googleId && !deletePassword.trim()}
           >
@@ -5699,10 +5888,10 @@ function Profile() {
           </div>
         </Modal.Body>
         <Modal.Footer className="border-0">
-          <Button variant="outline-secondary" onClick={() => setShowLogoutModal(false)}>
+          <Button className="btn-custom-outline-secondary" onClick={() => setShowLogoutModal(false)}>
             Cancel
           </Button>
-          <Button variant="danger" onClick={handleLogout}>
+          <Button className="btn-custom-danger" onClick={handleLogout}>
             <i className="bi bi-box-arrow-right me-2"></i>
             Logout
           </Button>
@@ -5991,11 +6180,11 @@ export default function TeacherDashboard() {
     console.log("🔒 Not authenticated, showing login prompt");
     return (
       <div className="container text-center py-5">
-        <Alert variant="danger">
+        <Alert className="btn-custom-danger">
           {authError || "You are not authenticated. Redirecting to login..."}
         </Alert>
         <div className="mt-4">
-          <Button variant="primary" onClick={() => navigate("/")}>Return to Login</Button>
+          <Button className="btn-custom-primary" onClick={() => navigate("/")}>Return to Login</Button>
         </div>
       </div>
     );
@@ -6101,9 +6290,8 @@ export default function TeacherDashboard() {
                   </Nav.Link>
                   <div className="text-center my-2 px-3">
                     <Button
-                      variant="danger"
+                      className="btn-custom-danger w-100"
                       onClick={() => setShowLogoutModal(true)}
-                      className="w-100"
                       style={{maxWidth: '200px'}}
                     >
                       Logout
@@ -6151,14 +6339,14 @@ export default function TeacherDashboard() {
         <Modal.Body>Are you sure you want to log out?</Modal.Body>
         <Modal.Footer>
           <Button
-            variant="secondary"
+            className="btn-custom-secondary"
             onClick={() => setShowLogoutModal(false)}
             aria-label="Cancel logout"
           >
             Cancel
           </Button>
           <Button
-            variant="danger"
+            className="btn-custom-danger"
             onClick={async () => {
               setShowLogoutModal(false);
               setShowToast(true);
@@ -6209,3 +6397,6 @@ export default function TeacherDashboard() {
     </Container>
   );
 }
+
+
+

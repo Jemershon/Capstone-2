@@ -9,62 +9,491 @@ import { io } from "socket.io-client";
 
 // Add custom styles for responsive design and modern theme
 const customStyles = `
-  /* Modern gradient theme styles (brand colors) */
-  :root { --brand-red: #a30c0c; --brand-red-dark: #780606; --brand-gold: #ffcc00; --brand-gold-light: #ffd54a; }
-  .modern-gradient-bg {
+  /* Futuristic Theme Variables - Original Brand Colors */
+  :root { 
+    --brand-red: #a30c0c; 
+    --brand-red-dark: #780606; 
+    --brand-gold: #ffcc00; 
+    --brand-gold-light: #ffd54a;
+  }
+  
+  .dashboard-modern-bg {
+    background: #fffafa;
+    min-height: 100vh;
+    position: relative;
+    overflow-x: hidden;
+  }
+  
+  .dashboard-modern-bg::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: transparent;
+    pointer-events: none;
+    z-index: 0;
+  }
+  
+  .main-content-responsive {
+    margin-left: 0;
+    padding: 0;
+    min-height: 100vh;
+    position: relative;
+    z-index: 1;
+    background: #fffafa;
+  }
+  
+  @media (min-width: 768px) {
+    .main-content-responsive {
+      margin-left: 16.666667%;
+      padding: 20px;
+    }
+  }
+  
+  /* Futuristic Glassmorphism Sidebar */
+  .modern-sidebar {
+    background: linear-gradient(180deg, var(--brand-red) 0%, var(--brand-red-dark) 100%) !important;
+    backdrop-filter: blur(20px);
+    box-shadow: 4px 0 30px rgba(163, 12, 12, 0.3), inset -1px 0 20px rgba(255, 204, 0, 0.05);
+    border-right: 2px solid rgba(255, 204, 0, 0.2);
+    position: relative;
+  }
+  
+  .modern-sidebar::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 2px;
+    height: 100%;
+    background: linear-gradient(180deg, transparent, var(--brand-gold), transparent);
+    animation: borderGlow 3s infinite;
+  }
+  
+  @keyframes borderGlow {
+    0%, 100% { opacity: 0.3; }
+    50% { opacity: 1; }
+  }
+  
+  .modern-sidebar h4 {
+    color: white;
+    text-shadow: 0 0 20px rgba(255, 204, 0, 0.4), 0 2px 10px rgba(0,0,0,0.3);
+    font-weight: 700;
+    padding: 20px;
+    margin: 0;
+    border-bottom: 2px solid rgba(255, 204, 0, 0.2);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    position: relative;
+  }
+  
+  .modern-sidebar h4::after {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    left: 20px;
+    width: 60px;
+    height: 2px;
+    background: var(--brand-gold);
+    box-shadow: 0 0 10px var(--brand-gold);
+  }
+  
+  /* Mobile navbar styles */
+  @media (max-width: 991px) {
+    .mobile-nav-link {
+      text-align: center !important;
+      padding: 12px 20px !important;
+      transition: all 0.3s ease;
+      border-radius: 12px;
+      margin: 5px 10px;
+      color: white !important;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 204, 0, 0.2);
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .mobile-nav-link::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255, 204, 0, 0.2), transparent);
+      transition: left 0.5s;
+    }
+    
+    .mobile-nav-link:hover::before {
+      left: 100%;
+    }
+    
+    .mobile-nav-link:hover {
+      background-color: rgba(255, 255, 255, 0.2) !important;
+      transform: translateX(5px);
+      color: white !important;
+      box-shadow: 0 4px 15px rgba(255, 204, 0, 0.3);
+      border-color: rgba(255, 204, 0, 0.5);
+    }
+    
+    .mobile-nav-link.active,
+    .nav-link.mobile-nav-link.active {
+      background-color: rgba(255, 204, 0, 0.2) !important;
+      color: white !important;
+      font-weight: 600;
+      box-shadow: 0 0 20px rgba(255, 204, 0, 0.5), inset 0 0 20px rgba(255, 204, 0, 0.1);
+      border-color: var(--brand-gold);
+    }
+    
+    .navbar-collapse {
+      text-align: center;
+    }
+    
+    .navbar-nav {
+      width: 100%;
+    }
+    
+    .modern-mobile-navbar {
+      background: linear-gradient(135deg, var(--brand-red) 0%, var(--brand-red-dark) 100%) !important;
+      backdrop-filter: blur(20px);
+      box-shadow: 0 4px 30px rgba(163, 12, 12, 0.3);
+      border-bottom: 2px solid rgba(255, 204, 0, 0.2);
+    }
+    
+    .modern-mobile-navbar .navbar-brand {
+      color: white !important;
+      font-weight: 700;
+      text-shadow: 0 0 15px rgba(255, 204, 0, 0.6);
+    }
+  }
+  
+  .nav-link-custom {
+    border-radius: 12px;
+    margin: 8px 15px;
+    padding: 12px 20px !important;
+    transition: all 0.3s ease;
+    color: rgba(255, 255, 255, 0.9) !important;
+    text-decoration: none;
+    font-weight: 500;
+    border: 1px solid transparent;
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .nav-link-custom::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 204, 0, 0.2), transparent);
+    transition: left 0.5s;
+  }
+  
+  .nav-link-custom:hover::before {
+    left: 100%;
+  }
+  
+  .nav-link-custom:hover {
+    background-color: rgba(255, 255, 255, 0.15);
+    color: #fff !important;
+    transform: translateX(5px);
+    border-color: rgba(255, 204, 0, 0.3);
+    box-shadow: 0 4px 15px rgba(255, 204, 0, 0.2);
+  }
+  
+  .nav-link-custom.active {
+    background: linear-gradient(90deg, rgba(255, 204, 0, 0.15), rgba(163, 12, 12, 0.15));
+    color: white !important;
+    font-weight: 600;
+    box-shadow: 0 4px 15px rgba(255, 204, 0, 0.3), inset 0 0 20px rgba(255, 204, 0, 0.1);
+    border-color: rgba(255, 204, 0, 0.5);
+  }
+  
+  /* Futuristic Cards */
+  .modern-card {
+    border-radius: 20px;
+    border: 1px solid rgba(255, 204, 0, 0.2);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3), 0 0 15px rgba(255, 204, 0, 0.1);
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(245, 245, 245, 0.95) 100%);
+    backdrop-filter: blur(10px);
+    overflow: hidden;
+    position: relative;
+  }
+  
+  .modern-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 204, 0, 0.15), transparent);
+    transition: left 0.6s;
+  }
+  
+  .modern-card:hover::before {
+    left: 100%;
+  }
+  
+  .modern-card:hover {
+    transform: translateY(-8px) scale(1.02);
+    box-shadow: 0 20px 50px rgba(0,0,0,0.4), 0 0 30px rgba(255, 204, 0, 0.3);
+    border-color: var(--brand-gold);
+  }
+  
+  .modern-card-header {
     background: linear-gradient(135deg, var(--brand-red) 0%, var(--brand-red-dark) 100%);
-          </Nav>
-        </Col>
-  {/* Mobile Navbar */}
-  <div className="d-md-none w-100" style={{position: 'relative', zIndex: 1000}}>
-          <Navbar expand="lg" className="modern-mobile-navbar shadow-sm" expanded={mobileNavOpen} onToggle={(val) => setMobileNavOpen(val)}>
-            <Container fluid>
-              <div className="d-flex align-items-center justify-content-between w-100">
-                <Navbar.Brand className="fw-bold fs-4">📚 Student Panel</Navbar.Brand>
-                <div className="d-flex align-items-center mobile-toggle-group">
-                  <div className="d-md-none notifications-fixed-mobile me-2">
-                    <NotificationsDropdown mobileMode={true} />
-                  </div>
-                  <Navbar.Toggle aria-controls="mobile-nav" />
-                </div>
-              </div>
-              <Navbar.Collapse id="mobile-nav">
-                <Nav className="w-100">
-                  <Nav.Link
-                    as={NavLink}
-                    to="/student/dashboard"
-                    className="mobile-nav-link"
-                    onClick={() => setMobileNavOpen(false)}
-                  >
-                    Dashboard
-                  </Nav.Link>
-                  <Nav.Link
-                    as={NavLink}
-                    to="/student/profile"
-                    className="mobile-nav-link"
-                    onClick={() => setMobileNavOpen(false)}
-                  >
-                    Profile
-                  </Nav.Link>
-                  <div className="text-center my-2 px-3">
-                    <Button
-                      variant="danger"
-                      onClick={() => setShowLogoutModal(true)}
-                      className="w-100"
-                      style={{maxWidth: '200px'}}
-                    >
-                      Logout
-                    </Button>
-                  </div>
-                </Nav>
-              </Navbar.Collapse>
-            </Container>
-          </Navbar>
-        </div>
-
-        {/* Main Content */}
+    color: white;
+    padding: 20px 25px;
+    font-weight: 700;
+    font-size: 1.2rem;
+    border: none;
+    border-bottom: 2px solid var(--brand-gold);
+    text-shadow: 0 2px 10px rgba(0,0,0,0.3);
+    position: relative;
+  }
+  
+  .modern-card-header::after {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    left: 0;
+    width: 100px;
+    height: 2px;
+    background: var(--brand-gold);
+    box-shadow: 0 0 15px var(--brand-gold);
+  }
+  
+  .modern-card-body {
+    padding: 25px;
+  }
+  
+  /* Modern Tabs */
+  .nav-tabs {
+    border-bottom: 2px solid #e2e8f0 !important;
   }
 
+  .nav-tabs .nav-link {
+    border: none !important;
+    border-radius: 12px 12px 0 0 !important;
+    padding: 12px 24px !important;
+    font-weight: 600 !important;
+    color: #6c757d !important;
+    transition: all 0.3s ease !important;
+    margin-right: 4px;
+  }
+
+  .nav-tabs .nav-link:hover {
+    background: rgba(163, 12, 12, 0.05) !important;
+    color: var(--brand-red) !important;
+  }
+
+  .nav-tabs .nav-link.active {
+    background: linear-gradient(135deg, var(--brand-red) 0%, var(--brand-red-dark) 100%) !important;
+    color: white !important;
+    box-shadow: 0 4px 12px rgba(163, 12, 12, 0.3) !important;
+  }
+  
+  /* Custom Button Styles */
+  .btn-custom-primary {
+    background: linear-gradient(135deg, var(--brand-red) 0%, var(--brand-red-dark) 100%);
+    border: none;
+    border-radius: 8px;
+    padding: 10px 20px;
+    font-weight: 600;
+    color: white;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 12px rgba(163, 12, 12, 0.2);
+  }
+  
+  .btn-custom-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(163, 12, 12, 0.35);
+    background: linear-gradient(135deg, var(--brand-red-dark) 0%, var(--brand-red) 100%);
+    color: white;
+  }
+  
+  .btn-custom-primary:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 8px rgba(163, 12, 12, 0.3);
+  }
+  
+  .btn-custom-secondary {
+    background: white;
+    border: 2px solid #6c757d;
+    border-radius: 8px;
+    padding: 10px 20px;
+    font-weight: 600;
+    color: #6c757d;
+    transition: all 0.3s ease;
+  }
+  
+  .btn-custom-secondary:hover {
+    background: #6c757d;
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(108, 117, 125, 0.2);
+  }
+  
+  .btn-custom-secondary:active {
+    transform: translateY(0);
+  }
+  
+  .btn-custom-danger {
+    background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+    border: none;
+    border-radius: 8px;
+    padding: 10px 20px;
+    font-weight: 600;
+    color: white;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 12px rgba(220, 53, 69, 0.2);
+  }
+  
+  .btn-custom-danger:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(220, 53, 69, 0.35);
+    background: linear-gradient(135deg, #c82333 0%, #bd2130 100%);
+    color: white;
+  }
+  
+  .btn-custom-danger:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 8px rgba(220, 53, 69, 0.3);
+  }
+  
+  .btn-custom-success {
+    background: linear-gradient(135deg, #28a745 0%, #218838 100%);
+    border: none;
+    border-radius: 8px;
+    padding: 10px 20px;
+    font-weight: 600;
+    color: white;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 12px rgba(40, 167, 69, 0.2);
+  }
+  
+  .btn-custom-success:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(40, 167, 69, 0.35);
+    background: linear-gradient(135deg, #218838 0%, #1e7e34 100%);
+    color: white;
+  }
+  
+  .btn-custom-success:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 8px rgba(40, 167, 69, 0.3);
+  }
+  
+  .btn-custom-outline-primary {
+    background: transparent;
+    border: 2px solid var(--brand-red);
+    border-radius: 8px;
+    padding: 10px 20px;
+    font-weight: 600;
+    color: var(--brand-red);
+    transition: all 0.3s ease;
+  }
+  
+  .btn-custom-outline-primary:hover {
+    background: var(--brand-red);
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(163, 12, 12, 0.2);
+  }
+  
+  .btn-custom-outline-primary:active {
+    transform: translateY(0);
+  }
+  
+  .btn-custom-outline-secondary {
+    background: transparent;
+    border: 2px solid #6c757d;
+    border-radius: 8px;
+    padding: 10px 20px;
+    font-weight: 600;
+    color: #6c757d;
+    transition: all 0.3s ease;
+  }
+  
+  .btn-custom-outline-secondary:hover {
+    background: #6c757d;
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(108, 117, 125, 0.2);
+  }
+  
+  .btn-custom-outline-secondary:active {
+    transform: translateY(0);
+  }
+  
+  .btn-custom-outline-danger {
+    background: transparent;
+    border: 2px solid #dc3545;
+    border-radius: 8px;
+    padding: 10px 20px;
+    font-weight: 600;
+    color: #dc3545;
+    transition: all 0.3s ease;
+  }
+  
+  .btn-custom-outline-danger:hover {
+    background: #dc3545;
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(220, 53, 69, 0.2);
+  }
+  
+  .btn-custom-outline-danger:active {
+    transform: translateY(0);
+  }
+  
+  .btn-custom-outline-success {
+    background: transparent;
+    border: 2px solid #28a745;
+    border-radius: 8px;
+    padding: 10px 20px;
+    font-weight: 600;
+    color: #28a745;
+    transition: all 0.3s ease;
+  }
+  
+  .btn-custom-outline-success:hover {
+    background: #28a745;
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(40, 167, 69, 0.2);
+  }
+  
+  .btn-custom-outline-success:active {
+    transform: translateY(0);
+  }
+  
+  /* Button size variations */
+  .btn-custom-sm {
+    padding: 6px 14px;
+    font-size: 0.875rem;
+  }
+  
+  .btn-custom-lg {
+    padding: 14px 28px;
+    font-size: 1.125rem;
+  }
+  
+  .class-card-modern {
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 15px;
+    border: none;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+    overflow: hidden;
+  }
+  
   .class-card-modern:hover {
     transform: translateY(-8px);
     box-shadow: 0 12px 40px rgba(163, 12, 12, 0.25);
@@ -136,72 +565,6 @@ const customStyles = `
     border-radius: 20px;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
     padding: 2rem;
-  }
-
-  .main-content-responsive {
-    margin-left: 0;
-    padding: 0;
-    min-height: 100vh;
-    background: linear-gradient(135deg, var(--brand-red) 0%, var(--brand-red-dark) 100%);
-  }
-  
-  @media (min-width: 768px) {
-    .main-content-responsive {
-      margin-left: 16.666667%;
-      padding: 20px;
-    }
-  }
-  
-  .nav-link-custom {
-    border-radius: 10px;
-    margin-bottom: 8px;
-    transition: all 0.3s ease;
-    color: rgba(255, 255, 255, 0.9) !important;
-  }
-  
-  .nav-link-custom:hover {
-    background-color: rgba(255, 255, 255, 0.2);
-    transform: translateX(5px);
-    color: white !important;
-  }
-  
-  .nav-link-custom.active {
-    background-color: rgba(255, 255, 255, 0.3);
-    color: white !important;
-    font-weight: 600;
-  }
-  
-  /* Mobile navbar styles */
-  @media (max-width: 991px) {
-    .mobile-nav-link {
-      text-align: center !important;
-      padding: 12px 20px !important;
-      transition: all 0.3s ease;
-      border-radius: 8px;
-      margin: 5px 10px;
-      color: #212529 !important;
-    }
-    
-    .mobile-nav-link:hover {
-      background-color: #f0f0f0 !important;
-      transform: translateX(5px);
-      color: #212529 !important;
-    }
-    
-    .mobile-nav-link.active,
-    .nav-link.mobile-nav-link.active {
-      background-color: #e3f2fd !important;
-      color: #1976d2 !important;
-      font-weight: 600;
-    }
-    
-    .navbar-collapse {
-      text-align: center;
-    }
-    
-    .navbar-nav {
-      width: 100%;
-    }
   }
   
   /* Fix container gaps */
@@ -424,7 +787,7 @@ function StudentDashboard() {
         <div className="text-center">
           <h3>🚫 Authentication Required</h3>
           <p>Please log in to access the student dashboard.</p>
-          <Button variant="primary" onClick={() => navigate("/")}>
+          <Button className="btn-custom-primary" onClick={() => navigate("/")}>
             Return to Login
           </Button>
         </div>
@@ -499,9 +862,8 @@ function StudentDashboard() {
                   </Nav.Link>
                   <div className="text-center my-2 px-3">
                     <Button
-                      variant="danger"
+                      className="btn-custom-danger w-100"
                       onClick={() => setShowLogoutModal(true)}
-                      className="w-100"
                       style={{maxWidth: '200px'}}
                     >
                       Logout
@@ -538,10 +900,10 @@ function StudentDashboard() {
         </Modal.Header>
         <Modal.Body>Are you sure you want to logout?</Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowLogoutModal(false)}>
+          <Button className="btn-custom-secondary" onClick={() => setShowLogoutModal(false)}>
             Cancel
           </Button>
-          <Button variant="danger" onClick={handleLogout}>
+          <Button className="btn-custom-danger" onClick={handleLogout}>
             Logout
           </Button>
         </Modal.Footer>
@@ -985,7 +1347,7 @@ function StudentMainDashboard() {
           </Form>
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowJoinModal(false)}>
+          <Button className="btn-custom-secondary" onClick={() => setShowJoinModal(false)}>
             Cancel
           </Button>
           <Button className="btn-modern-primary" onClick={handleJoinClass} disabled={!joinCode.trim()}>
@@ -1020,10 +1382,10 @@ function StudentMainDashboard() {
           </div>
         </Modal.Body>
         <Modal.Footer className="d-flex justify-content-between">
-          <Button variant="outline-secondary" onClick={() => setShowUnenrollModal(false)}>
+          <Button className="btn-custom-outline-secondary" onClick={() => setShowUnenrollModal(false)}>
             Cancel
           </Button>
-          <Button variant="danger" onClick={handleUnenrollClass} disabled={!selectedClassToUnenroll}>
+          <Button className="btn-custom-danger" onClick={handleUnenrollClass} disabled={!selectedClassToUnenroll}>
             Leave class
           </Button>
         </Modal.Footer>
@@ -1149,7 +1511,7 @@ function StudentMainDashboard() {
           )}
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowStatsModal(false)}>
+          <Button className="btn-custom-secondary" onClick={() => setShowStatsModal(false)}>
             Close
           </Button>
         </Modal.Footer>
@@ -1903,7 +2265,7 @@ function StudentClassStream() {
   if (error) {
     return (
       <Container className="mt-4">
-        <Alert variant="danger">{error}</Alert>
+        <Alert className="btn-custom-danger">{error}</Alert>
       </Container>
     );
   }
@@ -1993,7 +2355,7 @@ function StudentClassStream() {
                   </Card>
                 ) : (
                   announcements.map((announcement, index) => (
-                    <Card key={announcement._id || index} className="mb-3">
+                    <Card key={announcement._id || index} className="mb-3">\
                       <Card.Body>
                         <div className="d-flex align-items-center mb-2">
                           <div className="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-3" 
@@ -2033,8 +2395,7 @@ function StudentClassStream() {
                                 </div>
                                 <div className="d-flex gap-2">
                                   <Button 
-                                    variant="outline-primary" 
-                                    size="sm"
+                                    className="btn-custom-outline-primary btn-custom-sm"
                                     onClick={() => {
                                       const url = attachment?.filePath && attachment.filePath.startsWith('http')
                                         ? attachment.filePath
@@ -2053,7 +2414,7 @@ function StudentClassStream() {
                           {announcement.materialRef && (
                             <div className="mt-3">
                               <div className="fw-bold mb-2">Material:</div>
-                              <Card className="mb-2">
+                              <Card className="modern-card mb-2">
                                 <Card.Body>
                                   <h6 className="text-center">{announcement.materialRef.title}</h6>
                                   {announcement.materialRef.description && (
@@ -2062,9 +2423,9 @@ function StudentClassStream() {
                                   {announcement.materialRef.type === 'file' && announcement.materialRef.content && (
                                     <div className="d-flex gap-2">
                                       <Button
-                                        variant="outline-primary"
-                                        size="sm"
-                                        className="flex-grow-1"
+                                        className="btn-custom-outline-primary btn-custom-sm flex-grow-1"
+                                        
+                                        
                                         onClick={() => window.open(
                                           announcement.materialRef.content.startsWith('http') ? announcement.materialRef.content : `${API_BASE_URL}/${announcement.materialRef.content}`,
                                           '_blank'
@@ -2076,9 +2437,9 @@ function StudentClassStream() {
                                   )}
                                   {(announcement.materialRef.type === 'video' || announcement.materialRef.type === 'link') && announcement.materialRef.content && (
                                     <Button
-                                      variant="outline-primary"
-                                      size="sm"
-                                      className="w-100"
+                                      className="btn-custom-outline-primary btn-custom-sm w-100"
+                                      
+                                      
                                       as="a"
                                       href={announcement.materialRef.content}
                                       target="_blank"
@@ -2114,11 +2475,11 @@ function StudentClassStream() {
               <div className="mb-4">
                 <h5 className="mb-3">📎 Class Files</h5>
                 {announcements.filter(a => a.attachments && a.attachments.length > 0).length === 0 ? (
-                  <Card className="text-center p-4">
+                  <Card className="modern-card text-center p-4">
                     <p className="text-muted">No files shared yet</p>
                   </Card>
                 ) : (
-                  <Card>
+                  <Card className="modern-card">
                     <Card.Body>
                       {announcements
                         .filter(a => a.attachments && a.attachments.length > 0)
@@ -2140,8 +2501,7 @@ function StudentClassStream() {
                                   </div>
                                   <div className="d-flex gap-2">
                                     <Button 
-                                      variant="outline-primary" 
-                                      size="sm"
+                                      className="btn-custom-outline-primary btn-custom-sm"
                                       onClick={() => {
                                         const url = attachment?.filePath && attachment.filePath.startsWith('http')
                                           ? attachment.filePath
@@ -2178,7 +2538,7 @@ function StudentClassStream() {
               <Row>
                 <Col md={6}>
                   <h5 className="mb-3">👨‍🏫 Teacher</h5>
-                  <Card>
+                  <Card className="modern-card">
                     <Card.Body>
                       <div className="d-flex align-items-center">
                         <div className="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-3" 
@@ -2195,7 +2555,7 @@ function StudentClassStream() {
                 </Col>
                 <Col md={6}>
                   <h5 className="mb-3">👥 Students ({classmates.length})</h5>
-                  <Card style={{ maxHeight: '400px', overflowY: 'auto' }}>
+                  <Card className="modern-card" style={{ maxHeight: '400px', overflowY: 'auto' }}>
                     <Card.Body>
                       {classmates.map((student, index) => (
                         <div key={index} className="d-flex align-items-center mb-2">
@@ -2215,14 +2575,14 @@ function StudentClassStream() {
             {activeTab === "materials" && (
               <>
               {materials.length === 0 ? (
-                <Card className="text-center p-4">
+                <Card className="modern-card text-center p-4">
                   <p className="text-muted">No materials shared yet</p>
                 </Card>
               ) : (
                 <Row>
                   {materials.map((material) => (
                     <Col md={4} key={material._id} className="mb-3">
-                      <Card>
+                      <Card className="modern-card h-100">
                         <Card.Body>
                           <div className="text-center mb-3">
                             {material.type === 'file' && (
@@ -2251,9 +2611,9 @@ function StudentClassStream() {
                           {material.type === 'file' && (
                             <div className="d-flex gap-2 flex-column">
                               <Button
-                                variant="outline-primary"
-                                size="sm"
-                                className="w-100"
+                                className="btn-custom-outline-primary btn-custom-sm w-100"
+                                
+                                
                                 onClick={() => handleFilePreview(
                                   material.content.startsWith('http') ? material.content : `${API_BASE_URL}/${material.content}`,
                                   material.title,
@@ -2263,9 +2623,9 @@ function StudentClassStream() {
                                 View
                               </Button>
                               <Button
-                                variant="outline-secondary"
-                                size="sm"
-                                className="w-100"
+                                className="btn-custom-outline-secondary btn-custom-sm w-100"
+                                
+                                
                                 as="a"
                                 href={material.content.startsWith('http') ? material.content : `${API_BASE_URL}/${material.content}`}
                                 target="_blank"
@@ -2274,9 +2634,9 @@ function StudentClassStream() {
                                 Download
                               </Button>
                               <Button
-                                variant="outline-success"
-                                size="sm"
-                                className="w-100"
+                                className="btn-custom-outline-success btn-custom-sm w-100"
+                                
+                                
                                 onClick={() => {
                                   setSelectedMaterial(material);
                                   setShowMaterialSubmissionModal(true);
@@ -2291,9 +2651,9 @@ function StudentClassStream() {
                           {(material.type === 'video' || material.type === 'link') && (
                             <div className="d-flex gap-2 flex-column">
                               <Button
-                                variant="outline-primary"
-                                size="sm"
-                                className="w-100"
+                                className="btn-custom-outline-primary btn-custom-sm w-100"
+                                
+                                
                                 as="a"
                                 href={material.content}
                                 target="_blank"
@@ -2301,9 +2661,9 @@ function StudentClassStream() {
                                 Open
                               </Button>
                               <Button
-                                variant="outline-success"
-                                size="sm"
-                                className="w-100"
+                                className="btn-custom-outline-success btn-custom-sm w-100"
+                                
+                                
                                 onClick={() => {
                                   setSelectedMaterial(material);
                                   setShowMaterialSubmissionModal(true);
@@ -2355,10 +2715,10 @@ function StudentClassStream() {
           </Form>
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowSubmissionModal(false)}>
+          <Button className="btn-custom-secondary" onClick={() => setShowSubmissionModal(false)}>
             Cancel
           </Button>
-          <Button variant="primary" onClick={handleSubmitAssignment}>
+          <Button className="btn-custom-primary" onClick={handleSubmitAssignment}>
             Submit Assignment
           </Button>
         </Modal.Footer>
@@ -2435,7 +2795,7 @@ function StudentClassStream() {
           </Form>
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={() => { 
+          <Button className="btn-custom-secondary" onClick={() => { 
             setShowMaterialSubmissionModal(false); 
             setMaterialSubmissionFile(null); 
             setMaterialSubmissionLink('');
@@ -2444,7 +2804,7 @@ function StudentClassStream() {
             Cancel
           </Button>
           <Button 
-            variant="success" 
+            className="btn-custom-success" 
             onClick={handleMaterialSubmit}
             disabled={
               (materialSubmissionType === 'file' && !materialSubmissionFile) || 
@@ -2484,13 +2844,13 @@ function StudentClassStream() {
         <Modal.Footer className="d-flex flex-column w-100">
           <div className="d-flex justify-content-between w-100">
             <Button 
-              variant="outline-secondary" 
+              className="btn-custom-outline-secondary" 
               onClick={() => setShowLeaveModal(false)}
             >
               Cancel
             </Button>
             <Button 
-              variant="danger" 
+              className="btn-custom-danger" 
               onClick={async () => {
                 setShowLeaveModal(false);
                 
@@ -2538,9 +2898,7 @@ function StudentClassStream() {
               If you're having trouble leaving the class:
             </small>
             <Button 
-              variant="outline-secondary" 
-              size="sm"
-              className="w-100 text-muted"
+              className="btn-custom-outline-secondary btn-custom-sm w-100 text-muted"
               onClick={() => {
                 setShowLeaveModal(false);
                 // Update local storage to remove the class
@@ -2628,7 +2986,7 @@ function StudentClassStream() {
               <div className="display-1 mb-3">📄</div>
               <p>This document cannot be previewed directly.</p>
               <Button
-                variant="primary"
+                className="btn-custom-primary"
                 as="a"
                 href={previewFile.url}
                 target="_blank"
@@ -2644,7 +3002,7 @@ function StudentClassStream() {
               <div className="display-1 mb-3">📊</div>
               <p>This spreadsheet cannot be previewed directly.</p>
               <Button
-                variant="primary"
+                className="btn-custom-primary"
                 as="a"
                 href={previewFile.url}
                 target="_blank"
@@ -2663,7 +3021,7 @@ function StudentClassStream() {
                 <small className="text-muted">File: {previewFile.name}</small>
               </div>
               <Button
-                variant="primary"
+                className="btn-custom-primary"
                 as="a"
                 href={previewFile.url}
                 target="_blank"
@@ -2679,7 +3037,7 @@ function StudentClassStream() {
               <div className="display-1 mb-3">📄</div>
               <p>This file type cannot be previewed.</p>
               <Button
-                variant="primary"
+                className="btn-custom-primary"
                 as="a"
                 href={previewFile.url}
                 target="_blank"
@@ -2693,11 +3051,11 @@ function StudentClassStream() {
       )}
     </Modal.Body>
     <Modal.Footer>
-      <Button variant="secondary" onClick={() => setShowFilePreview(false)}>
+      <Button className="btn-custom-secondary" onClick={() => setShowFilePreview(false)}>
         Close
       </Button>
       <Button
-        variant="primary"
+        className="btn-custom-primary"
         as="a"
         href={previewFile?.url}
         download
@@ -2785,7 +3143,7 @@ function StudentClassStream() {
       )}
     </Modal.Body>
     <Modal.Footer>
-      <Button variant="secondary" onClick={() => setShowResultModal(false)}>
+      <Button className="btn-custom-secondary" onClick={() => setShowResultModal(false)}>
         Close
       </Button>
     </Modal.Footer>
@@ -3570,10 +3928,8 @@ function StudentProfile() {
                   </small>
                 </div>
                 <Button 
-                  variant="outline-primary" 
-                  size="sm" 
+                  className="btn-custom-outline-primary btn-custom-sm ms-3" 
                   onClick={handleCleanupData}
-                  className="ms-3"
                 >
                   <i className="bi bi-trash me-1"></i>
                   Clean Up
@@ -3588,10 +3944,8 @@ function StudentProfile() {
                   </small>
                 </div>
                 <Button 
-                  variant="outline-danger" 
-                  size="sm" 
+                  className="btn-custom-outline-danger btn-custom-sm ms-3" 
                   onClick={() => setShowDeleteModal(true)}
-                  className="ms-3"
                 >
                   <i className="bi bi-exclamation-triangle me-1"></i>
                   Delete Account
@@ -3642,7 +3996,7 @@ function StudentProfile() {
           </Form>
         </Modal.Body>
         <Modal.Footer className="border-0">
-          <Button variant="outline-secondary" onClick={() => setShowEditModal(false)}>
+          <Button className="btn-custom-outline-secondary" onClick={() => setShowEditModal(false)}>
             Cancel
           </Button>
           <Button className="btn-modern-primary" onClick={handleSaveProfile}>
@@ -3706,13 +4060,13 @@ function StudentProfile() {
         </Modal.Body>
         <Modal.Footer className="border-0">
           <Button 
-            variant="outline-secondary" 
+            className="btn-custom-outline-secondary" 
             onClick={() => { setShowDeleteModal(false); setDeletePassword(''); setDeleteConfirmText(''); }}
           >
             Cancel
           </Button>
           <Button 
-            variant="danger" 
+            className="btn-custom-danger" 
             onClick={handleDeleteAccount}
             disabled={!profile?.googleId && !deletePassword.trim()}
           >
@@ -3735,10 +4089,10 @@ function StudentProfile() {
           </div>
         </Modal.Body>
         <Modal.Footer className="border-0">
-          <Button variant="outline-secondary" onClick={() => setShowLogoutModal(false)}>
+          <Button className="btn-custom-outline-secondary" onClick={() => setShowLogoutModal(false)}>
             Cancel
           </Button>
-          <Button variant="danger" onClick={handleLogout}>
+          <Button className="btn-custom-danger" onClick={handleLogout}>
             <i className="bi bi-box-arrow-right me-2"></i>
             Logout
           </Button>
@@ -3888,3 +4242,6 @@ function StudentProfile() {
 }
 
 export default StudentDashboard;
+
+
+
