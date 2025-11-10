@@ -220,18 +220,34 @@ function Comments({ referenceType, referenceId, className }) {
       )}
       
       <Form onSubmit={handleAddComment} className="mb-3">
-        <Form.Group className="d-flex">
+        <Form.Group className="d-flex align-items-center" style={{ gap: 0 }}>
           <Form.Control
             type="text"
             placeholder="Add a comment..."
             value={newComment}
             onChange={(e) => setNewComment(e.target.value)}
             disabled={posting}
+            style={{ borderTopRightRadius: 0, borderBottomRightRadius: 0, fontSize: 16, minHeight: 44 }}
           />
           <Button
             type="submit"
-            variant="primary"
-            className="ms-2"
+            variant="warning"
+            style={{
+              minWidth: 80,
+              borderTopLeftRadius: 0,
+              borderBottomLeftRadius: 0,
+              fontWeight: 600,
+              color: '#a30c0c',
+              fontSize: 16,
+              minHeight: 44,
+              boxShadow: 'none',
+              whiteSpace: 'nowrap',
+              padding: '0 18px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+            className="shadow-none"
             disabled={!newComment.trim() || posting}
           >
             {posting ? 'Posting...' : 'Post'}

@@ -510,13 +510,14 @@ function StudentMainDashboard() {
         </Col>
       </Row>
 
-      <h4 className="fw-bold mb-3 d-flex justify-content-between align-items-center">
+      <h4 className="fw-bold mb-3 d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center gap-2">
         <span>My Classes:</span>
         <Button
           size="sm"
           variant="outline-primary"
           onClick={() => setShowJoinModal(true)}
           aria-label="Join a new class"
+          className="w-100 w-sm-auto"
         >
           + Join Class
         </Button>

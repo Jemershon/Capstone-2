@@ -37,18 +37,40 @@ import FormAnalytics from "./components/FormAnalytics";
 
 // Add custom styles for responsive design and modern UI
 const customStyles = `
-  /* Modern Gradient Background (brand colors) */
-  :root { --brand-red: #a30c0c; --brand-red-dark: #780606; --brand-gold: #ffcc00; --brand-gold-light: #ffd54a; }
+  /* Futuristic Theme Variables - Original Brand Colors */
+  :root { 
+    --brand-red: #a30c0c; 
+    --brand-red-dark: #780606; 
+    --brand-gold: #ffcc00; 
+    --brand-gold-light: #ffd54a;
+  }
+  
   .dashboard-modern-bg {
-    background: linear-gradient(135deg, var(--brand-red) 0%, var(--brand-red-dark) 100%);
+    background: #fffafa;
     min-height: 100vh;
+    position: relative;
+    overflow-x: hidden;
+  }
+  
+  .dashboard-modern-bg::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: transparent;
+    pointer-events: none;
+    z-index: 0;
   }
   
   .main-content-responsive {
     margin-left: 0;
     padding: 0;
     min-height: 100vh;
-  background: linear-gradient(135deg, rgba(163,12,12,0.04) 0%, rgba(120,20,20,0.04) 100%);
+    position: relative;
+    z-index: 1;
+    background: #fffafa;
   }
   
   @media (min-width: 768px) {
@@ -58,20 +80,52 @@ const customStyles = `
     }
   }
   
-  /* Glassmorphism Sidebar */
+  /* Futuristic Glassmorphism Sidebar */
   .modern-sidebar {
     background: linear-gradient(180deg, var(--brand-red) 0%, var(--brand-red-dark) 100%) !important;
-    box-shadow: 4px 0 20px rgba(0, 0, 0, 0.1);
-    border-right: 1px solid rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(20px);
+    box-shadow: 4px 0 30px rgba(163, 12, 12, 0.3), inset -1px 0 20px rgba(255, 204, 0, 0.05);
+    border-right: 2px solid rgba(255, 204, 0, 0.2);
+    position: relative;
+  }
+  
+  .modern-sidebar::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 2px;
+    height: 100%;
+    background: linear-gradient(180deg, transparent, var(--brand-gold), transparent);
+    animation: borderGlow 3s infinite;
+  }
+  
+  @keyframes borderGlow {
+    0%, 100% { opacity: 0.3; }
+    50% { opacity: 1; }
   }
   
   .modern-sidebar h4 {
     color: white;
-    text-shadow: 0 2px 10px rgba(0,0,0,0.2);
+    text-shadow: 0 0 20px rgba(255, 204, 0, 0.4), 0 2px 10px rgba(0,0,0,0.3);
     font-weight: 700;
     padding: 20px;
     margin: 0;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    border-bottom: 2px solid rgba(255, 204, 0, 0.2);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    position: relative;
+  }
+  
+  .modern-sidebar h4::after {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    left: 20px;
+    width: 60px;
+    height: 2px;
+    background: var(--brand-gold);
+    box-shadow: 0 0 10px var(--brand-gold);
   }
   
   /* Mobile navbar styles */
@@ -84,19 +138,41 @@ const customStyles = `
       margin: 5px 10px;
       color: white !important;
       background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 204, 0, 0.2);
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .mobile-nav-link::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255, 204, 0, 0.2), transparent);
+      transition: left 0.5s;
+    }
+    
+    .mobile-nav-link:hover::before {
+      left: 100%;
     }
     
     .mobile-nav-link:hover {
       background-color: rgba(255, 255, 255, 0.2) !important;
       transform: translateX(5px);
       color: white !important;
+      box-shadow: 0 4px 15px rgba(255, 204, 0, 0.3);
+      border-color: rgba(255, 204, 0, 0.5);
     }
     
     .mobile-nav-link.active,
     .nav-link.mobile-nav-link.active {
-      background-color: rgba(255, 255, 255, 0.3) !important;
+      background-color: rgba(255, 204, 0, 0.2) !important;
       color: white !important;
       font-weight: 600;
+      box-shadow: 0 0 20px rgba(255, 204, 0, 0.5), inset 0 0 20px rgba(255, 204, 0, 0.1);
+      border-color: var(--brand-gold);
     }
     
     .navbar-collapse {
@@ -109,12 +185,15 @@ const customStyles = `
     
     .modern-mobile-navbar {
       background: linear-gradient(135deg, var(--brand-red) 0%, var(--brand-red-dark) 100%) !important;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+      backdrop-filter: blur(20px);
+      box-shadow: 0 4px 30px rgba(163, 12, 12, 0.3);
+      border-bottom: 2px solid rgba(255, 204, 0, 0.2);
     }
     
     .modern-mobile-navbar .navbar-brand {
       color: white !important;
       font-weight: 700;
+      text-shadow: 0 0 15px rgba(255, 204, 0, 0.6);
     }
   }
   
@@ -126,34 +205,73 @@ const customStyles = `
     color: rgba(255, 255, 255, 0.9) !important;
     text-decoration: none;
     font-weight: 500;
+    border: 1px solid transparent;
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .nav-link-custom::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 204, 0, 0.2), transparent);
+    transition: left 0.5s;
+  }
+  
+  .nav-link-custom:hover::before {
+    left: 100%;
   }
   
   .nav-link-custom:hover {
     background-color: rgba(255, 255, 255, 0.15);
     color: #fff !important;
     transform: translateX(5px);
+    border-color: rgba(255, 204, 0, 0.3);
+    box-shadow: 0 4px 15px rgba(255, 204, 0, 0.2);
   }
   
   .nav-link-custom.active {
-    background-color: rgba(255, 255, 255, 0.25);
+    background: linear-gradient(90deg, rgba(255, 204, 0, 0.15), rgba(163, 12, 12, 0.15));
     color: white !important;
     font-weight: 600;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    box-shadow: 0 4px 15px rgba(255, 204, 0, 0.3), inset 0 0 20px rgba(255, 204, 0, 0.1);
+    border-color: rgba(255, 204, 0, 0.5);
   }
   
-  /* Modern Cards */
+  /* Futuristic Cards */
   .modern-card {
     border-radius: 20px;
-    border: none;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.08);
-    transition: all 0.3s ease;
-    background: white;
+    border: 1px solid rgba(255, 204, 0, 0.2);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3), 0 0 15px rgba(255, 204, 0, 0.1);
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(245, 245, 245, 0.95) 100%);
+    backdrop-filter: blur(10px);
     overflow: hidden;
+    position: relative;
+  }
+  
+  .modern-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 204, 0, 0.15), transparent);
+    transition: left 0.6s;
+  }
+  
+  .modern-card:hover::before {
+    left: 100%;
   }
   
   .modern-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 15px 40px rgba(0,0,0,0.12);
+    transform: translateY(-8px) scale(1.02);
+    box-shadow: 0 20px 50px rgba(0,0,0,0.4), 0 0 30px rgba(255, 204, 0, 0.3);
+    border-color: var(--brand-gold);
   }
   
   .modern-card-header {
@@ -163,26 +281,60 @@ const customStyles = `
     font-weight: 700;
     font-size: 1.2rem;
     border: none;
+    border-bottom: 2px solid var(--brand-gold);
+    text-shadow: 0 2px 10px rgba(0,0,0,0.3);
+    position: relative;
+  }
+  
+  .modern-card-header::after {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    left: 0;
+    width: 100px;
+    height: 2px;
+    background: var(--brand-gold);
+    box-shadow: 0 0 15px var(--brand-gold);
   }
   
   .modern-card-body {
     padding: 25px;
   }
   
-  /* Profile Card Enhancement */
+  /* Futuristic Profile Card */
   .profile-card-modern {
     background: linear-gradient(135deg, var(--brand-red) 0%, var(--brand-red-dark) 100%);
+    border: 2px solid var(--brand-gold);
     border-radius: 20px;
     padding: 30px;
     color: white;
-    box-shadow: 0 15px 35px rgba(102, 126, 234, 0.3);
-    border: none;
+    box-shadow: 0 15px 35px rgba(163, 12, 12, 0.4), 0 0 40px rgba(255, 204, 0, 0.2);
+    backdrop-filter: blur(10px);
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .profile-card-modern::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 204, 0, 0.2), transparent);
+    animation: slideLight 4s infinite;
+  }
+  
+  @keyframes slideLight {
+    0% { left: -100%; }
+    100% { left: 100%; }
   }
   
   .profile-card-modern h3 {
     font-weight: 700;
     margin-bottom: 10px;
-    text-shadow: 0 2px 10px rgba(0,0,0,0.2);
+    text-shadow: 0 0 20px rgba(255, 204, 0, 0.6), 0 2px 10px rgba(0,0,0,0.5);
+    letter-spacing: 1px;
   }
   
   .profile-card-modern p {
@@ -200,11 +352,20 @@ const customStyles = `
   
   .profile-stat-item {
     text-align: center;
-    background: rgba(255, 255, 255, 0.15);
+    background: rgba(255, 204, 0, 0.15);
     backdrop-filter: blur(10px);
     padding: 15px 20px;
     border-radius: 15px;
     min-width: 120px;
+    border: 1px solid rgba(255, 204, 0, 0.3);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    transition: all 0.3s ease;
+  }
+  
+  .profile-stat-item:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(255, 204, 0, 0.3);
+    border-color: var(--brand-gold);
   }
   
   .profile-stat-number {
@@ -212,6 +373,7 @@ const customStyles = `
     font-weight: 700;
     display: block;
     margin-bottom: 5px;
+    text-shadow: 0 0 15px rgba(255, 204, 0, 0.5);
   }
   
   .profile-stat-label {
@@ -220,24 +382,47 @@ const customStyles = `
     font-weight: 500;
   }
   
-  /* Class Cards Modern */
+  /* Futuristic Class Cards */
   .class-card-modern {
     border-radius: 20px;
-    border: none;
+    border: 1px solid rgba(255, 204, 0, 0.2);
     overflow: hidden;
-    transition: all 0.3s ease;
-    box-shadow: 0 10px 25px rgba(0,0,0,0.08);
-    background: white;
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15), 0 0 15px rgba(255, 204, 0, 0.1);
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(250, 250, 250, 0.98) 100%);
+    position: relative;
+  }
+  
+  .class-card-modern::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 204, 0, 0.1), transparent);
+    transition: left 0.6s;
+  }
+  
+  .class-card-modern:hover::before {
+    left: 100%;
   }
   
   .class-card-modern:hover {
-    transform: translateY(-8px);
-    box-shadow: 0 15px 35px rgba(0,0,0,0.15);
+    transform: translateY(-10px) scale(1.03);
+    box-shadow: 0 20px 40px rgba(0,0,0,0.25), 0 0 30px rgba(255, 204, 0, 0.3);
     cursor: pointer;
+    border-color: var(--brand-gold);
   }
   
   .class-card-modern .card-body {
     padding: 25px;
+    position: relative;
+    z-index: 1;
+  }
+  
+  .class-card-modern .card-body strong {
+    color: var(--brand-red);
   }
   
   /* Modern Buttons */
@@ -245,11 +430,13 @@ const customStyles = `
     background: linear-gradient(135deg, var(--brand-gold) 0%, var(--brand-gold-light) 100%);
     border: none;
     border-radius: 12px;
-    padding: 12px 24px;
+    padding: 10px 20px;
     font-weight: 600;
     color: var(--brand-red);
     transition: all 0.3s ease;
     box-shadow: 0 4px 15px rgba(163, 12, 12, 0.15);
+    white-space: nowrap;
+    min-width: fit-content;
   }
   
   .btn-modern-primary:hover {
@@ -262,10 +449,12 @@ const customStyles = `
     background: rgba(163, 12, 12, 0.06);
     border: 2px solid var(--brand-red);
     border-radius: 12px;
-    padding: 12px 24px;
+    padding: 10px 20px;
     font-weight: 600;
     color: var(--brand-red);
     transition: all 0.3s ease;
+    white-space: nowrap;
+    min-width: fit-content;
   }
   
   .btn-modern-secondary:hover {
@@ -288,6 +477,28 @@ const customStyles = `
     border-radius: 20px 20px 0 0 !important;
     padding: 20px 30px;
     border: none;
+  }
+  
+  .modal-footer {
+    padding: 15px 30px;
+    border: none;
+    gap: 10px;
+    flex-wrap: nowrap;
+    display: flex;
+    justify-content: flex-end;
+  }
+  
+  .modal-footer .btn {
+    white-space: nowrap;
+    min-width: 100px;
+    padding: 10px 20px;
+    flex-shrink: 0;
+  }
+  
+  .btn {
+    white-space: nowrap !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
   }
   
   .modal-header .btn-close {
@@ -471,6 +682,33 @@ function DashboardAndClasses() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [classToDelete, setClassToDelete] = useState(null);
   
+  // Add CSS animation
+  useEffect(() => {
+    const style = document.createElement('style');
+    style.innerHTML = `
+      @keyframes fadeInUp {
+        from {
+          opacity: 0;
+          transform: translateY(20px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      @keyframes float {
+        0%, 100% {
+          transform: translateY(0px);
+        }
+        50% {
+          transform: translateY(-10px);
+        }
+      }
+    `;
+    document.head.appendChild(style);
+    return () => document.head.removeChild(style);
+  }, []);
+  
   // Stat card modals
   const [showStatsModal, setShowStatsModal] = useState(false);
   const [statsModalType, setStatsModalType] = useState('');
@@ -607,8 +845,95 @@ function DashboardAndClasses() {
   }
 
   return (
-    <div className="dashboard-content">
-      <h2 className="fw-bold mb-4">Dashboard & Classes</h2>
+    <div className="dashboard-content" style={{
+      background: '#f8f9fa',
+      minHeight: '100vh',
+      padding: '2rem',
+      position: 'relative',
+      overflow: 'hidden'
+    }}>
+      {/* Decorative background elements */}
+      <div style={{
+        position: 'absolute',
+        top: '-50px',
+        right: '-50px',
+        width: '300px',
+        height: '300px',
+        background: 'linear-gradient(135deg, rgba(163, 12, 12, 0.05) 0%, rgba(220, 53, 69, 0.05) 100%)',
+        borderRadius: '50%',
+        zIndex: 0
+      }}></div>
+      <div style={{
+        position: 'absolute',
+        bottom: '-100px',
+        left: '-100px',
+        width: '400px',
+        height: '400px',
+        background: 'linear-gradient(135deg, rgba(13, 110, 253, 0.03) 0%, rgba(102, 16, 242, 0.03) 100%)',
+        borderRadius: '50%',
+        zIndex: 0
+      }}></div>
+      {/* Subtle pattern overlay */}
+      <div style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23000000' fill-opacity='0.02'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
+        opacity: 0.4,
+        zIndex: 0,
+        pointerEvents: 'none'
+      }}></div>
+      
+      <div style={{ position: 'relative', zIndex: 1 }}>
+      <div className="d-flex justify-content-between align-items-center mb-4">
+        <div>
+          <h2 className="fw-bold mb-0" style={{ 
+            background: 'linear-gradient(90deg, #a30c0c 0%, #dc3545 100%)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            backgroundClip: 'text',
+            position: 'relative',
+            display: 'inline-block'
+          }}>
+            <i className="bi bi-mortarboard-fill me-2" style={{
+              WebkitTextFillColor: '#a30c0c',
+              animation: 'float 3s ease-in-out infinite'
+            }}></i>
+            Classes
+          </h2>
+          <div style={{
+            height: '4px',
+            width: '80px',
+            background: 'linear-gradient(90deg, #a30c0c 0%, #dc3545 100%)',
+            borderRadius: '2px',
+            marginTop: '8px'
+          }}></div>
+        </div>
+        <i 
+          className="bi bi-plus-circle-fill" 
+          onClick={() => setShowCreateModal(true)}
+          aria-label="Create a new class"
+          style={{ 
+            fontSize: '1.8rem', 
+            cursor: 'pointer', 
+            color: '#a30c0c',
+            transition: 'all 0.3s ease',
+            filter: 'drop-shadow(0 2px 4px rgba(163, 12, 12, 0.3))'
+          }}
+          title="Create Class"
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'scale(1.15) rotate(90deg)';
+            e.currentTarget.style.filter = 'drop-shadow(0 4px 8px rgba(163, 12, 12, 0.5))';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'scale(1) rotate(0deg)';
+            e.currentTarget.style.filter = 'drop-shadow(0 2px 4px rgba(163, 12, 12, 0.3))';
+          }}
+        ></i>
+      </div>
+
         {(error || successMessage) && ( 
         <Toast
           show={showToast}
@@ -626,18 +951,19 @@ function DashboardAndClasses() {
         </Toast>
       )}
       
-      <h4 className="fw-bold mb-3 d-flex justify-content-between align-items-center">
-        <span>Your classes:</span> 
-        <Button
-          size="sm"
-          variant="outline-primary"
-          onClick={() => setShowCreateModal(true)}
-          aria-label="Create a new class"
-        >
-          + Create Class
-        </Button>
-      </h4>
-      <Row>
+      <div className="classes-container" style={{
+        background: 'rgba(255, 255, 255, 0.95)',
+        backdropFilter: 'blur(10px)',
+        WebkitBackdropFilter: 'blur(10px)',
+        borderRadius: '16px',
+        padding: '2rem',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+        border: '1px solid #e0e0e0',
+        borderLeft: '4px solid #a30c0c',
+        minHeight: '400px',
+        position: 'relative'
+      }}>
+      <Row className="g-4">
         {classes.length === 0 && (
           <Col xs={12}>
             <Card className="p-4 text-center text-muted">
@@ -646,11 +972,24 @@ function DashboardAndClasses() {
           </Col>
         )}
         {classes.map((cls) => (
-          <Col key={cls._id || cls.id} md={4} className="mb-3">
+          <Col key={cls._id || cls.id} md={4} lg={3} className="mb-3">
             <Card
               className="class-card-modern h-100"
-              style={{ opacity: cls.archived ? 0.6 : 1 }}
+              style={{ 
+                opacity: cls.archived ? 0.6 : 1,
+                transition: 'all 0.3s ease',
+                cursor: 'pointer',
+                animation: 'fadeInUp 0.5s ease-out',
+              }}
               onClick={() => navigate(`/teacher/class/${encodeURIComponent(cls.name)}`)}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-8px)';
+                e.currentTarget.style.boxShadow = '0 12px 32px rgba(163, 12, 12, 0.2), 0 0 20px rgba(163, 12, 12, 0.1)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '';
+              }}
             >
               <Card.Body>
                 <div className="d-flex align-items-center justify-content-between">
@@ -729,6 +1068,9 @@ function DashboardAndClasses() {
           </Col>
         ))}
       </Row>
+      </div>
+      </div>
+
       {/* Removed inline Manage Class modal; navigation goes to per-class stream */}
       <Modal
         show={showCreateModal}
@@ -793,7 +1135,7 @@ function DashboardAndClasses() {
             {/* Background color removed per user request */}
           </Form>
         </Modal.Body>
-        <Modal.Footer>
+        <Modal.Footer className="d-flex justify-content-end gap-2">
           <Button
             variant="secondary"
             onClick={() => {
@@ -801,6 +1143,7 @@ function DashboardAndClasses() {
               setClassData({ name: "", section: "", code: "", bg: "#FFF0D8", course: "", year: "", schedule: "" });
               setError("");
             }}
+            style={{ minWidth: '100px' }}
           >
             Cancel
           </Button>
@@ -809,6 +1152,7 @@ function DashboardAndClasses() {
             onClick={handleCreateClass}
             disabled={!classData.name || !classData.year}
             aria-label="Create class"
+            style={{ minWidth: '100px' }}
           >
             Create
           </Button>
@@ -846,19 +1190,21 @@ function DashboardAndClasses() {
           <p>Are you sure you want to delete the class <strong>"{classToDelete?.name}"</strong>?</p>
           <p className="text-danger mb-0">⚠️ This action cannot be undone. All announcements, exams, and materials in this class will be permanently deleted.</p>
         </Modal.Body>
-        <Modal.Footer>
+        <Modal.Footer className="d-flex justify-content-end gap-2">
           <Button 
             variant="secondary" 
             onClick={() => {
               setShowDeleteModal(false);
               setClassToDelete(null);
             }}
+            style={{ minWidth: '100px' }}
           >
             Cancel
           </Button>
           <Button 
             variant="danger" 
             onClick={handleDeleteClass}
+            style={{ minWidth: '120px' }}
           >
             Delete Class
           </Button>
@@ -931,7 +1277,13 @@ function DashboardAndClasses() {
                       <td>{index + 1}</td>
                       <td>{student.name || student.username}</td>
                       <td>{student.email || 'N/A'}</td>
-                      <td>{student.className}</td>
+                      <td>
+                        {typeof student.className === 'string'
+                          ? student.className
+                          : Array.isArray(student.className)
+                            ? student.className.join(', ')
+                            : String(student.className || '')}
+                      </td>
                     </tr>
                   ))
                 )}
@@ -2122,7 +2474,25 @@ function TeacherClassStream() {
               </Form.Group>
               
               <div className="d-flex gap-2 align-items-center">
-                <Button onClick={handlePost} disabled={(!message.trim() && selectedFiles.length === 0) || posting || uploading}>
+                <Button
+                  onClick={handlePost}
+                  disabled={(!message.trim() && selectedFiles.length === 0) || posting || uploading}
+                  style={{
+                    background: '#ffec99',
+                    color: '#a30c0c',
+                    fontWeight: 600,
+                    border: 'none',
+                    borderRadius: 10,
+                    boxShadow: '0 2px 8px 0 rgba(163,12,12,0.04)',
+                    padding: '8px 28px',
+                    fontSize: 16,
+                    lineHeight: 1.2,
+                    whiteSpace: 'nowrap',
+                    display: 'inline-block',
+                    verticalAlign: 'middle',
+                  }}
+                  className="shadow-sm d-flex align-items-center justify-content-center"
+                >
                   {posting ? "Posting..." : uploading ? "Uploading..." : "Post"}
                 </Button>
                 {/* Exam button removed - use Forms/Surveys instead */}
@@ -4385,8 +4755,13 @@ function Grades() {
       <Row className="mb-4">
         <Col md={3}>
           <Card 
-            className="modern-card border-0 bg-primary text-white" 
-            style={{ cursor: 'pointer' }}
+            className="modern-card border-0" 
+            style={{ 
+              cursor: 'pointer',
+              background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(250, 250, 250, 0.98) 100%)',
+              border: '1px solid rgba(163, 12, 12, 0.2)',
+              boxShadow: '0 4px 15px rgba(0,0,0,0.1), 0 0 10px rgba(255, 204, 0, 0.1)'
+            }}
             onClick={() => {
               setActiveGradeTab("auto");
               setFilterClass("all");
@@ -4394,15 +4769,20 @@ function Grades() {
             }}
           >
             <Card.Body>
-              <h3 className="mb-0">{leaderboardData?.allSubmissions?.length || 0}</h3>
-              <small>Total Submissions</small>
+              <h3 className="mb-0" style={{ color: 'var(--brand-red)' }}>{leaderboardData?.allSubmissions?.length || 0}</h3>
+              <small style={{ color: '#666' }}>Total Submissions</small>
             </Card.Body>
           </Card>
         </Col>
         <Col md={3}>
           <Card 
-            className="modern-card border-0 bg-success text-white"
-            style={{ cursor: 'pointer' }}
+            className="modern-card border-0"
+            style={{ 
+              cursor: 'pointer',
+              background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(250, 250, 250, 0.98) 100%)',
+              border: '1px solid rgba(163, 12, 12, 0.2)',
+              boxShadow: '0 4px 15px rgba(0,0,0,0.1), 0 0 10px rgba(255, 204, 0, 0.1)'
+            }}
             onClick={() => {
               setActiveGradeTab("auto");
               setFilterClass("all");
@@ -4410,15 +4790,20 @@ function Grades() {
             }}
           >
             <Card.Body>
-              <h3 className="mb-0">{autoGradedCount}</h3>
-              <small>Auto-Graded</small>
+              <h3 className="mb-0" style={{ color: 'var(--brand-red)' }}>{autoGradedCount}</h3>
+              <small style={{ color: '#666' }}>Auto-Graded</small>
             </Card.Body>
           </Card>
         </Col>
         <Col md={3}>
           <Card 
-            className="modern-card border-0 bg-warning text-white"
-            style={{ cursor: 'pointer' }}
+            className="modern-card border-0"
+            style={{ 
+              cursor: 'pointer',
+              background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(250, 250, 250, 0.98) 100%)',
+              border: '1px solid rgba(163, 12, 12, 0.2)',
+              boxShadow: '0 4px 15px rgba(0,0,0,0.1), 0 0 10px rgba(255, 204, 0, 0.1)'
+            }}
             onClick={() => {
               setActiveGradeTab("manual");
               setFilterClass("all");
@@ -4426,15 +4811,20 @@ function Grades() {
             }}
           >
             <Card.Body>
-              <h3 className="mb-0">{manualGradedCount}</h3>
-              <small>Manual Grading</small>
+              <h3 className="mb-0" style={{ color: 'var(--brand-red)' }}>{manualGradedCount}</h3>
+              <small style={{ color: '#666' }}>Manual Grading</small>
             </Card.Body>
           </Card>
         </Col>
         <Col md={3}>
           <Card 
-            className="modern-card border-0 bg-info text-white"
-            style={{ cursor: 'pointer' }}
+            className="modern-card border-0"
+            style={{ 
+              cursor: 'pointer',
+              background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(250, 250, 250, 0.98) 100%)',
+              border: '1px solid rgba(163, 12, 12, 0.2)',
+              boxShadow: '0 4px 15px rgba(0,0,0,0.1), 0 0 10px rgba(255, 204, 0, 0.1)'
+            }}
             onClick={() => {
               setActiveGradeTab("auto");
               setFilterClass("all");
@@ -4443,8 +4833,8 @@ function Grades() {
             }}
           >
             <Card.Body>
-              <h3 className="mb-0">{uniqueClasses.length}</h3>
-              <small>Classes</small>
+              <h3 className="mb-0" style={{ color: 'var(--brand-red)' }}>{uniqueClasses.length}</h3>
+              <small style={{ color: '#666' }}>Classes</small>
             </Card.Body>
           </Card>
         </Col>
@@ -5394,9 +5784,15 @@ function Profile() {
                       <i className="bi bi-person text-success fs-5"></i>
                     </div>
                     <div className="flex-grow-1">
-                      <h6 className="mb-0 fw-bold">{student.name || student.username || student}</h6>
+                      <h6 className="mb-0 fw-bold">{student.name || student.username || 'Unknown Student'}</h6>
                       <small className="text-muted">
-                        <Badge bg="secondary">{student.className}</Badge>
+                        <Badge bg="secondary">
+                          {typeof student.className === 'string'
+                            ? student.className
+                            : Array.isArray(student.className)
+                              ? student.className.join(', ')
+                              : String(student.className || '')}
+                        </Badge>
                       </small>
                     </div>
                   </div>
@@ -5616,9 +6012,9 @@ export default function TeacherDashboard() {
               as={NavLink}
               to="/teacher/dashboard"
               className="nav-link-custom"
-              aria-label="Dashboard and Classes"
+              aria-label="Classes"
             >
-              🏠 Dashboard & Classes
+              🏠 Classes
             </Nav.Link>
             {/* Removed Assignments and Announcements from sidebar to follow per-class stream */}
             {/* Remove Exams from sidebar to merge into class stream */}
@@ -5626,9 +6022,9 @@ export default function TeacherDashboard() {
               as={NavLink}
               to="/teacher/forms"
               className="nav-link-custom"
-              aria-label="Forms & Surveys"
+              aria-label="Forms"
             >
-              📋 Forms & Surveys
+              📋 Forms
             </Nav.Link>
             <Nav.Link
               as={NavLink}
@@ -5677,7 +6073,7 @@ export default function TeacherDashboard() {
                     className="mobile-nav-link"
                     onClick={() => setMobileNavOpen(false)}
                   >
-                    Dashboard
+                    Classes
                   </Nav.Link>
                   <Nav.Link
                     as={NavLink}
@@ -5685,7 +6081,7 @@ export default function TeacherDashboard() {
                     className="mobile-nav-link"
                     onClick={() => setMobileNavOpen(false)}
                   >
-                    Forms & Surveys
+                    Forms
                   </Nav.Link>
                   <Nav.Link
                     as={NavLink}

@@ -580,6 +580,33 @@ function StudentMainDashboard() {
   const [joinCode, setJoinCode] = useState("");
   const [showJoinModal, setShowJoinModal] = useState(false);
   
+  // Add CSS animation
+  useEffect(() => {
+    const style = document.createElement('style');
+    style.innerHTML = `
+      @keyframes fadeInUp {
+        from {
+          opacity: 0;
+          transform: translateY(20px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      @keyframes float {
+        0%, 100% {
+          transform: translateY(0px);
+        }
+        50% {
+          transform: translateY(-10px);
+        }
+      }
+    `;
+    document.head.appendChild(style);
+    return () => document.head.removeChild(style);
+  }, []);
+  
   // Helper function to handle API errors gracefully for students
   const handleApiError = (err, fallbackMessage = "An error occurred") => {
     // Don't show permission errors to students - they're not relevant
@@ -742,8 +769,69 @@ function StudentMainDashboard() {
   }
 
   return (
-    <div className="dashboard-content">
-  <h2 className="fw-bold mb-4">Classes</h2>
+    <div className="dashboard-content" style={{
+      background: '#f8f9fa',
+      minHeight: '100vh',
+      padding: '2rem',
+      position: 'relative',
+      overflow: 'hidden'
+    }}>
+      {/* Decorative background elements */}
+      <div style={{
+        position: 'absolute',
+        top: '-50px',
+        right: '-50px',
+        width: '300px',
+        height: '300px',
+        background: 'linear-gradient(135deg, rgba(163, 12, 12, 0.05) 0%, rgba(220, 53, 69, 0.05) 100%)',
+        borderRadius: '50%',
+        zIndex: 0
+      }}></div>
+      <div style={{
+        position: 'absolute',
+        bottom: '-100px',
+        left: '-100px',
+        width: '400px',
+        height: '400px',
+        background: 'linear-gradient(135deg, rgba(102, 16, 242, 0.03) 0%, rgba(163, 12, 12, 0.03) 100%)',
+        borderRadius: '50%',
+        zIndex: 0
+      }}></div>
+      {/* Subtle pattern overlay */}
+      <div style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23000000' fill-opacity='0.02'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
+        opacity: 0.4,
+        zIndex: 0,
+        pointerEvents: 'none'
+      }}></div>
+      
+      <div style={{ position: 'relative', zIndex: 1 }}>
+  <h2 className="fw-bold mb-4" style={{ 
+            background: 'linear-gradient(90deg, #a30c0c 0%, #dc3545 100%)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            backgroundClip: 'text',
+            position: 'relative',
+            display: 'inline-block'
+          }}>
+            <i className="bi bi-book-fill me-2" style={{
+              WebkitTextFillColor: '#a30c0c',
+              animation: 'float 3s ease-in-out infinite'
+            }}></i>
+            Classes
+          </h2>
+          <div style={{
+            height: '4px',
+            width: '80px',
+            background: 'linear-gradient(90deg, #a30c0c 0%, #dc3545 100%)',
+            borderRadius: '2px',
+            marginBottom: '1rem'
+          }}></div>
       
       {error && (
         <Toast
@@ -758,19 +846,44 @@ function StudentMainDashboard() {
         </Toast>
       )}
       
-      <h4 className="fw-bold mb-3 d-flex justify-content-between align-items-center">
-        <span>My Classes:</span>
-        <Button
-          size="sm"
-          variant="outline-primary"
+      <div className="classes-container" style={{
+        background: 'rgba(255, 255, 255, 0.95)',
+        backdropFilter: 'blur(10px)',
+        WebkitBackdropFilter: 'blur(10px)',
+        borderRadius: '16px',
+        padding: '2rem',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+        border: '1px solid #e0e0e0',
+        borderLeft: '4px solid #a30c0c',
+        minHeight: '400px',
+        position: 'relative'
+      }}>
+      <div className="d-flex justify-content-between align-items-center mb-3">
+        <span></span>
+        <i 
+          className="bi bi-plus-circle-fill" 
           onClick={() => setShowJoinModal(true)}
           aria-label="Join a new class"
-        >
-          + Join Class
-        </Button>
-      </h4>
+          style={{ 
+            fontSize: '1.8rem', 
+            cursor: 'pointer', 
+            color: '#a30c0c',
+            transition: 'all 0.3s ease',
+            filter: 'drop-shadow(0 2px 4px rgba(163, 12, 12, 0.3))'
+          }}
+          title="Join Class"
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'scale(1.15) rotate(90deg)';
+            e.currentTarget.style.filter = 'drop-shadow(0 4px 8px rgba(163, 12, 12, 0.5))';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'scale(1) rotate(0deg)';
+            e.currentTarget.style.filter = 'drop-shadow(0 2px 4px rgba(163, 12, 12, 0.3))';
+          }}
+        ></i>
+      </div>
 
-      <Row>
+      <Row className="g-4">
         {classes.length === 0 && (
           <Col xs={12}>
             <Card className="p-4 text-center text-muted">
@@ -779,10 +892,23 @@ function StudentMainDashboard() {
           </Col>
         )}
         {classes.map((cls) => (
-          <Col key={cls._id || cls.id} md={4} className="mb-3">
+          <Col key={cls._id || cls.id} md={4} lg={3} className="mb-3">
             <Card
               className="class-card-modern h-100"
+              style={{ 
+                transition: 'all 0.3s ease',
+                cursor: 'pointer',
+                animation: 'fadeInUp 0.5s ease-out',
+              }}
               onClick={() => window.location.href = `/student/class/${encodeURIComponent(cls.name)}`}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-8px)';
+                e.currentTarget.style.boxShadow = '0 12px 32px rgba(163, 12, 12, 0.2), 0 0 20px rgba(163, 12, 12, 0.1)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '';
+              }}
             >
               <Card.Body>
                 <div className="d-flex align-items-center justify-content-between mb-2">
@@ -808,14 +934,13 @@ function StudentMainDashboard() {
                   <strong>Students:</strong> {(cls.students || []).length}
                 </p>
               </Card.Body>
-              <Card.Footer className="d-flex justify-content-end align-items-center">
+              <Card.Footer className="d-flex justify-content-end align-items-center gap-2">
                 <Dropdown align="end" onClick={(e) => e.stopPropagation()}>
                   <Dropdown.Toggle 
-                    variant="outline-secondary" 
-                    size="sm"
-                    className="d-flex align-items-center px-2"
-                    id={`dropdown-${cls._id || cls.id}`}
-                    style={{ minWidth: '35px', boxShadow: 'none', border: 'none' }}
+                    variant="link" 
+                    size="sm" 
+                    className="text-muted p-0"
+                    style={{ boxShadow: 'none', border: 'none' }}
                   >
                     <i className="bi bi-three-dots-vertical" style={{ fontSize: '1.2rem' }}></i>
                   </Dropdown.Toggle>
@@ -834,6 +959,8 @@ function StudentMainDashboard() {
           </Col>
         ))}
       </Row>
+      </div>
+      </div>
 
       {/* Join Class Modal */}
       <Modal show={showJoinModal} onHide={() => setShowJoinModal(false)} centered>

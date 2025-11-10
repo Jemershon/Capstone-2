@@ -1031,53 +1031,20 @@ export default function LandingPage() {
               <Toast.Body className="text-white">{error}</Toast.Body>
             </Toast>
           )}
-          <Form onSubmit={isLogin ? handleLogin : handleRegister}>
-            {!isLogin && (
-              <Form.Floating className="mb-3">
-                <Form.Control
-                  id="floatingName"
-                  name="name"
-                  type="text"
-                  placeholder="Name"
-                  value={formData.name}
-                  onChange={handleChange}
-                  required={!isLogin}
-                  aria-required={!isLogin}
-                />
-                <label htmlFor="floatingName">Name</label>
-              </Form.Floating>
-            )}
-            {!isLogin && (
-              <Form.Floating className="mb-3">
-                <Form.Control
-                  id="floatingUsername"
-                  name="username"
-                  type="text"
-                  placeholder="Username"
-                  value={formData.username}
-                  onChange={handleChange}
-                  required={!isLogin}
-                  aria-required={!isLogin}
-                />
-                <label htmlFor="floatingUsername">Username</label>
-              </Form.Floating>
-            )}
-            {/* Email removed from create account because Google sign-in is available */}
-            {isLogin && (
-              <Form.Floating className="mb-3">
-                <Form.Control
-                  id="floatingLoginUsername"
-                  name="username"
-                  type="text"
-                  placeholder="Username"
-                  value={formData.username}
-                  onChange={handleChange}
-                  required
-                  aria-required="true"
-                />
-                <label htmlFor="floatingLoginUsername">Username</label>
-              </Form.Floating>
-            )}
+          <Form onSubmit={handleLogin}>
+            <Form.Floating className="mb-3">
+              <Form.Control
+                id="floatingLoginUsername"
+                name="username"
+                type="text"
+                placeholder="Username"
+                value={formData.username}
+                onChange={handleChange}
+                required
+                aria-required="true"
+              />
+              <label htmlFor="floatingLoginUsername">Username</label>
+            </Form.Floating>
             <Form.Floating className="mb-3" style={{ position: 'relative' }}>
               <Form.Control
                 id="floatingPassword"
@@ -1091,23 +1058,26 @@ export default function LandingPage() {
                 style={{ paddingRight: '50px' }}
               />
               <label htmlFor="floatingPassword">Password</label>
-              <Button
-                variant="outline-secondary"
+              <span
                 onClick={() => setShowPassword(!showPassword)}
                 style={{
                   position: 'absolute',
-                  right: '10px',
+                  right: '14px',
                   top: '50%',
                   transform: 'translateY(-50%)',
                   zIndex: 3,
-                  background: 'transparent',
-                  border: 'none',
-                  color: '#6c757d'
+                  cursor: 'pointer',
+                  color: '#6c757d',
+                  fontSize: '1.25rem',
+                  userSelect: 'none',
                 }}
                 aria-label={showPassword ? "Hide password" : "Show password"}
+                role="button"
+                tabIndex={0}
+                onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') setShowPassword(v => !v); }}
               >
-                <i className={`bi ${showPassword ? 'bi-eye-slash' : 'bi-eye'}`}></i>
-              </Button>
+                <i className={`bi ${showPassword ? 'bi-eye-slash' : 'bi-eye'}`} title={showPassword ? 'Hide password' : 'Show password'}></i>
+              </span>
             </Form.Floating>
             {isLogin && (
               <div className="text-end mb-3">

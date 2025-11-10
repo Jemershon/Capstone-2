@@ -178,18 +178,20 @@ const FormsList = () => {
     <Container fluid className="py-4">
       <Row className="mb-4">
         <Col>
-          <div className="d-flex justify-content-between align-items-center">
-            <h2>📋 Forms</h2>
-            <div className="d-flex gap-2">
+          <div className="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3">
+            <h2 className="mb-0">📋 Forms</h2>
+            <div className="d-flex flex-column flex-sm-row gap-2 w-100 w-md-auto">
               <Button 
                 variant="outline-primary" 
                 onClick={() => setShowTemplatesModal(true)}
+                className="w-100 w-sm-auto"
               >
                 📚 Use Template
               </Button>
               <Button 
                 variant="primary" 
                 onClick={() => navigate("/teacher/forms/new")}
+                className="w-100 w-sm-auto"
               >
                 ➕ Create New Form
               </Button>
