@@ -432,6 +432,18 @@ const customStyles = `
     transform: translateY(0);
   }
   
+  /* Topic Badge - Custom styling to ensure color overrides */
+  .topic-badge {
+    display: inline-block;
+    border-radius: 8px;
+    padding: 4px 10px;
+    font-weight: 600;
+    font-size: 0.75rem;
+    color: #fff !important;
+    border: none;
+    background-color: var(--topic-color) !important;
+  }
+  
   .btn-custom-outline-danger {
     background: transparent;
     border: 2px solid #dc3545;
@@ -2367,10 +2379,9 @@ function StudentClassStream() {
                               <strong>{announcement.teacherName || announcement.teacher}</strong>
                               {announcement.topic && (
                                 <span 
-                                  className="badge" 
+                                  className="topic-badge" 
                                   style={{ 
-                                    backgroundColor: announcement.topic.color,
-                                    fontSize: '0.75rem'
+                                    '--topic-color': announcement.topic.color
                                   }}
                                 >
                                   {announcement.topic.name}

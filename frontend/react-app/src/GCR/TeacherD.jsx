@@ -772,6 +772,18 @@ const customStyles = `
     font-weight: 600;
   }
   
+  /* Topic Badge - Custom styling to ensure color overrides */
+  .topic-badge {
+    display: inline-block;
+    border-radius: 8px;
+    padding: 4px 10px;
+    font-weight: 600;
+    font-size: 0.75rem;
+    color: #fff !important;
+    border: none;
+    background-color: var(--topic-color) !important;
+  }
+  
   /* Fix container gaps */
   .container-fluid {
     padding: 0;
@@ -2765,10 +2777,9 @@ function TeacherClassStream() {
                           <div className="fw-bold">{a.teacherName || a.teacher}</div>
                           {a.topic && (
                             <span 
-                              className="badge" 
+                              className="topic-badge" 
                               style={{ 
-                                backgroundColor: a.topic.color,
-                                fontSize: '0.75rem'
+                                '--topic-color': a.topic.color
                               }}
                             >
                               {a.topic.name}
