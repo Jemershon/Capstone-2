@@ -13,56 +13,56 @@ const customStyles = `
   :root { --brand-red: #a30c0c; --brand-red-dark: #780606; --brand-gold: #ffcc00; --brand-gold-light: #ffd54a; }
   .modern-gradient-bg {
     background: linear-gradient(135deg, var(--brand-red) 0%, var(--brand-red-dark) 100%);
-    min-height: 100vh;
-  }
+          </Nav>
+        </Col>
+  {/* Mobile Navbar */}
+  <div className="d-md-none w-100" style={{position: 'relative', zIndex: 1000}}>
+          <Navbar expand="lg" className="modern-mobile-navbar shadow-sm" expanded={mobileNavOpen} onToggle={(val) => setMobileNavOpen(val)}>
+            <Container fluid>
+              <div className="d-flex align-items-center justify-content-between w-100">
+                <Navbar.Brand className="fw-bold fs-4">📚 Student Panel</Navbar.Brand>
+                <div className="d-flex align-items-center mobile-toggle-group">
+                  <div className="d-md-none notifications-fixed-mobile me-2">
+                    <NotificationsDropdown mobileMode={true} />
+                  </div>
+                  <Navbar.Toggle aria-controls="mobile-nav" />
+                </div>
+              </div>
+              <Navbar.Collapse id="mobile-nav">
+                <Nav className="w-100">
+                  <Nav.Link
+                    as={NavLink}
+                    to="/student/dashboard"
+                    className="mobile-nav-link"
+                    onClick={() => setMobileNavOpen(false)}
+                  >
+                    Dashboard
+                  </Nav.Link>
+                  <Nav.Link
+                    as={NavLink}
+                    to="/student/profile"
+                    className="mobile-nav-link"
+                    onClick={() => setMobileNavOpen(false)}
+                  >
+                    Profile
+                  </Nav.Link>
+                  <div className="text-center my-2 px-3">
+                    <Button
+                      variant="danger"
+                      onClick={() => setShowLogoutModal(true)}
+                      className="w-100"
+                      style={{maxWidth: '200px'}}
+                    >
+                      Logout
+                    </Button>
+                  </div>
+                </Nav>
+              </Navbar.Collapse>
+            </Container>
+          </Navbar>
+        </div>
 
-  .modern-sidebar {
-    background: linear-gradient(180deg, var(--brand-red) 0%, var(--brand-red-dark) 100%) !important;
-    box-shadow: 2px 0 10px rgba(0,0,0,0.1);
-  }
-
-  .modern-mobile-navbar {
-    background: linear-gradient(90deg, var(--brand-red) 0%, var(--brand-red-dark) 100%) !important;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-  }
-
-  .modern-mobile-navbar .navbar-brand {
-    color: white !important;
-    font-weight: 600;
-  }
-
-  .modern-card {
-    background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(10px);
-    border: none;
-    border-radius: 20px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-    transition: all 0.3s ease;
-  }
-
-  .modern-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 12px 48px rgba(0, 0, 0, 0.15);
-  }
-
-  .modern-card-header {
-    background: linear-gradient(135deg, var(--brand-red) 0%, var(--brand-red-dark) 100%);
-    color: white;
-    border: none;
-    border-radius: 20px 20px 0 0 !important;
-    padding: 1.25rem 1.5rem;
-    font-weight: 600;
-  }
-
-  .class-card-modern {
-    background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(10px);
-    border: none;
-    border-radius: 20px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-    transition: all 0.3s ease;
-    cursor: pointer;
-    overflow: hidden;
+        {/* Main Content */}
   }
 
   .class-card-modern:hover {
@@ -465,14 +465,14 @@ function StudentDashboard() {
             </Nav.Link>
           </Nav>
         </Col>
-        
-        {/* Mobile navbar */}
-        <div className="d-md-none w-100" style={{position: 'relative', zIndex: 1000}}>
+
+  {/* Mobile Navbar */}
+  <div className="d-md-none w-100" style={{position: 'relative', zIndex: 1000}}>
           <Navbar expand="lg" className="modern-mobile-navbar shadow-sm" expanded={mobileNavOpen} onToggle={(val) => setMobileNavOpen(val)}>
             <Container fluid>
               <div className="d-flex align-items-center justify-content-between w-100">
-                <Navbar.Brand className="fw-bold text-primary fs-4">📚 Student</Navbar.Brand>
-                  <div className="d-flex align-items-center mobile-toggle-group">
+                <Navbar.Brand className="fw-bold fs-4">📚 Student Panel</Navbar.Brand>
+                <div className="d-flex align-items-center mobile-toggle-group">
                   <div className="d-md-none notifications-fixed-mobile me-2">
                     <NotificationsDropdown mobileMode={true} />
                   </div>
@@ -512,7 +512,7 @@ function StudentDashboard() {
             </Container>
           </Navbar>
         </div>
-        
+
         {/* Main Content */}
         <Col md={10} xs={12} className="main-content-responsive" style={{ position: 'relative' }}>
           {/* Single responsive notifications wrapper (desktop: top-right, mobile: inline in navbar) */}
@@ -1919,10 +1919,43 @@ function StudentClassStream() {
             </div>
           </div>
 
-          <Tabs activeKey={activeTab} onSelect={(tab) => setActiveTab(tab)} className="mb-3">
-            {/* Stream Tab */}
-            <Tab eventKey="stream" title="Stream">
-              <div className="stream-content">
+          <Nav variant="tabs" className="mb-3">
+            <Nav.Item>
+              <Nav.Link 
+                active={activeTab === "stream"} 
+                onClick={() => setActiveTab("stream")}
+              >
+                Stream
+              </Nav.Link>
+            </Nav.Item>
+            <Nav.Item>
+              <Nav.Link 
+                active={activeTab === "classwork"} 
+                onClick={() => setActiveTab("classwork")}
+              >
+                Classwork
+              </Nav.Link>
+            </Nav.Item>
+            <Nav.Item>
+              <Nav.Link 
+                active={activeTab === "people"} 
+                onClick={() => setActiveTab("people")}
+              >
+                People
+              </Nav.Link>
+            </Nav.Item>
+            <Nav.Item>
+              <Nav.Link 
+                active={activeTab === "materials"} 
+                onClick={() => setActiveTab("materials")}
+              >
+                Materials
+              </Nav.Link>
+            </Nav.Item>
+          </Nav>
+
+          {activeTab === "stream" && (
+            <div className="stream-content">
                 {/* Topic filter */}
                 {topics.length > 0 && (
                   <Card className="p-3 mb-3">
@@ -2073,10 +2106,10 @@ function StudentClassStream() {
                   ))
                 )}
               </div>
-            </Tab>
+            )}
 
-            {/* Classwork Tab */}
-            <Tab eventKey="classwork" title="Classwork">
+            {activeTab === "classwork" && (
+              <div>
               {/* Uploaded Files Section */}
               <div className="mb-4">
                 <h5 className="mb-3">📎 Class Files</h5>
@@ -2122,26 +2155,26 @@ function StudentClassStream() {
                                 </div>
                               ))}
                             </div>
-          </div>
-        ))}
-        </Card.Body>
-                  </Card>
-                )}
+                          </div>
+                        ))}
+                      </Card.Body>
+                    </Card>
+                  )}
+                </div>
+
+                {/* Exams section removed - Use Forms/Surveys instead */}
+                {/*
+                <Row>
+                  <Col md={12}>
+                    <h5 className="mb-3">📊 Exams</h5>
+                    ... exam listing removed ...
+                  </Col>
+                </Row>
+                */}
               </div>
+            )}
 
-              {/* Exams section removed - Use Forms/Surveys instead */}
-              {/*
-              <Row>
-                <Col md={12}>
-                  <h5 className="mb-3">📊 Exams</h5>
-                  ... exam listing removed ...
-                </Col>
-              </Row>
-              */}
-            </Tab>
-
-            {/* People Tab */}
-            <Tab eventKey="people" title="People">
+            {activeTab === "people" && (
               <Row>
                 <Col md={6}>
                   <h5 className="mb-3">👨‍🏫 Teacher</h5>
@@ -2177,10 +2210,10 @@ function StudentClassStream() {
                   </Card>
                 </Col>
               </Row>
-            </Tab>
+            )}
 
-            {/* Materials Tab */}
-            <Tab eventKey="materials" title="Materials">
+            {activeTab === "materials" && (
+              <>
               {materials.length === 0 ? (
                 <Card className="text-center p-4">
                   <p className="text-muted">No materials shared yet</p>
@@ -2288,10 +2321,10 @@ function StudentClassStream() {
                   ))}
                 </Row>
               )}
-            </Tab>
+              </>
+            )}
 
 
-          </Tabs>
         </Col>
       </Row>
 

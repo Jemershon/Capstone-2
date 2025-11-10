@@ -276,18 +276,18 @@ const FormBuilder = () => {
           {/* Header */}
           <Card className="mb-3 shadow-sm">
             <Card.Body>
-              <div className="d-flex justify-content-between align-items-center mb-3">
+              <div className="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-3 gap-3">
                 <h2 className="mb-0">
                   {formId ? "Edit Form" : "Create New Form"}
                 </h2>
-                <div className="d-flex gap-2">
-                  <Button variant="outline-secondary" onClick={() => navigate(-1)}>
+                <div className="d-flex flex-column flex-sm-row gap-2 w-100 w-md-auto">
+                  <Button variant="outline-secondary" onClick={() => navigate(-1)} className="w-100 w-sm-auto">
                     Cancel
                   </Button>
-                  <Button variant="outline-primary" onClick={() => handleSaveForm(false)}>
+                  <Button variant="outline-primary" onClick={() => handleSaveForm(false)} className="w-100 w-sm-auto">
                     💾 Save Draft
                   </Button>
-                  <Button variant="primary" onClick={() => handleSaveForm(true)}>
+                  <Button variant="primary" onClick={() => handleSaveForm(true)} className="w-100 w-sm-auto">
                     🚀 Publish
                   </Button>
                 </div>
