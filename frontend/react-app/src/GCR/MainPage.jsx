@@ -715,6 +715,27 @@ export default function LandingPage() {
       setShowToast(true);
       return;
     }
+
+    // Password strength validation
+    const password = formData.password;
+    const hasUpperCase = /[A-Z]/.test(password);
+    const hasLowerCase = /[a-z]/.test(password);
+    const hasNumber = /[0-9]/.test(password);
+    const hasSpecialChar = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password);
+    const isLongEnough = password.length >= 8;
+
+    if (!isLongEnough) {
+      setError("Password must be at least 8 characters long");
+      setShowToast(true);
+      return;
+    }
+
+    if (!hasUpperCase || !hasLowerCase || !hasNumber || !hasSpecialChar) {
+      setError("Password must contain uppercase, lowercase, number, and special character");
+      setShowToast(true);
+      return;
+    }
+
     setLoading(true);
     try {
       const payload = { name: formData.name, username: formData.username, password: formData.password, role: formData.role };
@@ -1031,7 +1052,22 @@ export default function LandingPage() {
               <Toast.Body className="text-white">{error}</Toast.Body>
             </Toast>
           )}
-          <Form onSubmit={handleLogin}>
+          <Form onSubmit={isLogin ? handleLogin : handleRegister}>
+            {!isLogin && (
+              <Form.Floating className="mb-3">
+                <Form.Control
+                  id="floatingName"
+                  name="name"
+                  type="text"
+                  placeholder="Name"
+                  value={formData.name}
+                  onChange={handleChange}
+                  required
+                  aria-required="true"
+                />
+                <label htmlFor="floatingName">Name</label>
+              </Form.Floating>
+            )}
             <Form.Floating className="mb-3">
               <Form.Control
                 id="floatingLoginUsername"
@@ -1079,6 +1115,26 @@ export default function LandingPage() {
                 <i className={`bi ${showPassword ? 'bi-eye-slash' : 'bi-eye'}`} title={showPassword ? 'Hide password' : 'Show password'}></i>
               </span>
             </Form.Floating>
+            {!isLogin && formData.password && (
+              <div className="mb-3" style={{ fontSize: '0.875rem' }}>
+                <div style={{ color: '#6c757d', marginBottom: '0.5rem' }}>Password must contain:</div>
+                <div style={{ color: formData.password.length >= 8 ? '#28a745' : '#dc3545' }}>
+                  {formData.password.length >= 8 ? '✓' : '✗'} At least 8 characters
+                </div>
+                <div style={{ color: /[A-Z]/.test(formData.password) ? '#28a745' : '#dc3545' }}>
+                  {/[A-Z]/.test(formData.password) ? '✓' : '✗'} Uppercase letter
+                </div>
+                <div style={{ color: /[a-z]/.test(formData.password) ? '#28a745' : '#dc3545' }}>
+                  {/[a-z]/.test(formData.password) ? '✓' : '✗'} Lowercase letter
+                </div>
+                <div style={{ color: /[0-9]/.test(formData.password) ? '#28a745' : '#dc3545' }}>
+                  {/[0-9]/.test(formData.password) ? '✓' : '✗'} Number
+                </div>
+                <div style={{ color: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(formData.password) ? '#28a745' : '#dc3545' }}>
+                  {/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(formData.password) ? '✓' : '✗'} Special character (!@#$%^&*...)
+                </div>
+              </div>
+            )}
             {isLogin && (
               <div className="text-end mb-3">
                 <small>
