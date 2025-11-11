@@ -5406,16 +5406,37 @@ function Profile() {
 
   const fetchStudentsForModal = async () => {
     try {
+      const token = getAuthToken();
       let allStudents = [];
+      
       for (const cls of classes) {
         if (cls.students && cls.students.length > 0) {
-          const studentsWithClass = cls.students.map(student => ({
-            ...student,
-            className: cls.name
-          }));
-          allStudents = [...allStudents, ...studentsWithClass];
+          try {
+            // Fetch full student data from API
+            const response = await retry(() =>
+              axios.get(`${API_BASE_URL}/api/classes/${encodeURIComponent(cls.name)}/students`, {
+                headers: { Authorization: `Bearer ${token}` },
+              })
+            );
+            
+            const studentsWithClass = response.data.map(student => ({
+              ...student,
+              className: cls.name
+            }));
+            allStudents = [...allStudents, ...studentsWithClass];
+          } catch (err) {
+            console.error(`Error fetching students for class ${cls.name}:`, err);
+            // Fallback to basic data if API fails
+            const studentsWithClass = cls.students.map(username => ({
+              username: username,
+              name: username,
+              className: cls.name
+            }));
+            allStudents = [...allStudents, ...studentsWithClass];
+          }
         }
       }
+      
       setStudents(allStudents);
       setShowStudentsModal(true);
     } catch (err) {
