@@ -84,7 +84,7 @@ const FormAnalytics = () => {
     const scores = {};
     response.answers.forEach(answer => {
       const question = form.questions.find(q => q._id === answer.questionId);
-      if (question && (question.type === 'shortAnswer' || question.type === 'paragraph')) {
+      if (question && (question.type === 'short_answer' || question.type === 'paragraph')) {
         scores[answer.questionId] = answer.manualScore || 0;
       }
     });
@@ -103,18 +103,23 @@ const FormAnalytics = () => {
         const question = form.questions.find(q => q._id === answer.questionId);
         if (!question) return;
         
-        if (question.type === 'shortAnswer' || question.type === 'paragraph') {
-          // Manual grading
+        // Add to total possible points
+        totalPoints += question.points || 1;
+        
+        // Check if this answer already has points awarded (auto-graded with partial credit)
+        if (answer.pointsAwarded !== undefined) {
+          // Use the already calculated points (handles partial credit)
+          totalScore += answer.pointsAwarded;
+        } else if (question.type === 'short_answer' || question.type === 'paragraph') {
+          // Manual grading for essay/short answer questions
           totalScore += manualScores[answer.questionId] || 0;
-          totalPoints += question.points || 1;
         } else if (answer.isCorrect !== undefined) {
-          // Auto-graded
+          // Auto-graded (simple correct/incorrect)
           totalScore += answer.isCorrect ? (question.points || 1) : 0;
-          totalPoints += question.points || 1;
         }
       });
       
-      const finalScore = totalPoints > 0 ? (totalScore / totalPoints) * 100 : 0;
+      const finalPercentage = totalPoints > 0 ? (totalScore / totalPoints) * 100 : 0;
       
       // Update response with manual grades
       await axios.put(
@@ -122,7 +127,12 @@ const FormAnalytics = () => {
         {
           manualScores,
           feedback,
-          score: finalScore,
+          score: {
+            total: totalScore,
+            maxScore: totalPoints,
+            percentage: finalPercentage,
+            autoGraded: false
+          },
         },
         {
           headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
@@ -142,7 +152,7 @@ const FormAnalytics = () => {
     
     const { type } = question;
     
-    if (type === 'multipleChoice' || type === 'dropdown') {
+    if (type === 'multiple_choice' || type === 'dropdown') {
       return (
         <Card className="mb-3">
           <Card.Body>
@@ -175,7 +185,7 @@ const FormAnalytics = () => {
       );
     }
     
-    if (type === 'checkbox') {
+    if (type === 'checkboxes') {
       return (
         <Card className="mb-3">
           <Card.Body>
@@ -243,7 +253,7 @@ const FormAnalytics = () => {
       );
     }
     
-    if (type === 'shortAnswer' || type === 'paragraph') {
+    if (type === 'short_answer' || type === 'paragraph') {
       return (
         <Card className="mb-3">
           <Card.Body>
@@ -397,11 +407,11 @@ const FormAnalytics = () => {
                 {responses.map((response) => {
                   const needsGrading = form.settings.isQuiz && 
                     form.questions.some(q => 
-                      (q.type === 'shortAnswer' || q.type === 'paragraph') && q.required
+                      (q.type === 'short_answer' || q.type === 'paragraph') && q.required
                     );
                   const hasManualQuestions = response.answers.some(answer => {
                     const question = form.questions.find(q => q._id === answer.questionId);
-                    return question && (question.type === 'shortAnswer' || question.type === 'paragraph');
+                    return question && (question.type === 'short_answer' || question.type === 'paragraph');
                   });
                   
                   return (
@@ -420,20 +430,23 @@ const FormAnalytics = () => {
                       {form.settings.isQuiz && (
                         <td>
                           <div>
-                            <Badge bg={response.score >= 70 ? 'success' : response.score >= 50 ? 'warning' : 'danger'}>
-                              {response.score ? response.score.toFixed(1) : '0'}%
-                            </Badge>
-                            {response.score !== undefined && (
-                              <div className="mt-1">
-                                <small className="text-muted">
-                                  {(() => {
-                                    const totalPossible = form.questions.reduce((sum, q) => sum + (q.points || 0), 0);
-                                    const earned = (response.score / 100) * totalPossible;
-                                    return `${earned.toFixed(1)}/${totalPossible} pts`;
-                                  })()}
-                                </small>
-                              </div>
-                            )}
+                            {(() => {
+                              const scorePercentage = response.score?.percentage || 0;
+                              return (
+                                <>
+                                  <Badge bg={scorePercentage >= 70 ? 'success' : scorePercentage >= 50 ? 'warning' : 'danger'}>
+                                    {scorePercentage.toFixed(1)}%
+                                  </Badge>
+                                  {response.score && (
+                                    <div className="mt-1">
+                                      <small className="text-muted">
+                                        {response.score.total?.toFixed(1) || 0}/{response.score.maxScore || 0} pts
+                                      </small>
+                                    </div>
+                                  )}
+                                </>
+                              );
+                            })()}
                           </div>
                         </td>
                       )}
@@ -500,7 +513,7 @@ const FormAnalytics = () => {
                 const question = form.questions.find(q => q._id === answer.questionId);
                 if (!question) return null;
                 
-                const isManualGrading = question.type === 'shortAnswer' || question.type === 'paragraph';
+                const isManualGrading = question.type === 'short_answer' || question.type === 'paragraph';
                 
                 return (
                   <Card key={idx} className="mb-3">

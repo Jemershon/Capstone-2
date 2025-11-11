@@ -276,30 +276,44 @@ router.post("/:id/responses", async (req, res) => {
     const gradedAnswers = answers.map(answer => {
       const question = form.questions.find(q => q._id.toString() === answer.questionId);
       
-      if (form.settings.isQuiz && question && question.correctAnswer !== undefined) {
+      // Check if this is a gradable question
+      const isGradable = form.settings.isQuiz && question && (
+        question.correctAnswer !== undefined || 
+        (question.enumerationAnswers && question.enumerationAnswers.length > 0) ||
+        (question.matchingPairs && question.matchingPairs.length > 0)
+      );
+      
+      if (isGradable) {
+        // Add to max score for all quiz questions
         score.maxScore += question.points || 0;
         
         let isCorrect = false;
+        let pointsAwarded = 0;
+        let partialCredit = 0;
         
         // Original Question Types
         if (question.type === "multiple_choice" || question.type === "dropdown") {
           isCorrect = answer.answer === question.correctAnswer;
+          pointsAwarded = isCorrect ? (question.points || 0) : 0;
         } else if (question.type === "checkboxes") {
           const correct = Array.isArray(question.correctAnswer) ? question.correctAnswer : [question.correctAnswer];
           const studentAnswer = Array.isArray(answer.answer) ? answer.answer : [answer.answer];
           isCorrect = JSON.stringify(correct.sort()) === JSON.stringify(studentAnswer.sort());
+          pointsAwarded = isCorrect ? (question.points || 0) : 0;
         }
         
         // Philippine Question Types
         else if (question.type === "true_false") {
           // Case-insensitive comparison for True/False
           isCorrect = answer.answer.toLowerCase() === question.correctAnswer.toLowerCase();
+          pointsAwarded = isCorrect ? (question.points || 0) : 0;
         }
         else if (question.type === "identification") {
           // Case-insensitive trim comparison for identification
           const studentAns = (answer.answer || '').toString().trim().toLowerCase();
           const correctAns = (question.correctAnswer || '').toString().trim().toLowerCase();
           isCorrect = studentAns === correctAns;
+          pointsAwarded = isCorrect ? (question.points || 0) : 0;
         }
         else if (question.type === "enumeration") {
           // Check if student enumerated correct items
@@ -313,22 +327,12 @@ router.post("/:id/responses", async (req, res) => {
             const correctCount = studentAnswers.filter(a => correctAnswers.includes(a)).length;
             
             // Award partial credit
-            const partialCredit = correctAnswers.length > 0 
+            partialCredit = correctAnswers.length > 0 
               ? correctCount / correctAnswers.length 
               : 0;
             
             isCorrect = partialCredit === 1; // Full credit only if all correct
-            
-            // Award partial points
-            const pointsAwarded = (question.points || 0) * partialCredit;
-            score.total += pointsAwarded;
-            
-            return {
-              ...answer,
-              isCorrect,
-              pointsAwarded,
-              partialCredit,
-            };
+            pointsAwarded = (question.points || 0) * partialCredit;
           }
         }
         else if (question.type === "matching_type") {
@@ -345,32 +349,24 @@ router.post("/:id/responses", async (req, res) => {
             });
             
             // Award partial credit
-            const partialCredit = correctPairs.length > 0 
+            partialCredit = correctPairs.length > 0 
               ? correctCount / correctPairs.length 
               : 0;
             
             isCorrect = partialCredit === 1; // Full credit only if all correct
-            
-            // Award partial points
-            const pointsAwarded = (question.points || 0) * partialCredit;
-            score.total += pointsAwarded;
-            
-            return {
-              ...answer,
-              isCorrect,
-              pointsAwarded,
-              partialCredit,
-            };
+            pointsAwarded = (question.points || 0) * partialCredit;
           }
         }
         
-        const pointsAwarded = isCorrect ? (question.points || 0) : 0;
+        // Add points to total score
         score.total += pointsAwarded;
         
+        // Return graded answer with all info
         return {
           ...answer,
           isCorrect,
           pointsAwarded,
+          partialCredit: partialCredit > 0 ? partialCredit : undefined,
         };
       }
       
@@ -620,7 +616,21 @@ router.put("/:formId/responses/:responseId/grade", authenticateToken, requireTea
     
     // Update overall feedback and score
     if (feedback !== undefined) response.feedback = feedback;
-    if (score !== undefined) response.score = score;
+    if (score !== undefined) {
+      // Update score properly (it should be an object with total, maxScore, percentage)
+      if (typeof score === 'object') {
+        response.score = {
+          total: score.total || response.score.total || 0,
+          maxScore: score.maxScore || response.score.maxScore || 0,
+          percentage: score.percentage || score,
+          autoGraded: response.score.autoGraded || false
+        };
+      } else {
+        // If score is just a number (percentage), update only the percentage
+        response.score.percentage = score;
+      }
+    }
+    response.status = "graded";
     
     await response.save();
     res.json({ message: "Grades saved successfully", response });

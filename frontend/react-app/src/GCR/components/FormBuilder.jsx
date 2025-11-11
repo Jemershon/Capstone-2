@@ -1218,9 +1218,6 @@ const FormBuilder = () => {
               onChange={(e) => setCurrentSection({ ...currentSection, title: e.target.value })}
               placeholder="e.g., Part I: Multiple Choice"
             />
-            <Form.Text className="text-muted">
-              Examples: "Part I: Multiple Choice", "Part II: Identification", "Part III: Essay"
-            </Form.Text>
           </Form.Group>
           
           <Form.Group className="mb-3">
@@ -1230,11 +1227,8 @@ const FormBuilder = () => {
               rows={2}
               value={currentSection.instructions}
               onChange={(e) => setCurrentSection({ ...currentSection, instructions: e.target.value })}
-              placeholder="e.g., Choose the letter of the correct answer. Write your answer on the space provided."
+              placeholder="e.g., Choose the letter of the correct answer."
             />
-            <Form.Text className="text-muted">
-              These instructions will appear at the start of this section.
-            </Form.Text>
           </Form.Group>
           
           <Form.Group className="mb-3">
@@ -1246,9 +1240,6 @@ const FormBuilder = () => {
               min="0.5"
               step="0.5"
             />
-            <Form.Text className="text-muted">
-              Default point value for questions in this section (e.g., "Each item is worth 2 points")
-            </Form.Text>
           </Form.Group>
         </Modal.Body>
         <Modal.Footer>

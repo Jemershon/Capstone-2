@@ -9,6 +9,7 @@ const answerSchema = new mongoose.Schema({
   // For auto-grading
   isCorrect: Boolean,
   pointsAwarded: { type: Number, default: 0 },
+  partialCredit: { type: Number }, // For enumeration and matching type (0-1)
   
   // For manual grading
   manualScore: { type: Number, default: 0 },
