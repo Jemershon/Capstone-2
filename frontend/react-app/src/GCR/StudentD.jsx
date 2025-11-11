@@ -1841,12 +1841,31 @@ function StudentClassStream() {
       });
       
       // Filter forms for this specific class
-      const classForms = response.data.filter(form => 
+      let classForms = response.data.filter(form => 
         form.className === className && form.status === 'published'
       );
+
+      // Fetch submission status for each form
+      const formsWithStatus = await Promise.all(
+        classForms.map(async (form) => {
+          try {
+            const statusRes = await axios.get(
+              `${API_BASE_URL}/api/forms/${form._id}/my-submission-status`,
+              { headers: { Authorization: `Bearer ${token}` } }
+            );
+            return {
+              ...form,
+              hasSubmitted: statusRes.data.hasSubmitted
+            };
+          } catch (err) {
+            console.error(`Could not fetch submission status for form ${form._id}:`, err);
+            return form; // Return form without status if error
+          }
+        })
+      );
       
-      console.log('Forms fetched for class:', classForms.length);
-      setForms(classForms);
+      console.log('Forms fetched for class:', formsWithStatus.length);
+      setForms(formsWithStatus);
     } catch (err) {
       console.error("Error fetching forms:", err);
     }
@@ -2422,12 +2441,14 @@ function StudentClassStream() {
                           
                           <div className="d-flex gap-2">
                             <Button
-                              variant="primary"
+                              variant={form.hasSubmitted ? "success" : "primary"}
                               size="sm"
+                              disabled={form.hasSubmitted}
                               onClick={() => window.open(`/forms/${form._id}`, '_blank')}
+                              title={form.hasSubmitted ? "You have already submitted this form" : ""}
                             >
-                              <i className="bi bi-pencil-square me-2"></i>
-                              {form.settings?.isQuiz ? 'Take Quiz' : 'Fill Form'}
+                              <i className={`bi ${form.hasSubmitted ? 'bi-check2-circle' : 'bi-pencil-square'} me-2`}></i>
+                              {form.hasSubmitted ? 'Submitted' : (form.settings?.isQuiz ? 'Take Quiz' : 'Fill Form')}
                             </Button>
                           </div>
                         </Card.Body>

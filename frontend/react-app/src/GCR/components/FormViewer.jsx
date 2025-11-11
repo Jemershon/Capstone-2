@@ -578,6 +578,17 @@ const FormViewer = () => {
     );
   }
   
+  if (alreadySubmitted && !isPreviewMode) {
+    return (
+      <Container className="py-5">
+        <Alert variant="warning">
+          <Alert.Heading>❌ Already Submitted</Alert.Heading>
+          <p className="mb-0">You have already submitted this form. Multiple submissions are not allowed. You cannot answer this form again.</p>
+        </Alert>
+      </Container>
+    );
+  }
+  
   if (isClosed) {
     return (
       <Container className="py-5">
@@ -708,13 +719,6 @@ const FormViewer = () => {
           {error && (
             <Alert variant="danger" dismissible onClose={() => setError("")}>
               {error}
-            </Alert>
-          )}
-          
-          {alreadySubmitted && !isPreviewMode && (
-            <Alert variant="warning">
-              <i className="bi bi-exclamation-circle me-2"></i>
-              You have already submitted this form. Multiple submissions are not allowed.
             </Alert>
           )}
           
