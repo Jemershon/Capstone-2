@@ -30,11 +30,19 @@ const FormsList = () => {
   const loadForms = async () => {
     try {
       setLoading(true);
+      console.log("=== LOADING FORMS ===");
+      console.log("Token:", localStorage.getItem("token") ? "Present" : "Missing");
+      
       const response = await axios.get(`${API_BASE_URL}/api/forms`, {
         headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
       });
+      
+      console.log("Forms received:", response.data.length);
+      console.log("Forms data:", response.data);
+      
       setForms(response.data);
     } catch (err) {
+      console.error("Load forms error:", err);
       setError(err.response?.data?.error || "Failed to load forms");
     } finally {
       setLoading(false);
@@ -175,7 +183,7 @@ const FormsList = () => {
   }
   
   return (
-    <Container fluid className="py-4">
+    <Container fluid className="py-4" style={{ overflow: 'visible' }}>
       <Row className="mb-4">
         <Col>
           <div className="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3">
@@ -218,77 +226,102 @@ const FormsList = () => {
         </Card>
       ) : (
         <Card>
-          <Table responsive hover>
-            <thead>
-              <tr>
-                <th>Title</th>
-                <th>Type</th>
-                <th>Status</th>
-                <th>Responses</th>
-                <th>Created</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {forms.map((form) => (
-                <tr key={form._id}>
-                  <td>
-                    <div className="fw-bold">{form.title}</div>
-                    {form.description && (
-                      <small className="text-muted">{form.description.substring(0, 60)}...</small>
-                    )}
-                  </td>
-                  <td>
-                    {form.settings.isQuiz ? (
-                      <Badge bg="info">Quiz</Badge>
-                    ) : (
-                      <Badge bg="primary">Survey</Badge>
-                    )}
-                  </td>
-                  <td>{getStatusBadge(form.status)}</td>
-                  <td>
-                    <Badge bg="secondary">{form.responseCount || 0}</Badge>
-                  </td>
-                  <td>
-                    <small>{new Date(form.createdAt).toLocaleDateString()}</small>
-                  </td>
-                  <td>
-                    <Dropdown align="end">
-                      <Dropdown.Toggle 
-                        variant="link" 
-                        size="sm" 
-                        className="text-muted p-0"
-                        style={{ boxShadow: 'none', border: 'none' }}
-                      >
-                        <i className="bi bi-three-dots-vertical" style={{ fontSize: '1.2rem' }}></i>
-                      </Dropdown.Toggle>
-                      <Dropdown.Menu>
-                        <Dropdown.Item onClick={() => navigate(`/teacher/forms/${form._id}/edit`)}>
-                          <i className="bi bi-pencil me-2"></i> Edit
-                        </Dropdown.Item>
-                        <Dropdown.Item onClick={() => navigate(`/teacher/forms/${form._id}/responses`)}>
-                          <i className="bi bi-bar-chart me-2"></i> View Responses ({form.responseCount || 0})
-                        </Dropdown.Item>
-                        <Dropdown.Item onClick={() => window.open(`/forms/${form._id}`, '_blank')}>
-                          <i className="bi bi-box-arrow-up-right me-2"></i> Preview
-                        </Dropdown.Item>
-                        <Dropdown.Item onClick={() => handleDuplicate(form)}>
-                          <i className="bi bi-files me-2"></i> Duplicate
-                        </Dropdown.Item>
-                        <Dropdown.Item onClick={() => openSendToClassModal(form)}>
-                          <i className="bi bi-send me-2"></i> Send to Class
-                        </Dropdown.Item>
-                        <Dropdown.Divider />
-                        <Dropdown.Item className="text-danger" onClick={() => handleDelete(form._id)}>
-                          <i className="bi bi-trash me-2"></i> Delete
-                        </Dropdown.Item>
-                      </Dropdown.Menu>
-                    </Dropdown>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </Table>
+          <Card.Body className="p-0">
+            {/* Table Header */}
+            <div className="d-none d-md-flex border-bottom p-3 fw-bold text-muted" style={{ fontSize: '0.875rem' }}>
+              <div style={{ flex: '2' }}>Title</div>
+              <div style={{ width: '120px', textAlign: 'center' }}>Class</div>
+              <div style={{ width: '100px', textAlign: 'center' }}>Type</div>
+              <div style={{ width: '100px', textAlign: 'center' }}>Status</div>
+              <div style={{ width: '100px', textAlign: 'center' }}>Responses</div>
+              <div style={{ width: '120px', textAlign: 'center' }}>Created</div>
+              <div style={{ width: '80px', textAlign: 'center' }}>Actions</div>
+            </div>
+            
+            {/* Table Body */}
+            {forms.map((form, index) => (
+              <div 
+                key={form._id} 
+                className="d-flex flex-column flex-md-row align-items-start align-items-md-center p-3 border-bottom hover-bg"
+                style={{ 
+                  transition: 'background-color 0.2s',
+                  cursor: 'default',
+                  position: 'relative'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8f9fa'}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+              >
+                <div style={{ flex: '2' }} className="mb-2 mb-md-0">
+                  <div className="fw-bold">{form.title}</div>
+                  {form.description && (
+                    <small className="text-muted">{form.description.substring(0, 60)}...</small>
+                  )}
+                </div>
+                
+                <div style={{ width: '120px', textAlign: 'center' }} className="mb-2 mb-md-0">
+                  {form.className ? (
+                    <Badge bg="primary" className="text-wrap">{form.className}</Badge>
+                  ) : (
+                    <Badge bg="secondary">All Classes</Badge>
+                  )}
+                </div>
+                
+                <div style={{ width: '100px', textAlign: 'center' }} className="mb-2 mb-md-0">
+                  {form.settings.isQuiz ? (
+                    <Badge bg="info">Quiz</Badge>
+                  ) : (
+                    <Badge bg="primary">Survey</Badge>
+                  )}
+                </div>
+                
+                <div style={{ width: '100px', textAlign: 'center' }} className="mb-2 mb-md-0">
+                  {getStatusBadge(form.status)}
+                </div>
+                
+                <div style={{ width: '100px', textAlign: 'center' }} className="mb-2 mb-md-0">
+                  <Badge bg="secondary">{form.responseCount || 0}</Badge>
+                </div>
+                
+                <div style={{ width: '120px', textAlign: 'center' }} className="mb-2 mb-md-0">
+                  <small>{new Date(form.createdAt).toLocaleDateString()}</small>
+                </div>
+                
+                <div style={{ width: '80px', textAlign: 'center' }}>
+                  <Dropdown align="end">
+                    <Dropdown.Toggle 
+                      variant="link" 
+                      size="sm" 
+                      className="text-muted p-0"
+                      style={{ boxShadow: 'none', border: 'none' }}
+                    >
+                      <i className="bi bi-three-dots-vertical" style={{ fontSize: '1.2rem' }}></i>
+                    </Dropdown.Toggle>
+                    <Dropdown.Menu>
+                      <Dropdown.Item onClick={() => navigate(`/teacher/forms/${form._id}/edit`)}>
+                        <i className="bi bi-pencil me-2"></i> Edit
+                      </Dropdown.Item>
+                      <Dropdown.Item onClick={() => navigate(`/teacher/forms/${form._id}/responses`)}>
+                        <i className="bi bi-bar-chart me-2"></i> View Responses ({form.responseCount || 0})
+                      </Dropdown.Item>
+                      <Dropdown.Item onClick={() => window.open(`/forms/${form._id}`, '_blank')}>
+                        <i className="bi bi-box-arrow-up-right me-2"></i> Preview
+                      </Dropdown.Item>
+                      <Dropdown.Item onClick={() => handleDuplicate(form)}>
+                        <i className="bi bi-files me-2"></i> Duplicate
+                      </Dropdown.Item>
+                      <Dropdown.Item onClick={() => openSendToClassModal(form)}>
+                        <i className="bi bi-send me-2"></i> Send to Class
+                      </Dropdown.Item>
+                      <Dropdown.Divider />
+                      <Dropdown.Item className="text-danger" onClick={() => handleDelete(form._id)}>
+                        <i className="bi bi-trash me-2"></i> Delete
+                      </Dropdown.Item>
+                    </Dropdown.Menu>
+                  </Dropdown>
+                </div>
+              </div>
+            ))}
+          </Card.Body>
         </Card>
       )}
       

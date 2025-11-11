@@ -7,13 +7,44 @@ const router = express.Router();
 
 // ============== FORM CRUD ==============
 
+// DEBUG: Get all forms (no auth, for debugging only - REMOVE IN PRODUCTION)
+router.get("/debug/all", async (req, res) => {
+  try {
+    const forms = await Form.find({}).sort({ createdAt: -1 });
+    console.log("=== ALL FORMS IN DATABASE ===");
+    console.log("Total forms:", forms.length);
+    forms.forEach(f => {
+      console.log(`- ${f.title} (${f.status}) by ${f.owner}`);
+    });
+    res.json(forms.map(f => ({
+      id: f._id,
+      title: f.title,
+      status: f.status,
+      owner: f.owner,
+      questions: f.questions.length,
+      createdAt: f.createdAt
+    })));
+  } catch (err) {
+    console.error("Debug all forms error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Get all forms (for current user)
 router.get("/", authenticateToken, async (req, res) => {
   try {
     const { role, username } = req.user;
     let query = {};
     
-    if (role === "teacher" || role === "admin") {
+    console.log("=== GET FORMS REQUEST ===");
+    console.log("User:", username);
+    console.log("Role:", role);
+    console.log("Full user object:", req.user);
+    
+    // Case-insensitive role check
+    const userRole = role.toLowerCase();
+    
+    if (userRole === "teacher" || userRole === "admin") {
       // Teachers see forms they own or collaborate on
       query = {
         $or: [
@@ -23,10 +54,49 @@ router.get("/", authenticateToken, async (req, res) => {
       };
     } else {
       // Students see forms from their classes
-      query = { "settings.requireLogin": false }; // Public forms
+      // First, get the classes the student is enrolled in
+      const Class = (await import("../models/Class.js")).default;
+      const studentClasses = await Class.find({ students: username });
+      const classNames = studentClasses.map(c => c.name);
+      
+      console.log("Student enrolled in classes:", classNames);
+      
+      query = {
+        status: "published", // Only show published forms
+        $or: [
+          { className: { $in: classNames } }, // Forms assigned to student's classes
+          { "settings.requireLogin": false }  // Public forms
+        ]
+      };
     }
     
+    console.log("Query:", JSON.stringify(query));
+    
     const forms = await Form.find(query).sort({ createdAt: -1 });
+    
+    console.log("Found forms:", forms.length);
+    if (forms.length > 0) {
+      console.log("Sample form:", {
+        id: forms[0]._id,
+        title: forms[0].title,
+        status: forms[0].status,
+        owner: forms[0].owner,
+        className: forms[0].className
+      });
+    } else {
+      console.log("No forms found. Checking if any forms exist in DB...");
+      const allForms = await Form.find({}).limit(5);
+      console.log("Total forms in DB:", await Form.countDocuments());
+      if (allForms.length > 0) {
+        console.log("Sample form from DB:", {
+          title: allForms[0].title,
+          owner: allForms[0].owner,
+          status: allForms[0].status,
+          className: allForms[0].className
+        });
+      }
+    }
+    
     res.json(forms);
   } catch (err) {
     console.error("Get forms error:", err);
@@ -67,6 +137,12 @@ router.get("/:id", async (req, res) => {
 router.post("/", authenticateToken, requireTeacherOrAdmin, async (req, res) => {
   try {
     const { username } = req.user;
+    console.log("=== CREATE FORM REQUEST ===");
+    console.log("User:", username);
+    console.log("User object:", req.user);
+    console.log("Form title:", req.body.title);
+    console.log("Form status:", req.body.status);
+    
     const formData = {
       ...req.body,
       owner: username,
@@ -74,6 +150,12 @@ router.post("/", authenticateToken, requireTeacherOrAdmin, async (req, res) => {
     
     const form = new Form(formData);
     await form.save();
+    
+    console.log("Form created successfully:");
+    console.log("  ID:", form._id);
+    console.log("  Title:", form.title);
+    console.log("  Status:", form.status);
+    console.log("  Owner:", form.owner);
     
     res.status(201).json(form);
   } catch (err) {
@@ -97,8 +179,12 @@ router.put("/:id", authenticateToken, requireTeacherOrAdmin, async (req, res) =>
       return res.status(403).json({ error: "Not authorized to edit this form" });
     }
     
+    console.log("Updating form status from", form.status, "to", req.body.status);
+    
     Object.assign(form, req.body);
     await form.save();
+    
+    console.log("Form saved with status:", form.status);
     
     res.json(form);
   } catch (err) {

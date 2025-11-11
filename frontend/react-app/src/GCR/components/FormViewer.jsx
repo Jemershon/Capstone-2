@@ -39,7 +39,7 @@ const FormViewer = () => {
   const loadForm = async () => {
     try {
       setLoading(true);
-      const response = await axios.get(`${API_BASE_URL}/api/forms/${formId}/public`);
+      const response = await axios.get(`${API_BASE_URL}/api/forms/${formId}`);
       const formData = response.data;
       setForm(formData);
       

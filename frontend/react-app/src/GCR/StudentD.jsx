@@ -1541,6 +1541,7 @@ function StudentClassStream() {
   const [exams, setExams] = useState([]);
   const [materials, setMaterials] = useState([]);
   const [classmates, setClassmates] = useState([]);
+  const [forms, setForms] = useState([]);
   const [showFilePreview, setShowFilePreview] = useState(false);
   const [previewFile, setPreviewFile] = useState(null);
   const [teacher, setTeacher] = useState("");
@@ -1664,7 +1665,8 @@ function StudentClassStream() {
         fetchExams(token),
         fetchMaterials(token),
         fetchClassmates(token),
-        fetchTopics(token)
+        fetchTopics(token),
+        fetchForms(token)
       ]);
       
       // Always refresh submitted exams to ensure current state
@@ -1828,6 +1830,25 @@ function StudentClassStream() {
       setMaterialSubmissions(submissions);
     } catch (err) {
       console.error("Error fetching materials:", err);
+    }
+  };
+
+  const fetchForms = async (token) => {
+    try {
+      console.log('Fetching forms for class:', className);
+      const response = await axios.get(`${API_BASE_URL}/api/forms`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      // Filter forms for this specific class
+      const classForms = response.data.filter(form => 
+        form.className === className && form.status === 'published'
+      );
+      
+      console.log('Forms fetched for class:', classForms.length);
+      setForms(classForms);
+    } catch (err) {
+      console.error("Error fetching forms:", err);
     }
   };
 
@@ -2359,6 +2380,68 @@ function StudentClassStream() {
                       ))}
                     </div>
                   </Card>
+                )}
+                
+                {/* Forms Section */}
+                {forms.length > 0 && (
+                  <div className="mb-4">
+                    {forms.map((form) => (
+                      <Card key={form._id} className="mb-3 border-primary">
+                        <Card.Body>
+                          <div className="d-flex align-items-center mb-2">
+                            <div className="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-3" 
+                                 style={{ width: 40, height: 40 }}>
+                              📝
+                            </div>
+                            <div className="flex-grow-1">
+                              <div className="d-flex align-items-center gap-2">
+                                <strong>{form.owner}</strong>
+                                <Badge bg="primary">
+                                  {form.settings?.isQuiz ? 'Quiz' : 'Form'}
+                                </Badge>
+                              </div>
+                              <small className="text-muted">
+                                {new Date(form.createdAt).toLocaleString()}
+                              </small>
+                            </div>
+                          </div>
+                          
+                          <h6 className="mb-2">{form.title}</h6>
+                          {form.description && (
+                            <p className="text-muted mb-2">{form.description}</p>
+                          )}
+                          
+                          {form.settings?.deadline && (
+                            <div className="mb-2">
+                              <small className="text-muted">
+                                <i className="bi bi-calendar me-1"></i>
+                                Due: {new Date(form.settings.deadline).toLocaleString()}
+                              </small>
+                            </div>
+                          )}
+                          
+                          <div className="d-flex gap-2">
+                            <Button
+                              variant="primary"
+                              size="sm"
+                              onClick={() => window.open(`/forms/${form._id}`, '_blank')}
+                            >
+                              <i className="bi bi-pencil-square me-2"></i>
+                              {form.settings?.isQuiz ? 'Take Quiz' : 'Fill Form'}
+                            </Button>
+                            <Button
+                              variant="outline-secondary"
+                              size="sm"
+                              onClick={() => window.open(`/forms/${form._id}`, '_blank')}
+                            >
+                              <i className="bi bi-eye me-2"></i>
+                              View
+                            </Button>
+                          </div>
+                        </Card.Body>
+                      </Card>
+                    ))}
+                  </div>
                 )}
                 
                 {announcements.length === 0 ? (

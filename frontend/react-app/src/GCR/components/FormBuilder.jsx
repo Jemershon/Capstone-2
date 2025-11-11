@@ -113,11 +113,20 @@ const FormBuilder = () => {
   const loadForm = async () => {
     try {
       setLoading(true);
+      console.log("=== LOADING FORM FOR EDIT ===");
+      console.log("Form ID:", formId);
+      
       const response = await axios.get(`${API_BASE_URL}/api/forms/${formId}`, {
         headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
       });
-      setForm(response.data);
+      
+      console.log("Form loaded:", response.data.title, "Status:", response.data.status);
+      
+      // Remove extra fields that shouldn't be sent back
+      const { availabilityStatus, ...formData } = response.data;
+      setForm(formData);
     } catch (err) {
+      console.error("Load form error:", err);
       setError(err.response?.data?.error || "Failed to load form");
     } finally {
       setLoading(false);
@@ -126,25 +135,62 @@ const FormBuilder = () => {
   
   const handleSaveForm = async (publish = false) => {
     try {
+      // Validate before publishing
+      if (publish) {
+        if (!form.title || form.title.trim() === "") {
+          setError("Please add a title before publishing");
+          return;
+        }
+        if (!form.questions || form.questions.length === 0) {
+          setError("Please add at least one question before publishing");
+          return;
+        }
+      }
+      
       setLoading(true);
+      
+      // Clean form data - remove MongoDB internal fields and extra computed fields
+      const { _id, __v, createdAt, updatedAt, responseCount, availabilityStatus, ...cleanFormData } = form;
+      
       const formData = {
-        ...form,
+        ...cleanFormData,
         status: publish ? "published" : form.status,
       };
       
+      console.log("Saving form with status:", formData.status);
+      console.log("Form ID:", formId || "New form");
+      
       if (formId) {
-        await axios.put(`${API_BASE_URL}/api/forms/${formId}`, formData, {
+        const response = await axios.put(`${API_BASE_URL}/api/forms/${formId}`, formData, {
           headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
         });
-        setSuccess("Form updated successfully!");
+        console.log("Form updated, new status:", response.data.status);
+        setSuccess(publish ? "Form published successfully!" : "Form updated successfully!");
+        if (publish) {
+          // Redirect to forms list after publishing
+          setTimeout(() => {
+            navigate("/teacher/forms");
+          }, 1000);
+        }
       } else {
         const response = await axios.post(`${API_BASE_URL}/api/forms`, formData, {
           headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
         });
-        setSuccess("Form created successfully!");
-        navigate(`/teacher/forms/${response.data._id}/edit`);
+        console.log("Form created, status:", response.data.status);
+        setSuccess(publish ? "Form published successfully!" : "Form created successfully!");
+        if (publish) {
+          // Redirect to forms list after publishing new form
+          setTimeout(() => {
+            navigate("/teacher/forms");
+          }, 1000);
+        } else {
+          // Navigate to edit page for new draft
+          navigate(`/teacher/forms/${response.data._id}/edit`);
+        }
       }
     } catch (err) {
+      console.error("Save form error:", err);
+      console.error("Error response:", err.response?.data);
       setError(err.response?.data?.error || "Failed to save form");
     } finally {
       setLoading(false);

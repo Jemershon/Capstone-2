@@ -1607,6 +1607,7 @@ function TeacherClassStream() {
   const [classInfo, setClassInfo] = useState(null);
   const [students, setStudents] = useState([]);
   const [exams, setExams] = useState([]);
+  const [forms, setForms] = useState([]);
   // Invite modal removed: invite functionality deprecated
   const [showRemoveModal, setShowRemoveModal] = useState(false);
   const [studentToRemove, setStudentToRemove] = useState(null);
@@ -1667,6 +1668,22 @@ function TeacherClassStream() {
       console.log("Fetched topics:", res.data);
     } catch (err) {
       console.error("Fetch topics error:", err.response?.data || err.message);
+    }
+  }, [className]);
+
+  const fetchForms = useCallback(async () => {
+    try {
+      const res = await axios.get(`${API_BASE_URL}/api/forms`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+      });
+      // Filter forms for this specific class
+      const classForms = res.data.filter(form => 
+        form.className === className && form.status === 'published'
+      );
+      setForms(classForms);
+      console.log("Fetched forms for class:", classForms.length);
+    } catch (err) {
+      console.error("Fetch forms error:", err.response?.data || err.message);
     }
   }, [className]);
 
@@ -1940,6 +1957,7 @@ function TeacherClassStream() {
       fetchExams();
       fetchClassInfo();
       fetchTopics();
+      fetchForms();
       
       // Setup Socket.IO connection for real-time updates
       const token = getAuthToken();
@@ -2748,6 +2766,76 @@ function TeacherClassStream() {
                 )}
               </div>
             </Card>
+          )}
+
+          {/* Forms Section */}
+          {forms.length > 0 && (
+            <div className="mb-4">
+              {forms.map((form) => (
+                <Card key={form._id} className="mb-3 border-success">
+                  <Card.Body>
+                    <div className="d-flex align-items-center mb-2">
+                      <div className="bg-success text-white rounded-circle d-flex align-items-center justify-content-center me-3" 
+                           style={{ width: 40, height: 40 }}>
+                        📝
+                      </div>
+                      <div className="flex-grow-1">
+                        <div className="d-flex align-items-center gap-2">
+                          <strong>Form Sent</strong>
+                          <Badge bg="success">
+                            {form.settings?.isQuiz ? 'Quiz' : 'Form'}
+                          </Badge>
+                        </div>
+                        <small className="text-muted">
+                          {new Date(form.createdAt).toLocaleString()}
+                        </small>
+                      </div>
+                    </div>
+                    
+                    <h6 className="mb-2">{form.title}</h6>
+                    {form.description && (
+                      <p className="text-muted mb-2">{form.description}</p>
+                    )}
+                    
+                    {form.settings?.deadline && (
+                      <div className="mb-2">
+                        <small className="text-muted">
+                          <i className="bi bi-calendar me-1"></i>
+                          Due: {new Date(form.settings.deadline).toLocaleString()}
+                        </small>
+                      </div>
+                    )}
+                    
+                    <div className="d-flex gap-2">
+                      <Button
+                        variant="success"
+                        size="sm"
+                        onClick={() => window.open(`/teacher/forms/${form._id}/responses`, '_self')}
+                      >
+                        <i className="bi bi-bar-chart me-2"></i>
+                        View Responses ({form.responseCount || 0})
+                      </Button>
+                      <Button
+                        variant="outline-secondary"
+                        size="sm"
+                        onClick={() => window.open(`/forms/${form._id}`, '_blank')}
+                      >
+                        <i className="bi bi-eye me-2"></i>
+                        Preview
+                      </Button>
+                      <Button
+                        variant="outline-primary"
+                        size="sm"
+                        onClick={() => window.open(`/teacher/forms/${form._id}/edit`, '_self')}
+                      >
+                        <i className="bi bi-pencil me-2"></i>
+                        Edit
+                      </Button>
+                    </div>
+                  </Card.Body>
+                </Card>
+              ))}
+            </div>
           )}
 
           {announcements.length === 0 ? (
