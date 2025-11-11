@@ -191,6 +191,15 @@ const FormViewer = () => {
   const renderQuestion = (question) => {
     const answer = answers[question._id];
     
+    // Debug log
+    console.log("Rendering question:", {
+      id: question._id,
+      type: question.type,
+      title: question.title || question.question,
+      hasOptions: !!question.options,
+      optionsCount: question.options?.length
+    });
+    
     // Get options (shuffled if enabled, otherwise original)
     const getOptions = () => {
       if (form.settings?.shuffleAnswers && shuffledOptions[question._id]) {
@@ -200,12 +209,13 @@ const FormViewer = () => {
     };
     
     switch (question.type) {
+      case 'short_answer':
       case 'shortAnswer':
         return (
           <Form.Control
             type="text"
             value={answer || ''}
-            onChange={(e) => handleAnswerChange(question._id, e.target.value, 'shortAnswer')}
+            onChange={(e) => handleAnswerChange(question._id, e.target.value, 'short_answer')}
             placeholder="Your answer"
             required={question.required}
           />
@@ -223,6 +233,7 @@ const FormViewer = () => {
           />
         );
         
+      case 'multiple_choice':
       case 'multipleChoice':
         return (
           <div>
@@ -234,13 +245,14 @@ const FormViewer = () => {
                 label={option}
                 value={option}
                 checked={answer === option}
-                onChange={(e) => handleAnswerChange(question._id, e.target.value, 'multipleChoice')}
+                onChange={(e) => handleAnswerChange(question._id, e.target.value, 'multiple_choice')}
                 required={question.required}
               />
             ))}
           </div>
         );
         
+      case 'checkboxes':
       case 'checkbox':
         return (
           <div>
@@ -252,7 +264,7 @@ const FormViewer = () => {
                 label={option}
                 value={option}
                 checked={(answer || []).includes(option)}
-                onChange={(e) => handleAnswerChange(question._id, e.target.value, 'checkbox')}
+                onChange={(e) => handleAnswerChange(question._id, e.target.value, 'checkboxes')}
               />
             ))}
           </div>
@@ -272,13 +284,14 @@ const FormViewer = () => {
           </Form.Select>
         );
         
+      case 'linear_scale':
       case 'linearScale':
         return (
           <div className="d-flex justify-content-between align-items-center gap-2">
             <small>{question.scaleLabels?.min || '1'}</small>
             <div className="d-flex gap-3">
-              {[...Array(question.scaleMax - question.scaleMin + 1)].map((_, idx) => {
-                const value = question.scaleMin + idx;
+              {[...Array((question.scaleMax || 5) - (question.scaleMin || 1) + 1)].map((_, idx) => {
+                const value = (question.scaleMin || 1) + idx;
                 return (
                   <Form.Check
                     key={idx}
@@ -317,11 +330,12 @@ const FormViewer = () => {
           />
         );
         
+      case 'file_upload':
       case 'fileUpload':
         return (
           <Form.Control
             type="file"
-            onChange={(e) => handleAnswerChange(question._id, e.target.files[0], 'fileUpload')}
+            onChange={(e) => handleAnswerChange(question._id, e.target.files[0], 'file_upload')}
             required={question.required}
           />
         );
@@ -618,7 +632,7 @@ const FormViewer = () => {
                           <div key={question._id} className="mb-4">
                             <Form.Group>
                               <Form.Label className="fw-bold">
-                                {qIdx + 1}. {question.question}
+                                {qIdx + 1}. {question.title || question.question}
                                 {question.required && <span className="text-danger"> *</span>}
                                 {question.points && (
                                   <span className="ms-2 badge bg-secondary">
@@ -652,7 +666,7 @@ const FormViewer = () => {
                           <Card.Body>
                             <Form.Group>
                               <Form.Label className="fw-bold">
-                                {idx + 1}. {question.question}
+                                {idx + 1}. {question.title || question.question}
                                 {question.required && <span className="text-danger"> *</span>}
                                 {question.points && (
                                   <span className="ms-2 badge bg-secondary">
@@ -682,7 +696,7 @@ const FormViewer = () => {
                     <Card.Body>
                       <Form.Group>
                         <Form.Label className="fw-bold">
-                          {idx + 1}. {question.question}
+                          {idx + 1}. {question.title || question.question}
                           {question.required && <span className="text-danger"> *</span>}
                           {question.points && (
                             <span className="ms-2 badge bg-secondary">
