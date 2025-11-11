@@ -355,6 +355,32 @@ router.post("/:id/responses", async (req, res) => {
       return res.status(401).json({ error: "Login required to submit this form" });
     }
     
+    // Check for duplicate submissions (only if user is logged in and form doesn't allow multiple responses)
+    if (req.headers.authorization && !form.settings.allowMultipleResponses) {
+      const token = req.headers.authorization.replace("Bearer ", "");
+      try {
+        // Decode token to get username
+        const jwt = require("jsonwebtoken");
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || "your-secret-key");
+        const username = decoded.username;
+        
+        // Check if this user has already submitted
+        const existingResponse = await FormResponse.findOne({
+          formId: req.params.id,
+          respondentUsername: username
+        });
+        
+        if (existingResponse) {
+          return res.status(409).json({ 
+            error: "You have already submitted this form. Multiple submissions are not allowed." 
+          });
+        }
+      } catch (jwtErr) {
+        console.log("Could not verify token for duplicate check:", jwtErr.message);
+        // If token is invalid, allow submission anyway
+      }
+    }
+    
     const { answers, respondent, startTime } = req.body;
     
     // Auto-grade if quiz mode

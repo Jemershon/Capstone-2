@@ -31,10 +31,50 @@ const FormViewer = () => {
   const [startTime] = useState(Date.now());
   const [shuffledQuestions, setShuffledQuestions] = useState([]);
   const [shuffledOptions, setShuffledOptions] = useState({}); // Map of questionId -> shuffled options
+  const [alreadySubmitted, setAlreadySubmitted] = useState(false);
+  const [timeRemaining, setTimeRemaining] = useState(null);
   
   useEffect(() => {
     loadForm();
   }, [formId]);
+  
+  // Timer countdown effect
+  useEffect(() => {
+    if (!form?.settings?.deadline && !form?.settings?.closeAt) {
+      return; // No deadline set
+    }
+    
+    const interval = setInterval(() => {
+      const now = new Date();
+      const deadline = form.settings.closeAt || form.settings.deadline;
+      const deadlineTime = new Date(deadline);
+      const remaining = deadlineTime - now;
+      
+      if (remaining <= 0) {
+        setTimeRemaining(null);
+        clearInterval(interval);
+        // Form is closed - disable submit button
+        if (!alreadySubmitted) {
+          setAlreadySubmitted(true);
+          setError("This form has closed and is no longer accepting responses.");
+        }
+      } else {
+        const hours = Math.floor(remaining / (1000 * 60 * 60));
+        const minutes = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((remaining % (1000 * 60)) / 1000);
+        
+        setTimeRemaining({
+          total: remaining,
+          hours,
+          minutes,
+          seconds,
+          formatted: `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+        });
+      }
+    }, 1000);
+    
+    return () => clearInterval(interval);
+  }, [form, alreadySubmitted]);
   
   const loadForm = async () => {
     try {
@@ -42,6 +82,27 @@ const FormViewer = () => {
       const response = await axios.get(`${API_BASE_URL}/api/forms/${formId}`);
       const formData = response.data;
       setForm(formData);
+      
+      // Check if logged-in user has already submitted this form
+      const token = localStorage.getItem("token");
+      if (token) {
+        try {
+          const submissionsRes = await axios.get(
+            `${API_BASE_URL}/api/forms/${formId}/responses`,
+            { headers: { Authorization: `Bearer ${token}` } }
+          );
+          // If we got here without error, user has access to responses (is teacher/admin)
+          // For students, we need to check in a different way
+          console.log("User can view all responses (likely teacher/admin)");
+        } catch (err) {
+          // For students, check if they've already submitted by trying to fetch user's submission
+          if (err.response?.status === 403) {
+            // User is not teacher/admin, so check their submission status differently
+            // This will be handled when they try to submit
+            console.log("Student user - will check submission on submit");
+          }
+        }
+      }
       
       // Shuffle questions if enabled
       let questionsToDisplay = formData.questions;
@@ -141,6 +202,11 @@ const FormViewer = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
+    if (alreadySubmitted) {
+      setError("You have already submitted this form. Multiple submissions are not allowed.");
+      return;
+    }
+    
     const errors = validateAnswers();
     if (errors.length > 0) {
       setError(`Please answer all required questions: ${errors.join(', ')}`);
@@ -172,18 +238,19 @@ const FormViewer = () => {
         await axios.post(`${API_BASE_URL}/api/forms/${formId}/responses`, payload);
       }
       
+      // Mark as submitted to prevent double submissions
+      setAlreadySubmitted(true);
       setSuccess("Form submitted successfully! Thank you for your response.");
       
-      // Clear form if allow multiple responses
-      if (form.settings.allowMultipleResponses) {
-        setTimeout(() => {
-          setSuccess("");
-          loadForm();
-        }, 3000);
-      }
+      // Don't reload form - disable submission permanently
+      setSubmitting(false);
     } catch (err) {
-      setError(err.response?.data?.error || "Failed to submit form");
-    } finally {
+      if (err.response?.status === 409 || err.response?.data?.error?.includes("already")) {
+        setAlreadySubmitted(true);
+        setError("You have already submitted this form. Multiple submissions are not allowed.");
+      } else {
+        setError(err.response?.data?.error || "Failed to submit form");
+      }
       setSubmitting(false);
     }
   };
@@ -582,6 +649,22 @@ const FormViewer = () => {
                 This is a quiz. Your responses will be graded.
               </Alert>
             )}
+            
+            {/* Timer Display */}
+            {timeRemaining && (
+              <Alert 
+                variant={timeRemaining.hours === 0 && timeRemaining.minutes < 5 ? "danger" : "warning"}
+                className="mt-3 d-flex align-items-center justify-content-between"
+              >
+                <div>
+                  <i className="bi bi-hourglass-split me-2"></i>
+                  <strong>Time Remaining:</strong> {timeRemaining.formatted}
+                </div>
+                {timeRemaining.hours === 0 && timeRemaining.minutes < 5 && (
+                  <small>⚠️ Hurry! This form closes soon!</small>
+                )}
+              </Alert>
+            )}
           </div>
           
           {/* Progress Bar */}
@@ -717,26 +800,41 @@ const FormViewer = () => {
               </>
             )}
             
-            <div className="d-flex justify-content-end mt-4">
-              <Button 
-                type="submit" 
-                variant="primary" 
-                size="lg"
-                disabled={submitting}
-                style={{ backgroundColor: form.theme?.primaryColor }}
-              >
-                {submitting ? (
-                  <>
-                    <Spinner animation="border" size="sm" className="me-2" />
-                    Submitting...
-                  </>
-                ) : (
-                  <>
-                    <i className="bi bi-send me-2"></i>
-                    Submit
-                  </>
-                )}
-              </Button>
+            <div className="d-flex justify-content-end mt-4 gap-2">
+              {success ? (
+                <Alert variant="success" className="w-100 mb-0">
+                  <i className="bi bi-check-circle me-2"></i>
+                  {success}
+                </Alert>
+              ) : (
+                <Button 
+                  type="submit" 
+                  variant="primary" 
+                  size="lg"
+                  disabled={submitting || alreadySubmitted}
+                  style={{ 
+                    backgroundColor: form.theme?.primaryColor,
+                    opacity: alreadySubmitted ? 0.6 : 1
+                  }}
+                >
+                  {alreadySubmitted ? (
+                    <>
+                      <i className="bi bi-check2 me-2"></i>
+                      Already Submitted
+                    </>
+                  ) : submitting ? (
+                    <>
+                      <Spinner animation="border" size="sm" className="me-2" />
+                      Submitting...
+                    </>
+                  ) : (
+                    <>
+                      <i className="bi bi-send me-2"></i>
+                      Submit
+                    </>
+                  )}
+                </Button>
+              )}
             </div>
           </Form>
         </Card.Body>
