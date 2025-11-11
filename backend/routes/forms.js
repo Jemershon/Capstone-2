@@ -520,6 +520,32 @@ router.post("/:id/responses", async (req, res) => {
   }
 });
 
+// Check if the current student has already submitted this form
+router.get("/:id/my-submission-status", authenticateToken, async (req, res) => {
+  try {
+    const { username } = req.user;
+    const form = await Form.findById(req.params.id);
+    
+    if (!form) {
+      return res.status(404).json({ error: "Form not found" });
+    }
+
+    // Check if user has submitted this form
+    const submission = await FormResponse.findOne({
+      formId: req.params.id,
+      respondentUsername: username
+    });
+
+    res.json({
+      hasSubmitted: !!submission,
+      submission: submission || null
+    });
+  } catch (err) {
+    console.error("Check submission status error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Get all responses for a form
 router.get("/:id/responses", authenticateToken, requireTeacherOrAdmin, async (req, res) => {
   try {

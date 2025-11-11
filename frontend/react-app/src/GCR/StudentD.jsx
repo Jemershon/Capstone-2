@@ -2429,14 +2429,6 @@ function StudentClassStream() {
                               <i className="bi bi-pencil-square me-2"></i>
                               {form.settings?.isQuiz ? 'Take Quiz' : 'Fill Form'}
                             </Button>
-                            <Button
-                              variant="outline-secondary"
-                              size="sm"
-                              onClick={() => window.open(`/forms/${form._id}`, '_blank')}
-                            >
-                              <i className="bi bi-eye me-2"></i>
-                              View
-                            </Button>
                           </div>
                         </Card.Body>
                       </Card>

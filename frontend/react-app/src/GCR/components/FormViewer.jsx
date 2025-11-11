@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import axios from "axios";
 import { 
   Container, Card, Form, Button, Alert, Spinner, 
@@ -20,6 +20,8 @@ const shuffleArray = (array) => {
 const FormViewer = () => {
   const { formId } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const isPreviewMode = searchParams.get('preview') === 'true';
   
   const [form, setForm] = useState(null);
   const [answers, setAnswers] = useState({});
@@ -87,20 +89,19 @@ const FormViewer = () => {
       const token = localStorage.getItem("token");
       if (token) {
         try {
-          const submissionsRes = await axios.get(
-            `${API_BASE_URL}/api/forms/${formId}/responses`,
+          const statusRes = await axios.get(
+            `${API_BASE_URL}/api/forms/${formId}/my-submission-status`,
             { headers: { Authorization: `Bearer ${token}` } }
           );
-          // If we got here without error, user has access to responses (is teacher/admin)
-          // For students, we need to check in a different way
-          console.log("User can view all responses (likely teacher/admin)");
-        } catch (err) {
-          // For students, check if they've already submitted by trying to fetch user's submission
-          if (err.response?.status === 403) {
-            // User is not teacher/admin, so check their submission status differently
-            // This will be handled when they try to submit
-            console.log("Student user - will check submission on submit");
+          
+          if (statusRes.data.hasSubmitted) {
+            setAlreadySubmitted(true);
+            setError("You have already submitted this form. Multiple submissions are not allowed.");
+            console.log("Student has already submitted this form");
           }
+        } catch (err) {
+          // If endpoint doesn't exist or error occurs, we'll catch it at submission time
+          console.log("Could not check submission status, will validate at submit time");
         }
       }
       
@@ -202,6 +203,12 @@ const FormViewer = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
+    // Prevent submission in preview mode
+    if (isPreviewMode) {
+      setError("This form is in preview mode. You cannot submit responses in preview mode.");
+      return;
+    }
+    
     if (alreadySubmitted) {
       setError("You have already submitted this form. Multiple submissions are not allowed.");
       return;
@@ -285,6 +292,7 @@ const FormViewer = () => {
             onChange={(e) => handleAnswerChange(question._id, e.target.value, 'short_answer')}
             placeholder="Your answer"
             required={question.required}
+            disabled={isPreviewMode || alreadySubmitted}
           />
         );
         
@@ -297,6 +305,7 @@ const FormViewer = () => {
             onChange={(e) => handleAnswerChange(question._id, e.target.value, 'paragraph')}
             placeholder="Your answer"
             required={question.required}
+            disabled={isPreviewMode || alreadySubmitted}
           />
         );
         
@@ -314,6 +323,7 @@ const FormViewer = () => {
                 checked={answer === option}
                 onChange={(e) => handleAnswerChange(question._id, e.target.value, 'multiple_choice')}
                 required={question.required}
+                disabled={isPreviewMode || alreadySubmitted}
               />
             ))}
           </div>
@@ -332,6 +342,7 @@ const FormViewer = () => {
                 value={option}
                 checked={(answer || []).includes(option)}
                 onChange={(e) => handleAnswerChange(question._id, e.target.value, 'checkboxes')}
+                disabled={isPreviewMode || alreadySubmitted}
               />
             ))}
           </div>
@@ -343,6 +354,7 @@ const FormViewer = () => {
             value={answer || ''}
             onChange={(e) => handleAnswerChange(question._id, e.target.value, 'dropdown')}
             required={question.required}
+            disabled={isPreviewMode || alreadySubmitted}
           >
             <option value="">Choose...</option>
             {getOptions().map((option, idx) => (
@@ -369,6 +381,7 @@ const FormViewer = () => {
                     checked={answer == value}
                     onChange={(e) => handleAnswerChange(question._id, e.target.value, 'linearScale')}
                     required={question.required}
+                    disabled={isPreviewMode || alreadySubmitted}
                   />
                 );
               })}
@@ -384,6 +397,7 @@ const FormViewer = () => {
             value={answer || ''}
             onChange={(e) => handleAnswerChange(question._id, e.target.value, 'date')}
             required={question.required}
+            disabled={isPreviewMode || alreadySubmitted}
           />
         );
         
@@ -394,6 +408,7 @@ const FormViewer = () => {
             value={answer || ''}
             onChange={(e) => handleAnswerChange(question._id, e.target.value, 'time')}
             required={question.required}
+            disabled={isPreviewMode || alreadySubmitted}
           />
         );
         
@@ -404,6 +419,7 @@ const FormViewer = () => {
             type="file"
             onChange={(e) => handleAnswerChange(question._id, e.target.files[0], 'file_upload')}
             required={question.required}
+            disabled={isPreviewMode || alreadySubmitted}
           />
         );
         
@@ -419,6 +435,7 @@ const FormViewer = () => {
               checked={answer === 'True'}
               onChange={(e) => handleAnswerChange(question._id, e.target.value, 'true_false')}
               required={question.required}
+              disabled={isPreviewMode || alreadySubmitted}
             />
             <Form.Check
               type="radio"
@@ -428,6 +445,7 @@ const FormViewer = () => {
               checked={answer === 'False'}
               onChange={(e) => handleAnswerChange(question._id, e.target.value, 'true_false')}
               required={question.required}
+              disabled={isPreviewMode || alreadySubmitted}
             />
           </div>
         );
@@ -440,6 +458,7 @@ const FormViewer = () => {
             onChange={(e) => handleAnswerChange(question._id, e.target.value, 'identification')}
             placeholder="Your answer"
             required={question.required}
+            disabled={isPreviewMode || alreadySubmitted}
           />
         );
         
@@ -462,6 +481,7 @@ const FormViewer = () => {
                     }}
                     placeholder={`Item ${idx + 1}`}
                     required={question.required}
+                    disabled={isPreviewMode || alreadySubmitted}
                   />
                 </Form.Group>
               );
@@ -499,6 +519,7 @@ const FormViewer = () => {
                         handleAnswerChange(question._id, newMatches, 'matching_type');
                       }}
                       required={question.required}
+                      disabled={isPreviewMode || alreadySubmitted}
                     >
                       <option value="">Select match...</option>
                       {pairs.map((p, i) => (
@@ -650,6 +671,14 @@ const FormViewer = () => {
               </Alert>
             )}
             
+            {/* Preview Mode Alert */}
+            {isPreviewMode && (
+              <Alert variant="secondary" className="mt-3">
+                <i className="bi bi-eye me-2"></i>
+                <strong>Preview Mode:</strong> You are viewing this form in preview mode. Your responses will not be recorded.
+              </Alert>
+            )}
+            
             {/* Timer Display */}
             {timeRemaining && (
               <Alert 
@@ -679,6 +708,13 @@ const FormViewer = () => {
           {error && (
             <Alert variant="danger" dismissible onClose={() => setError("")}>
               {error}
+            </Alert>
+          )}
+          
+          {alreadySubmitted && !isPreviewMode && (
+            <Alert variant="warning">
+              <i className="bi bi-exclamation-circle me-2"></i>
+              You have already submitted this form. Multiple submissions are not allowed.
             </Alert>
           )}
           
@@ -811,13 +847,18 @@ const FormViewer = () => {
                   type="submit" 
                   variant="primary" 
                   size="lg"
-                  disabled={submitting || alreadySubmitted}
+                  disabled={submitting || alreadySubmitted || isPreviewMode}
                   style={{ 
                     backgroundColor: form.theme?.primaryColor,
-                    opacity: alreadySubmitted ? 0.6 : 1
+                    opacity: alreadySubmitted || isPreviewMode ? 0.6 : 1
                   }}
                 >
-                  {alreadySubmitted ? (
+                  {isPreviewMode ? (
+                    <>
+                      <i className="bi bi-eye me-2"></i>
+                      Preview Mode - Not Submittable
+                    </>
+                  ) : alreadySubmitted ? (
                     <>
                       <i className="bi bi-check2 me-2"></i>
                       Already Submitted
