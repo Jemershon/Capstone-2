@@ -2191,26 +2191,63 @@ app.get("/api/student-grades/:username", authenticateToken, requireStudent, asyn
     
     // Get all grades for the student
     const allGrades = await Grade.find({ student: username });
-    
-    // Filter out grades for unreturned exams
-    const returnedGrades = [];
-    
+
+    // We'll return two things combined: grades that are already returned AND
+    // pending manual-submission placeholders so the student sees submitted but
+    // not-yet-returned manual exams in their Grades view.
+    const resultGrades = [];
+
     for (const grade of allGrades) {
-      // If the grade has an associated examId, check if it's been returned
+      // Enrich grade with manualGrading flag if it links to an exam
       if (grade.examId) {
-        const exam = await Exam.findById(grade.examId);
-        // Only include if exam is returned or exam doesn't exist (legacy grades)
-        if (!exam || exam.returned) {
-          returnedGrades.push(grade);
+        const exam = await Exam.findById(grade.examId).select('manualGrading returned');
+        // If exam exists and is not returned yet, skip including this grade until returned
+        if (exam && !exam.returned) {
+          // Skip this grade for now; it will be represented by a submission placeholder below when appropriate
+          continue;
         }
+        // Attach manualGrading flag for client-side filtering
+        const enriched = {
+          ...grade.toObject(),
+          manualGrading: !!(exam && exam.manualGrading),
+        };
+        resultGrades.push(enriched);
       } else {
-        // No examId means it's not from an exam, include it
-        returnedGrades.push(grade);
+        // No examId means it's not from an exam, include it as-is (assume auto-graded assignment)
+        resultGrades.push({ ...grade.toObject(), manualGrading: false });
       }
     }
-    
-    console.log(`Found ${returnedGrades.length} returned grades out of ${allGrades.length} total for student ${username}`);
-    res.json(returnedGrades);
+
+    // Also include pending manual submissions so students see their submitted manual exams
+    try {
+      const pendingSubmissions = await ExamSubmission.find({ student: username, returned: false }).sort({ submittedAt: -1 });
+      for (const sub of pendingSubmissions) {
+        // Fetch exam to get title and manual flag
+        const exam = await Exam.findById(sub.examId).select('title manualGrading class');
+        if (exam) {
+          // Only include manual grading exams (auto-graded submissions already created a Grade)
+          if (exam.manualGrading) {
+            resultGrades.push({
+              _id: sub._id,
+              class: sub.className || exam.class || null,
+              student: username,
+              grade: 'Pending',
+              feedback: '',
+              examId: sub.examId,
+              examTitle: exam.title || 'Exam',
+              submittedAt: sub.submittedAt,
+              manualGrading: true,
+              pending: true
+            });
+          }
+        }
+      }
+    } catch (pendingErr) {
+      console.warn('Failed to include pending submissions in student grades:', pendingErr && pendingErr.message ? pendingErr.message : pendingErr);
+    }
+
+    console.log(`Returning ${resultGrades.length} grade entries for student ${username} (including pending)`);
+    res.json(resultGrades);
   } catch (err) {
     console.error("Get student grades error:", err);
     res.status(500).json({ error: "Failed to fetch student grades" });
@@ -2516,7 +2553,80 @@ app.get("/api/grades", authenticateToken, async (req, res) => {
     const grades = await Grade.find({ class: { $in: classNames } })
       .skip((page - 1) * limit)
       .limit(parseInt(limit));
-    res.json(grades);
+    
+    // Also include pending/newly-submitted exam submissions so teacher sees students who just submitted
+    // Both manual-graded and auto-graded exams should appear in the teacher's view immediately
+    const resultGrades = [...grades];
+    
+    try {
+      // Get all exams from teacher's classes (not just ones created by this teacher)
+      // This ensures the teacher sees submissions for any exam in their class
+      const classExams = await Exam.find({ class: { $in: classNames } }).select('_id title manualGrading class');
+      const examIds = classExams.map(e => e._id);
+      
+      console.log(`[/api/grades] Found ${examIds.length} exams in teacher's classes (${classNames.join(', ')})`);
+      
+      if (examIds.length > 0) {
+        const allSubmissions = await ExamSubmission.find({ examId: { $in: examIds } })
+          .populate('examId', 'title manualGrading class')
+          .sort({ submittedAt: -1 });
+        
+        console.log(`[/api/grades] Found ${allSubmissions.length} exam submissions`);
+        
+        // Get all unique student usernames to fetch user info
+        const studentUsernames = [...new Set(allSubmissions.map(sub => sub.student))];
+        const students = await User.find({ username: { $in: studentUsernames } }).select('username name email section');
+        const studentMap = {};
+        students.forEach(s => {
+          studentMap[s.username] = {
+            name: s.name || s.username,
+            email: s.email || '',
+            section: s.section || 'No Section'
+          };
+        });
+        
+        // For each submission, check if it's already represented in grades
+        // If not, add it as pending (for manual) or new (for auto without a grade entry yet)
+        for (const sub of allSubmissions) {
+          const exam = sub.examId;
+          if (!exam) continue;
+          
+          // Check if this submission already has a grade entry
+          const existingGrade = grades.find(g => 
+            g.student === sub.student && 
+            (g.examId?.toString() === exam._id.toString() || g.examId === exam._id)
+          );
+          
+          if (!existingGrade) {
+            const studentInfo = studentMap[sub.student] || { name: sub.student, email: '', section: 'No Section' };
+            // No grade entry yet - add it
+            resultGrades.push({
+              _id: sub._id,
+              class: exam.class,
+              student: sub.student,
+              studentName: studentInfo.name,
+              studentEmail: studentInfo.email,
+              section: studentInfo.section,
+              grade: exam.manualGrading ? 'Pending' : `${sub.finalScore || 0}/${sub.totalQuestions || 0}`,
+              feedback: sub.feedback || '',
+              examId: exam._id,
+              examTitle: exam.title || 'Exam',
+              submittedAt: sub.submittedAt,
+              finalScore: sub.finalScore || 0,
+              totalQuestions: sub.totalQuestions || 0,
+              rawScore: sub.rawScore || 0,
+              creditsUsed: sub.creditsUsed || 0,
+              manualGrading: exam.manualGrading || false,
+              pending: exam.manualGrading || false
+            });
+          }
+        }
+      }
+    } catch (pendingErr) {
+      console.error('[/api/grades] Failed to include pending submissions in teacher grades:', pendingErr && pendingErr.message ? pendingErr.message : pendingErr);
+    }
+    
+    res.json(resultGrades);
   } catch (err) {
     console.error("Get grades error:", err);
     res.status(500).json({ error: "Failed to fetch grades" });

@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { 
   Container, Row, Col, Card, Table, Button, Alert, 
-  Spinner, Badge, Dropdown, Tabs, Tab 
+  Spinner, Badge, Dropdown, Tabs, Tab, Modal, Form
 } from "react-bootstrap";
 import { API_BASE_URL } from "../../api";
 
@@ -148,18 +148,33 @@ const FormAnalytics = () => {
   };
   
   const renderQuestionAnalytics = (question, questionStats) => {
-    if (!questionStats) return null;
+    if (!questionStats) {
+      return (
+        <Card className="mb-3">
+          <Card.Body>
+            <h6>{question.question || question.title}</h6>
+            <p className="text-muted">No responses yet</p>
+          </Card.Body>
+        </Card>
+      );
+    }
     
     const { type } = question;
+    
+    // Convert answers object to array format for display
+    const answerItems = Object.entries(questionStats.answers || {}).map(([key, count]) => ({
+      _id: key,
+      count: count
+    }));
     
     if (type === 'multiple_choice' || type === 'dropdown') {
       return (
         <Card className="mb-3">
           <Card.Body>
-            <h6>{question.question}</h6>
+            <h6>{question.question || question.title}</h6>
             <div className="mt-3">
-              {questionStats.distribution.map((item, idx) => {
-                const percentage = (item.count / analytics.totalResponses) * 100;
+              {answerItems.length > 0 ? answerItems.map((item, idx) => {
+                const percentage = (item.count / (questionStats.totalAnswers || 1)) * 100;
                 return (
                   <div key={idx} className="mb-2">
                     <div className="d-flex justify-content-between mb-1">
@@ -178,7 +193,7 @@ const FormAnalytics = () => {
                     </div>
                   </div>
                 );
-              })}
+              }) : <p className="text-muted">No data</p>}
             </div>
           </Card.Body>
         </Card>
@@ -189,11 +204,11 @@ const FormAnalytics = () => {
       return (
         <Card className="mb-3">
           <Card.Body>
-            <h6>{question.question}</h6>
+            <h6>{question.question || question.title}</h6>
             <small className="text-muted">Multiple selections allowed</small>
             <div className="mt-3">
-              {questionStats.distribution.map((item, idx) => {
-                const percentage = (item.count / analytics.totalResponses) * 100;
+              {answerItems.length > 0 ? answerItems.map((item, idx) => {
+                const percentage = (item.count / (questionStats.totalAnswers || 1)) * 100;
                 return (
                   <div key={idx} className="mb-2">
                     <div className="d-flex justify-content-between mb-1">
@@ -210,26 +225,26 @@ const FormAnalytics = () => {
                     </div>
                   </div>
                 );
-              })}
+              }) : <p className="text-muted">No data</p>}
             </div>
           </Card.Body>
         </Card>
       );
     }
     
-    if (type === 'linearScale') {
-      const avgScore = questionStats.averageScore?.toFixed(2);
+    if (type === 'linearScale' || type === 'linear_scale') {
+      const avgScore = questionStats.average?.toFixed(2);
       return (
         <Card className="mb-3">
           <Card.Body>
-            <h6>{question.question}</h6>
+            <h6>{question.question || question.title}</h6>
             <div className="text-center my-3">
               <h2 className="text-primary">{avgScore || 'N/A'}</h2>
               <small className="text-muted">Average Score</small>
             </div>
             <div className="mt-3">
-              {questionStats.distribution.map((item, idx) => {
-                const percentage = (item.count / analytics.totalResponses) * 100;
+              {answerItems.length > 0 ? answerItems.map((item, idx) => {
+                const percentage = (item.count / (questionStats.totalAnswers || 1)) * 100;
                 return (
                   <div key={idx} className="mb-2">
                     <div className="d-flex justify-content-between mb-1">
@@ -246,7 +261,7 @@ const FormAnalytics = () => {
                     </div>
                   </div>
                 );
-              })}
+              }) : <p className="text-muted">No data</p>}
             </div>
           </Card.Body>
         </Card>
@@ -254,18 +269,19 @@ const FormAnalytics = () => {
     }
     
     if (type === 'short_answer' || type === 'paragraph') {
+      const responses = questionStats.responses || [];
       return (
         <Card className="mb-3">
           <Card.Body>
-            <h6>{question.question}</h6>
-            <small className="text-muted">{analytics.totalResponses} responses</small>
+            <h6>{question.question || question.title}</h6>
+            <small className="text-muted">{responses.length} responses</small>
             <div className="mt-3" style={{ maxHeight: '300px', overflowY: 'auto' }}>
-              {questionStats.distribution.map((item, idx) => (
+              {responses.length > 0 ? responses.map((resp, idx) => (
                 <div key={idx} className="border-bottom py-2">
                   <small className="text-muted">Response {idx + 1}:</small>
-                  <p className="mb-0">{item._id}</p>
+                  <p className="mb-0">{resp || '(empty)'}</p>
                 </div>
-              ))}
+              )) : <p className="text-muted">No responses</p>}
             </div>
           </Card.Body>
         </Card>
@@ -377,8 +393,8 @@ const FormAnalytics = () => {
           <Row>
             <Col>
               {form.questions.map((question) => {
-                const questionStats = analytics.questionStats.find(
-                  qs => qs.questionId === question._id
+                const questionStats = analytics?.questionAnalytics?.find(
+                  qs => qs.questionId === question._id || qs.questionId === question._id.toString()
                 );
                 return (
                   <div key={question._id}>
@@ -417,8 +433,13 @@ const FormAnalytics = () => {
                   return (
                     <tr key={response._id}>
                       <td>
-                        {response.respondent 
-                          ? `${response.respondent.firstName} ${response.respondent.lastName}`
+                        {response.respondent
+                          ? (response.respondent.name ||
+                              // support older shapes where firstName/lastName were used
+                              ((response.respondent.firstName || response.respondent.lastName) ? `${response.respondent.firstName || ''} ${response.respondent.lastName || ''}`.trim() : null) ||
+                              response.respondent.username ||
+                              response.respondent.email ||
+                              'Anonymous')
                           : 'Anonymous'}
                       </td>
                       <td>
@@ -495,10 +516,14 @@ const FormAnalytics = () => {
       <Modal show={showGradingModal} onHide={() => setShowGradingModal(false)} size="lg">
         <Modal.Header closeButton>
           <Modal.Title>
-            Grade Response - {selectedResponse?.respondent 
-              ? `${selectedResponse.respondent.firstName} ${selectedResponse.respondent.lastName}`
-              : 'Anonymous'}
-          </Modal.Title>
+              Grade Response - {selectedResponse?.respondent
+                ? (selectedResponse.respondent.name ||
+                    ((selectedResponse.respondent.firstName || selectedResponse.respondent.lastName) ? `${selectedResponse.respondent.firstName || ''} ${selectedResponse.respondent.lastName || ''}`.trim() : null) ||
+                    selectedResponse.respondent.username ||
+                    selectedResponse.respondent.email ||
+                    'Anonymous')
+                : 'Anonymous'}
+            </Modal.Title>
         </Modal.Header>
         <Modal.Body style={{ maxHeight: '70vh', overflowY: 'auto' }}>
           {selectedResponse && (

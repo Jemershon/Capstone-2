@@ -27,6 +27,8 @@ function Materials({ className, showCreateModal: externalShowCreateModal, onShow
     description: '',
     type: 'link',
     content: '',
+    openingTime: '',
+    closingTime: '',
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -519,6 +521,29 @@ function Materials({ className, showCreateModal: externalShowCreateModal, onShow
                 <option value="video">Video</option>
               </Form.Select>
             </Form.Group>
+
+            <Row>
+              <Col md={6}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Opening Time (optional)</Form.Label>
+                  <Form.Control
+                    type="datetime-local"
+                    value={materialData.openingTime}
+                    onChange={(e) => setMaterialData({ ...materialData, openingTime: e.target.value })}
+                  />
+                </Form.Group>
+              </Col>
+              <Col md={6}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Closing Time (optional)</Form.Label>
+                  <Form.Control
+                    type="datetime-local"
+                    value={materialData.closingTime}
+                    onChange={(e) => setMaterialData({ ...materialData, closingTime: e.target.value })}
+                  />
+                </Form.Group>
+              </Col>
+            </Row>
             
             {materialData.type === 'file' ? (
               <Form.Group className="mb-3">
@@ -558,6 +583,8 @@ function Materials({ className, showCreateModal: externalShowCreateModal, onShow
                 description: '',
                 type: 'link',
                 content: '',
+                openingTime: '',
+                closingTime: '',
               });
               setFileToUpload(null);
               if (onShowCreateModalChange) onShowCreateModalChange(false);

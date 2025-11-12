@@ -50,7 +50,7 @@ router.get("/materials/:id", authenticateToken, async (req, res) => {
 // Create material
 router.post("/materials", authenticateToken, requireTeacherOrAdmin, async (req, res) => {
   try {
-    const { title, description, type, content, class: className } = req.body;
+    const { title, description, type, content, class: className, openingTime, closingTime } = req.body;
 
     if (!title || !type || !content || !className) {
       return res.status(400).json({ error: "Required fields: title, type, content, class" });
@@ -62,7 +62,9 @@ router.post("/materials", authenticateToken, requireTeacherOrAdmin, async (req, 
       type,
       content,
       class: className,
-      teacher: req.user.username
+      teacher: req.user.username,
+      openingTime: openingTime ? new Date(openingTime) : undefined,
+      closingTime: closingTime ? new Date(closingTime) : undefined
     });
 
     await material.save();

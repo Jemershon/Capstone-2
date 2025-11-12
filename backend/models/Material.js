@@ -11,6 +11,8 @@ const materialSchema = new mongoose.Schema({
   content: { type: String, required: true }, // URL for links/videos, file path for uploads
   class: { type: String, required: true },
   teacher: { type: String, required: true },
+  openingTime: { type: Date },
+  closingTime: { type: Date },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now }
 });

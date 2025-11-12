@@ -43,6 +43,10 @@ const FormBuilder = () => {
       acceptingResponses: true,
       confirmationMessage: "Your response has been recorded.",
       usePhilippineStyle: false, // Toggle for Philippine exam format
+      openAt: null,
+      closeAt: null,
+      showProgressBar: false,
+      showResponseSummary: false,
     },
     theme: {
       primaryColor: "#a30c0c",
@@ -152,8 +156,28 @@ const FormBuilder = () => {
       // Clean form data - remove MongoDB internal fields and extra computed fields
       const { _id, __v, createdAt, updatedAt, responseCount, availabilityStatus, ...cleanFormData } = form;
       
+      // Prepare payload: keep local datetime strings in the UI (`openAt`, `closeAt`)
+      // but also include explicit UTC ISO timestamps for backend processing.
+      const settingsWithUtc = { ...cleanFormData.settings };
+      try {
+        if (cleanFormData.settings?.openAt) {
+          // convert local datetime-local string to a proper UTC ISO for backend
+          settingsWithUtc.openAtUtc = new Date(cleanFormData.settings.openAt).toISOString();
+        }
+      } catch (e) {
+        console.warn("Failed to compute openAtUtc:", e);
+      }
+      try {
+        if (cleanFormData.settings?.closeAt) {
+          settingsWithUtc.closeAtUtc = new Date(cleanFormData.settings.closeAt).toISOString();
+        }
+      } catch (e) {
+        console.warn("Failed to compute closeAtUtc:", e);
+      }
+
       const formData = {
         ...cleanFormData,
+        settings: settingsWithUtc,
         status: publish ? "published" : form.status,
       };
       
@@ -577,6 +601,28 @@ const FormBuilder = () => {
                       ...form,
                       settings: { ...form.settings, shuffleAnswers: e.target.checked }
                     })}
+                    className="mb-2"
+                  />
+                  <Form.Check
+                    type="switch"
+                    id="showProgressBar"
+                    label="Show progress bar"
+                    checked={form.settings.showProgressBar}
+                    onChange={(e) => setForm({
+                      ...form,
+                      settings: { ...form.settings, showProgressBar: e.target.checked }
+                    })}
+                    className="mb-2"
+                  />
+                  <Form.Check
+                    type="switch"
+                    id="showResponseSummary"
+                    label="Show response summary after submission"
+                    checked={form.settings.showResponseSummary}
+                    onChange={(e) => setForm({
+                      ...form,
+                      settings: { ...form.settings, showResponseSummary: e.target.checked }
+                    })}
                     className="mb-3"
                   />
                   <Form.Text className="text-muted d-block mb-3">
@@ -591,10 +637,10 @@ const FormBuilder = () => {
                     <Form.Label>Open Date & Time (Optional)</Form.Label>
                     <Form.Control
                       type="datetime-local"
-                      value={form.settings.openAt ? new Date(form.settings.openAt).toISOString().slice(0, 16) : ""}
+                      value={form.settings.openAt || ""}
                       onChange={(e) => setForm({
                         ...form,
-                        settings: { ...form.settings, openAt: e.target.value ? new Date(e.target.value).toISOString() : null }
+                        settings: { ...form.settings, openAt: e.target.value || null }
                       })}
                     />
                     <Form.Text className="text-muted">
@@ -606,10 +652,10 @@ const FormBuilder = () => {
                     <Form.Label>Close Date & Time (Optional)</Form.Label>
                     <Form.Control
                       type="datetime-local"
-                      value={form.settings.closeAt ? new Date(form.settings.closeAt).toISOString().slice(0, 16) : ""}
+                      value={form.settings.closeAt || ""}
                       onChange={(e) => setForm({
                         ...form,
-                        settings: { ...form.settings, closeAt: e.target.value ? new Date(e.target.value).toISOString() : null }
+                        settings: { ...form.settings, closeAt: e.target.value || null }
                       })}
                     />
                     <Form.Text className="text-muted">
@@ -755,13 +801,19 @@ const FormBuilder = () => {
                           <Form.Group className="mb-3">
                             <Form.Label>Duration (minutes)</Form.Label>
                             <Form.Control
-                              type="number"
-                              value={form.examHeader?.duration || 60}
-                              onChange={(e) => setForm({
-                                ...form,
-                                examHeader: { ...form.examHeader, duration: Number(e.target.value) }
-                              })}
-                              min="1"
+                              type="text"
+                              inputMode="numeric"
+                              value={form.examHeader?.duration}
+                              onChange={(e) => {
+                                const value = e.target.value;
+                                // Allow empty string or valid integers
+                                if (value === '' || /^\d*$/.test(value)) {
+                                  setForm({
+                                    ...form,
+                                    examHeader: { ...form.examHeader, duration: value === '' ? '' : parseInt(value) }
+                                  });
+                                }
+                              }}
                             />
                           </Form.Group>
                         </Col>
@@ -780,16 +832,20 @@ const FormBuilder = () => {
                         </Col>
                         <Col md={4}>
                           <Form.Group className="mb-3">
-                            <Form.Label>Passing Score (%)</Form.Label>
+                            <Form.Label>Passing Score</Form.Label>
                             <Form.Control
-                              type="number"
-                              value={form.examHeader?.passingScore || 50}
-                              onChange={(e) => setForm({
-                                ...form,
-                                examHeader: { ...form.examHeader, passingScore: Number(e.target.value) }
-                              })}
-                              min="1"
-                              max="100"
+                              type="text"
+                              inputMode="numeric"
+                              value={form.examHeader?.passingScore}
+                              onChange={(e) => {
+                                const value = e.target.value;
+                                if (value === '' || /^\d+$/.test(value)) {
+                                  setForm({
+                                    ...form,
+                                    examHeader: { ...form.examHeader, passingScore: value === '' ? '' : parseInt(value) }
+                                  });
+                                }
+                              }}
                             />
                           </Form.Group>
                         </Col>
@@ -1147,14 +1203,19 @@ const FormBuilder = () => {
                   <small className="text-muted ms-2">(How many points is this question worth?)</small>
                 </Form.Label>
                 <Form.Control
-                  type="number"
+                  type="text"
+                  inputMode="decimal"
                   value={currentQuestion.points}
-                  onChange={(e) => setCurrentQuestion({
-                    ...currentQuestion,
-                    points: Number(e.target.value) || 1
-                  })}
-                  min="0.5"
-                  step="0.5"
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    // Allow empty string or valid numbers
+                    if (value === '' || /^\d*\.?\d*$/.test(value)) {
+                      setCurrentQuestion({
+                        ...currentQuestion,
+                        points: value === '' ? '' : parseFloat(value)
+                      });
+                    }
+                  }}
                   placeholder="Enter points (e.g., 1, 2, 5)"
                 />
                 <Form.Text className="text-muted">
@@ -1274,17 +1335,6 @@ const FormBuilder = () => {
               value={currentSection.instructions}
               onChange={(e) => setCurrentSection({ ...currentSection, instructions: e.target.value })}
               placeholder="e.g., Choose the letter of the correct answer."
-            />
-          </Form.Group>
-          
-          <Form.Group className="mb-3">
-            <Form.Label>Points Per Item</Form.Label>
-            <Form.Control
-              type="number"
-              value={currentSection.pointsPerItem}
-              onChange={(e) => setCurrentSection({ ...currentSection, pointsPerItem: Number(e.target.value) })}
-              min="0.5"
-              step="0.5"
             />
           </Form.Group>
         </Modal.Body>

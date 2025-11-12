@@ -303,7 +303,7 @@ const FormsList = () => {
                       <Dropdown.Item onClick={() => navigate(`/teacher/forms/${form._id}/responses`)}>
                         <i className="bi bi-bar-chart me-2"></i> View Responses ({form.responseCount || 0})
                       </Dropdown.Item>
-                      <Dropdown.Item onClick={() => window.open(`/forms/${form._id}`, '_blank')}>
+                      <Dropdown.Item onClick={() => window.open(`/forms/${form._id}?preview=true`, '_blank')}>
                         <i className="bi bi-box-arrow-up-right me-2"></i> Preview
                       </Dropdown.Item>
                       <Dropdown.Item onClick={() => handleDuplicate(form)}>

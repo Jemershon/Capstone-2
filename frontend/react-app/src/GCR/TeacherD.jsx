@@ -2818,7 +2818,7 @@ function TeacherClassStream() {
                       <Button
                         variant="outline-secondary"
                         size="sm"
-                        onClick={() => window.open(`/forms/${form._id}`, '_blank')}
+                        onClick={() => window.open(`/forms/${form._id}?preview=true`, '_blank')}
                       >
                         <i className="bi bi-eye me-2"></i>
                         Preview
@@ -4706,9 +4706,48 @@ function Grades() {
     try {
       const headers = { Authorization: `Bearer ${localStorage.getItem("token")}` };
       const response = await retry(() => 
-        axios.get(`${API_BASE_URL}/api/leaderboard`, { headers })
+        axios.get(`${API_BASE_URL}/api/grades`, { headers })
       );
-      setLeaderboardData(response.data);
+      
+      // Transform /api/grades response to match leaderboardData structure
+      // /api/grades returns an array of grades (both Grade documents and pending ExamSubmissions)
+      const gradesArray = Array.isArray(response.data) ? response.data : [];
+      
+      // Filter and structure the data to match the expected format
+      const allSubmissions = gradesArray.map(item => ({
+        _id: item._id,
+        student: item.student,
+        studentName: item.studentName || item.student,
+        studentEmail: item.studentEmail || '',
+        section: item.section || 'No Section',
+        creditPoints: item.creditPoints || 0,
+        examTitle: item.examTitle || item.grade || 'Unknown',
+        className: item.class || 'Unknown Class',
+        rawScore: item.rawScore || 0,
+        finalScore: item.finalScore || 0,
+        totalQuestions: item.totalQuestions || 0,
+        creditsUsed: item.creditsUsed || 0,
+        submittedAt: item.submittedAt,
+        examDue: item.examDue || null,
+        isEarly: item.isEarly,
+        isLate: item.isLate,
+        manualGrading: item.manualGrading || false,
+        pending: item.pending || false,
+        grade: item.grade || 'Pending',
+        feedback: item.feedback || '',
+        examId: item.examId
+      }));
+      
+      setLeaderboardData({
+        allSubmissions: allSubmissions,
+        byClass: {},
+        bySection: {},
+        summary: {
+          totalSubmissions: allSubmissions.length,
+          totalStudents: new Set(allSubmissions.map(s => s.student)).size,
+          classes: [...new Set(allSubmissions.map(s => s.className))]
+        }
+      });
       
       // Fetch exams data to check returned status
       const examsResponse = await retry(() =>
@@ -4717,8 +4756,8 @@ function Grades() {
       setExams(examsResponse.data || []);
       
     } catch (err) {
-      console.error("Fetch leaderboard error:", err.response?.data || err.message);
-      setError(err.response?.data?.error || "Failed to load leaderboard data");
+      console.error("Fetch grades error:", err.response?.data || err.message);
+      setError(err.response?.data?.error || "Failed to load grades data");
       setShowToast(true);
     } finally {
       setLoading(false);
@@ -4870,6 +4909,13 @@ function Grades() {
     socket.on('exam-submitted', (data) => {
       console.log('Exam submitted, refreshing leaderboard:', data);
       // Refresh leaderboard data when any student submits an exam
+      fetchLeaderboardData();
+    });
+
+    // Also listen for form submissions (forms are shown in Grades via /api/grades endpoint)
+    socket.on('form-submitted', (data) => {
+      console.log('Form submitted, refreshing leaderboard:', data);
+      // Refresh leaderboard data when any student submits a form
       fetchLeaderboardData();
     });
 

@@ -1648,6 +1648,28 @@ function StudentClassStream() {
       }
     });
 
+    // Listen for form submissions - refresh form status
+    socket.on('form-submitted', (data) => {
+      console.log('Form submitted event received, refreshing form status:', data);
+      const token = getAuthToken();
+      if (token) {
+        fetchForms(token);
+      }
+    });
+    
+    // Listen for form deletions - remove deleted form from stream immediately
+    socket.on('form-deleted', (data) => {
+      console.log('Form deleted event received:', data);
+      // If this deletion is for the current class, remove it from state
+      if (data?.className === className) {
+        setForms(prev => prev ? prev.filter(f => f._id !== data.formId) : prev);
+      } else {
+        // Otherwise, still attempt a refresh to be safe
+        const token = getAuthToken();
+        if (token) fetchForms(token).catch(err => console.error('Error refetching forms after form-deleted event:', err));
+      }
+    });
+
     return () => {
       socket.disconnect();
     };
@@ -1845,26 +1867,41 @@ function StudentClassStream() {
         form.className === className && form.status === 'published'
       );
 
+      console.log('Fetched forms before status check:', classForms.length);
+
       // Fetch submission status for each form
       const formsWithStatus = await Promise.all(
         classForms.map(async (form) => {
           try {
+            console.log(`Checking submission status for form: ${form._id} (${form.title})`);
             const statusRes = await axios.get(
               `${API_BASE_URL}/api/forms/${form._id}/my-submission-status`,
               { headers: { Authorization: `Bearer ${token}` } }
             );
+            console.log(`Form ${form.title} status response:`, statusRes.data);
             return {
               ...form,
-              hasSubmitted: statusRes.data.hasSubmitted
+              hasSubmitted: statusRes.data.hasSubmitted === true
             };
           } catch (err) {
-            console.error(`Could not fetch submission status for form ${form._id}:`, err);
-            return form; // Return form without status if error
+            console.error(`Could not fetch submission status for form ${form.title} (${form._id}):`, {
+              status: err.response?.status,
+              message: err.message,
+              data: err.response?.data
+            });
+            return {
+              ...form,
+              hasSubmitted: false // Default to not submitted if error
+            };
           }
         })
       );
       
-      console.log('Forms fetched for class:', formsWithStatus.length);
+      console.log('Forms with status:', formsWithStatus.map(f => ({ 
+        title: f.title, 
+        hasSubmitted: f.hasSubmitted,
+        _id: f._id
+      })));
       setForms(formsWithStatus);
     } catch (err) {
       console.error("Error fetching forms:", err);
@@ -2279,6 +2316,15 @@ function StudentClassStream() {
       try {
         await fetchSubmittedExams(getAuthToken());
         console.log("✅ Successfully fetched updated submitted exams list");
+        // After fetching updated submissions, navigate student to Grades
+        try {
+          const tab = selectedExam?.manualGrading ? 'manual' : 'auto';
+          // navigate is available in this component scope
+          navigate('/student/grades', { state: { tab } });
+          console.log('Navigated to /student/grades with tab=', tab);
+        } catch (navErr) {
+          console.error('Error navigating to grades:', navErr);
+        }
       } catch (fetchErr) {
         console.error("❌ Error fetching submitted exams after submission:", fetchErr);
       }
@@ -2441,14 +2487,14 @@ function StudentClassStream() {
                           
                           <div className="d-flex gap-2">
                             <Button
-                              variant={form.hasSubmitted ? "success" : "primary"}
+                              variant={form.hasSubmitted === true ? "success" : "primary"}
                               size="sm"
-                              disabled={form.hasSubmitted}
+                              disabled={form.hasSubmitted === true}
                               onClick={() => window.open(`/forms/${form._id}`, '_blank')}
-                              title={form.hasSubmitted ? "You have already submitted this form" : ""}
+                              title={form.hasSubmitted === true ? "You have already submitted this form" : ""}
                             >
-                              <i className={`bi ${form.hasSubmitted ? 'bi-check2-circle' : 'bi-pencil-square'} me-2`}></i>
-                              {form.hasSubmitted ? 'Submitted' : (form.settings?.isQuiz ? 'Take Quiz' : 'Fill Form')}
+                              <i className={`bi ${form.hasSubmitted === true ? 'bi-check2-circle' : 'bi-pencil-square'} me-2`}></i>
+                              {form.hasSubmitted === true ? 'Submitted' : (form.settings?.isQuiz ? 'Take Quiz' : 'Fill Form')}
                             </Button>
                           </div>
                         </Card.Body>
@@ -2578,6 +2624,63 @@ function StudentClassStream() {
 
             {activeTab === "classwork" && (
               <div>
+              {/* Forms Section */}
+              {forms.length > 0 && (
+                <div className="mb-4">
+                  <h5 className="mb-3">📝 Forms & Quizzes</h5>
+                  {forms.map((form) => (
+                    <Card key={form._id} className="mb-3 border-primary">
+                      <Card.Body>
+                        <div className="d-flex align-items-center mb-2">
+                          <div className="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-3" 
+                               style={{ width: 40, height: 40 }}>
+                            📝
+                          </div>
+                          <div className="flex-grow-1">
+                            <div className="d-flex align-items-center gap-2">
+                              <strong>{form.owner}</strong>
+                              <Badge bg="primary">
+                                {form.settings?.isQuiz ? 'Quiz' : 'Form'}
+                              </Badge>
+                            </div>
+                            <small className="text-muted">
+                              {new Date(form.createdAt).toLocaleString()}
+                            </small>
+                          </div>
+                        </div>
+                        
+                        <h6 className="mb-2">{form.title}</h6>
+                        {form.description && (
+                          <p className="text-muted mb-2">{form.description}</p>
+                        )}
+                        
+                        {form.settings?.deadline && (
+                          <div className="mb-2">
+                            <small className="text-muted">
+                              <i className="bi bi-calendar me-1"></i>
+                              Due: {new Date(form.settings.deadline).toLocaleString()}
+                            </small>
+                          </div>
+                        )}
+                        
+                        <div className="d-flex gap-2">
+                          <Button
+                            variant={form.hasSubmitted === true ? "success" : "primary"}
+                            size="sm"
+                            disabled={form.hasSubmitted === true}
+                            onClick={() => window.open(`/forms/${form._id}`, '_blank')}
+                            title={form.hasSubmitted === true ? "You have already submitted this form" : ""}
+                          >
+                            <i className={`bi ${form.hasSubmitted === true ? 'bi-check2-circle' : 'bi-pencil-square'} me-2`}></i>
+                            {form.hasSubmitted === true ? 'Submitted' : (form.settings?.isQuiz ? 'Take Quiz' : 'Fill Form')}
+                          </Button>
+                        </div>
+                      </Card.Body>
+                    </Card>
+                  ))}
+                </div>
+              )}
+              
               {/* Uploaded Files Section */}
               <div className="mb-4">
                 <h5 className="mb-3">📎 Class Files</h5>
@@ -3267,6 +3370,19 @@ function StudentGrades() {
   const [showToast, setShowToast] = useState(false);
   const [activeTab, setActiveTab] = useState("all"); // "all", "auto", "manual"
   const [filterClass, setFilterClass] = useState("all");
+  const location = useLocation();
+
+  // If navigated here with a preferred tab (e.g. after submitting an exam), honor it
+  useEffect(() => {
+    try {
+      const preferred = location?.state?.tab;
+      if (preferred && ['all', 'auto', 'manual'].includes(preferred)) {
+        setActiveTab(preferred);
+      }
+    } catch (e) {
+      // ignore
+    }
+  }, [location?.state?.tab]);
   
   // Helper function to handle API errors gracefully for students
   const handleApiError = (err, fallbackMessage = "An error occurred") => {

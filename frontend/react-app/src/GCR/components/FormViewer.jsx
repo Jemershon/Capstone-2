@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import axios from "axios";
+import io from "socket.io-client";
 import { 
   Container, Card, Form, Button, Alert, Spinner, 
   ProgressBar, Row, Col 
@@ -29,6 +30,17 @@ const FormViewer = () => {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  // Determine viewer role from JWT (if present) so teachers can't submit even if they open the student URL
+  const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+  let viewerRole = null;
+  try {
+    if (token) {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      viewerRole = payload?.role || null;
+    }
+  } catch (e) {
+    viewerRole = null;
+  }
   const [currentPage, setCurrentPage] = useState(0);
   const [startTime] = useState(Date.now());
   const [shuffledQuestions, setShuffledQuestions] = useState([]);
@@ -203,9 +215,9 @@ const FormViewer = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // Prevent submission in preview mode
-    if (isPreviewMode) {
-      setError("This form is in preview mode. You cannot submit responses in preview mode.");
+    // Prevent submission in preview mode or if the viewer is a teacher/admin
+    if (isPreviewMode || viewerRole === 'Teacher' || viewerRole === 'Admin') {
+      setError("This form is in preview mode or you are viewing as a teacher/admin. You cannot submit responses.");
       return;
     }
     
@@ -230,13 +242,40 @@ const FormViewer = () => {
       
       const timeSpent = Math.floor((Date.now() - startTime) / 1000);
       
+      // Get respondent info from token if available
+      let respondent = null;
+      const token = localStorage.getItem("token");
+      
+      if (token) {
+        try {
+          // Decode token to get user info
+          const base64Url = token.split('.')[1];
+          const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+          const jsonPayload = decodeURIComponent(
+            atob(base64)
+              .split('')
+              .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+              .join('')
+          );
+          const decoded = JSON.parse(jsonPayload);
+          respondent = {
+            username: decoded.username,
+            email: decoded.email,
+            name: decoded.name
+          };
+        } catch (err) {
+          console.log("Could not decode token:", err);
+        }
+      }
+      
       const payload = {
         answers: formattedAnswers,
         timeSpent,
+        respondent,
+        startTime
       };
       
-      // Add respondent info if logged in
-      const token = localStorage.getItem("token");
+      // Submit form
       if (token) {
         await axios.post(`${API_BASE_URL}/api/forms/${formId}/responses`, payload, {
           headers: { Authorization: `Bearer ${token}` },
@@ -248,6 +287,21 @@ const FormViewer = () => {
       // Mark as submitted to prevent double submissions
       setAlreadySubmitted(true);
       setSuccess("Form submitted successfully! Thank you for your response.");
+      
+      // Emit socket event to notify other clients that form was submitted
+      try {
+        const socket = io(API_BASE_URL);
+        if (form.className) {
+          socket.emit('form-submitted', { 
+            formId: formId, 
+            className: form.className,
+            title: form.title 
+          });
+        }
+        socket.disconnect();
+      } catch (socketErr) {
+        console.log("Could not emit socket event:", socketErr);
+      }
       
       // Don't reload form - disable submission permanently
       setSubmitting(false);
@@ -581,8 +635,8 @@ const FormViewer = () => {
   if (alreadySubmitted && !isPreviewMode) {
     return (
       <Container className="py-5">
-        <Alert variant="warning">
-          <Alert.Heading>❌ Already Submitted</Alert.Heading>
+        <Alert variant="success">
+          <Alert.Heading>✅ Already Submitted</Alert.Heading>
           <p className="mb-0">You have already submitted this form. Multiple submissions are not allowed. You cannot answer this form again.</p>
         </Alert>
       </Container>
@@ -667,7 +721,7 @@ const FormViewer = () => {
                     </div>
                     <div className="mb-2">
                       <strong>Passing Score:</strong> {form.examHeader.passingScore 
-                        ? `${form.examHeader.passingScore}%` 
+                        ? form.examHeader.passingScore 
                         : 'N/A'}
                     </div>
                   </Col>
@@ -679,14 +733,6 @@ const FormViewer = () => {
               <Alert variant="info" className="mb-0">
                 <i className="bi bi-award me-2"></i>
                 This is a quiz. Your responses will be graded.
-              </Alert>
-            )}
-            
-            {/* Preview Mode Alert */}
-            {isPreviewMode && (
-              <Alert variant="secondary" className="mt-3">
-                <i className="bi bi-eye me-2"></i>
-                <strong>Preview Mode:</strong> You are viewing this form in preview mode. Your responses will not be recorded.
               </Alert>
             )}
             
@@ -845,24 +891,19 @@ const FormViewer = () => {
                 <Alert variant="success" className="w-100 mb-0">
                   <i className="bi bi-check-circle me-2"></i>
                   {success}
-                </Alert>
-              ) : (
+                  </Alert>
+                ) : (!isPreviewMode && viewerRole !== 'Teacher' && viewerRole !== 'Admin') && (
                 <Button 
                   type="submit" 
                   variant="primary" 
                   size="lg"
-                  disabled={submitting || alreadySubmitted || isPreviewMode}
+                  disabled={submitting || alreadySubmitted}
                   style={{ 
                     backgroundColor: form.theme?.primaryColor,
-                    opacity: alreadySubmitted || isPreviewMode ? 0.6 : 1
+                    opacity: alreadySubmitted ? 0.6 : 1
                   }}
                 >
-                  {isPreviewMode ? (
-                    <>
-                      <i className="bi bi-eye me-2"></i>
-                      Preview Mode - Not Submittable
-                    </>
-                  ) : alreadySubmitted ? (
+                  {alreadySubmitted ? (
                     <>
                       <i className="bi bi-check2 me-2"></i>
                       Already Submitted

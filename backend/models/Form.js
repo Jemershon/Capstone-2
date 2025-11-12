@@ -112,6 +112,8 @@ const formSchema = new mongoose.Schema(
       shuffleQuestions: { type: Boolean, default: false }, // Randomize question order per student
       shuffleAnswers: { type: Boolean, default: false }, // Randomize answer options (for MC, checkboxes, dropdown)
       usePhilippineStyle: { type: Boolean, default: false }, // Enable Philippine exam format
+      showProgressBar: { type: Boolean, default: false }, // Show progress bar during form completion
+      showResponseSummary: { type: Boolean, default: false }, // Show summary after submission
       
       // Access control and scheduling
       acceptingResponses: { type: Boolean, default: true },

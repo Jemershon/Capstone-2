@@ -211,7 +211,20 @@ router.delete("/:id", authenticateToken, requireTeacherOrAdmin, async (req, res)
     await FormResponse.deleteMany({ formId: req.params.id });
     
     await Form.findByIdAndDelete(req.params.id);
-    
+    // Notify connected clients in the class room that the form was deleted
+    try {
+      const io = req.app?.io || global.io;
+      if (io && form.className) {
+        io.to(`class:${form.className}`).emit('form-deleted', {
+          formId: req.params.id,
+          className: form.className,
+          title: form.title
+        });
+      }
+    } catch (emitErr) {
+      console.warn('Failed to emit form-deleted event:', emitErr && emitErr.message ? emitErr.message : emitErr);
+    }
+
     res.json({ message: "Form and all responses deleted successfully" });
   } catch (err) {
     console.error("Delete form error:", err);
@@ -365,9 +378,10 @@ router.post("/:id/responses", async (req, res) => {
         const username = decoded.username;
         
         // Check if this user has already submitted
+        // Use "respondent.username" since respondent is a nested object
         const existingResponse = await FormResponse.findOne({
           formId: req.params.id,
-          respondentUsername: username
+          "respondent.username": username
         });
         
         if (existingResponse) {
@@ -381,7 +395,49 @@ router.post("/:id/responses", async (req, res) => {
       }
     }
     
-    const { answers, respondent, startTime } = req.body;
+    const { answers, respondent: providedRespondent, startTime } = req.body;
+
+    // Ensure respondent info is recorded server-side when the user is authenticated.
+    // Relying solely on client-provided respondent can lead to missing names for
+    // some login flows (e.g., tokens without name) or anonymous submissions.
+    let respondent = providedRespondent || null;
+    try {
+      if (req.headers.authorization && (!respondent || !respondent.name)) {
+        const token = req.headers.authorization.replace("Bearer ", "");
+        const jwt = require('jsonwebtoken');
+        try {
+          const decoded = jwt.verify(token, process.env.JWT_SECRET || "your-secret-key");
+          const username = decoded.username || decoded.user || decoded.id;
+          const emailFromToken = decoded.email;
+          const nameFromToken = decoded.name;
+
+          // If token already contains name/email, prefer those
+          respondent = respondent || {};
+          if (nameFromToken) respondent.name = nameFromToken;
+          if (emailFromToken) respondent.email = emailFromToken;
+          if (username) respondent.username = username;
+
+          // If name is still missing, try to look up the user record
+          if (!respondent.name && username) {
+            try {
+              const User = (await import('../models/User.js')).default;
+              const user = await User.findOne({ username }).select('name email');
+              if (user) {
+                respondent.name = user.name || respondent.name;
+                respondent.email = user.email || respondent.email;
+                respondent.username = respondent.username || username;
+              }
+            } catch (lookupErr) {
+              console.warn('Could not lookup user for respondent enrichment:', lookupErr && lookupErr.message ? lookupErr.message : lookupErr);
+            }
+          }
+        } catch (jwtErr) {
+          console.log('Could not verify token to enrich respondent info:', jwtErr.message);
+        }
+      }
+    } catch (e) {
+      console.error('Respondent enrichment error:', e && e.message ? e.message : e);
+    }
     
     // Auto-grade if quiz mode
     let score = { total: 0, maxScore: 0, percentage: 0, autoGraded: false };
@@ -531,9 +587,10 @@ router.get("/:id/my-submission-status", authenticateToken, async (req, res) => {
     }
 
     // Check if user has submitted this form
+    // Use "respondent.username" since respondent is a nested object
     const submission = await FormResponse.findOne({
       formId: req.params.id,
-      respondentUsername: username
+      "respondent.username": username
     });
 
     res.json({
