@@ -21,11 +21,14 @@ router.get("/materials", authenticateToken, async (req, res) => {
     const { className, page = 1, limit = 10 } = req.query;
     const query = className ? { class: className } : {};
     
+    console.log('Fetching materials with query:', query, 'page:', page, 'limit:', limit);
+    
     const materials = await Material.find(query)
       .sort({ createdAt: -1 })
       .skip((page - 1) * limit)
       .limit(parseInt(limit));
     
+    console.log('Found', materials.length, 'materials for query:', query);
     res.json(materials);
   } catch (err) {
     console.error("Get materials error:", err);
@@ -52,7 +55,17 @@ router.post("/materials", authenticateToken, requireTeacherOrAdmin, async (req, 
   try {
     const { title, description, type, content, class: className, openingTime, closingTime } = req.body;
 
+    console.log('Creating material with data:', {
+      title,
+      description,
+      type,
+      content: content ? `${content.substring(0, 50)}...` : 'empty',
+      className,
+      teacher: req.user.username
+    });
+
     if (!title || !type || !content || !className) {
+      console.error('Missing required fields:', { title: !!title, type: !!type, content: !!content, className: !!className });
       return res.status(400).json({ error: "Required fields: title, type, content, class" });
     }
 
@@ -68,6 +81,7 @@ router.post("/materials", authenticateToken, requireTeacherOrAdmin, async (req, 
     });
 
     await material.save();
+    console.log('Material saved successfully with ID:', material._id);
 
     // Send notifications to all students in the class
     try {

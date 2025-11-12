@@ -44,11 +44,13 @@ function Materials({ className, showCreateModal: externalShowCreateModal, onShow
   const fetchMaterials = useCallback(async () => {
     setLoading(true);
     try {
+      console.log('Fetching materials for class:', className);
       const res = await retry(() => 
         axios.get(`${API_BASE_URL}/api/materials?className=${encodeURIComponent(className || '')}`, {
           headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
         })
       );
+      console.log('Materials fetched:', res.data);
       setMaterials(res.data || []);
     } catch (err) {
       console.error('Fetch materials error:', err.response?.data || err.message);
@@ -139,17 +141,23 @@ function Materials({ className, showCreateModal: externalShowCreateModal, onShow
         }
       }
       
+      const materialPayload = {
+        ...materialData,
+        content,
+        class: className
+      };
+      
+      console.log('Creating material with payload:', materialPayload);
+      
       await retry(() => 
         axios.post(
           `${API_BASE_URL}/api/materials`,
-          { 
-            ...materialData,
-            content,
-            class: className
-          },
+          materialPayload,
           { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
         )
       );
+      
+      console.log('Material created successfully, refreshing list...');
       
       // Call the callback if provided
       if (onMaterialCreated) {
