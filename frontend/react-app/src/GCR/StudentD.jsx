@@ -1597,6 +1597,14 @@ function StudentClassStream() {
     return err.response?.data?.error || fallbackMessage;
   };
 
+  // Helper function to check if material is expired
+  const isMaterialExpired = (material) => {
+    if (!material || !material.closingTime) {
+      return false; // No closing time means material is never closed
+    }
+    return new Date(material.closingTime) < new Date();
+  };
+
   // Debug: Log when submittedExams changes
   useEffect(() => {
     console.log('📊 submittedExams state changed:', submittedExams);
@@ -2536,33 +2544,7 @@ function StudentClassStream() {
                         <p>{announcement.message}</p>
                         
                         {/* Display file attachments */}
-                        {announcement.attachments && announcement.attachments.length > 0 && (
-                          <div className="mt-3">
-                            <div className="fw-bold mb-2">Attachments:</div>
-                            {announcement.attachments.map((attachment, attachIndex) => (
-                              <div key={attachIndex} className="d-flex align-items-center justify-content-between bg-light p-2 rounded mb-1">
-                                <div className="d-flex align-items-center">
-                                  <span className="me-2">📎</span>
-                                  <span>{attachment.originalName}</span>
-                                  <small className="text-muted ms-2">({(attachment.fileSize / 1024 / 1024).toFixed(2)} MB)</small>
-                                </div>
-                                <div className="d-flex gap-2">
-                                  <Button 
-                                    className="btn-custom-outline-primary btn-custom-sm"
-                                    onClick={() => {
-                                      const url = attachment?.filePath && attachment.filePath.startsWith('http')
-                                        ? attachment.filePath
-                                        : `${API_BASE_URL}/${attachment.filePath}`;
-                                      window.open(url, '_blank');
-                                    }}
-                                  >
-                                    View
-                                  </Button>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        )}
+                        
                           {/* Display materialRef if present */}
                           {announcement.materialRef && (
                             <div className="mt-3">
@@ -2572,6 +2554,28 @@ function StudentClassStream() {
                                   <h6 className="text-center">{announcement.materialRef.title}</h6>
                                   {announcement.materialRef.description && (
                                     <p className="text-muted small text-center">{announcement.materialRef.description}</p>
+                                  )}
+                                  {announcement.materialRef.createdAt && (
+                                    <small className="d-block mb-2 text-info text-center">
+                                      <i className="bi bi-calendar-event me-1"></i>
+                                      <strong>Uploaded:</strong> {new Date(announcement.materialRef.createdAt).toLocaleString()}
+                                    </small>
+                                  )}
+                                  {(announcement.materialRef.openingTime || announcement.materialRef.closingTime) && (
+                                    <small className="d-block mb-2 text-secondary text-center">
+                                      {announcement.materialRef.openingTime && (
+                                        <div className="mb-1">
+                                          <i className="bi bi-clock-history me-1"></i>
+                                          Opens: {new Date(announcement.materialRef.openingTime).toLocaleString()}
+                                        </div>
+                                      )}
+                                      {announcement.materialRef.closingTime && (
+                                        <div>
+                                          <i className="bi bi-clock me-1"></i>
+                                          Closes: {new Date(announcement.materialRef.closingTime).toLocaleString()}
+                                        </div>
+                                      )}
+                                    </small>
                                   )}
                                   {announcement.materialRef.type === 'file' && announcement.materialRef.content && (
                                     <div className="d-flex gap-2">
@@ -2810,7 +2814,48 @@ function StudentClassStream() {
                             <p className="text-muted small text-center">{material.description}</p>
                           )}
                           
-                          {/* Submission Status */}
+                          {/* Material Upload Date & Time */}
+                          {material.createdAt && (
+                            <div className="mb-2 p-2 bg-info bg-opacity-10 rounded small text-center border-start border-info">
+                              <i className="bi bi-calendar-event me-1"></i>
+                              <strong>Uploaded:</strong> {new Date(material.createdAt).toLocaleString()}
+                            </div>
+                          )}
+                          
+                          {/* Material Availability Status */}
+                          {(material.openingTime || material.closingTime) && (
+                            <div className="mb-2 p-2 bg-light rounded small">
+                              {material.openingTime && (
+                                <div className="mb-1">
+                                  <i className="bi bi-clock-history me-1"></i>
+                                  <strong>Opens:</strong> {new Date(material.openingTime).toLocaleString()}
+                                </div>
+                              )}
+                              {material.closingTime && (
+                                <div>
+                                  <i className="bi bi-clock me-1"></i>
+                                  <strong>Closes:</strong> {new Date(material.closingTime).toLocaleString()}
+                                </div>
+                              )}
+                              {material.openingTime && new Date() < new Date(material.openingTime) && (
+                                <div className="mt-2 alert alert-warning py-1 mb-0 small">
+                                  ⏳ Not yet available
+                                </div>
+                              )}
+                              {material.closingTime && new Date() > new Date(material.closingTime) && (
+                                <div className="mt-2 alert alert-danger py-1 mb-0 small">
+                                  ❌ Closed
+                                </div>
+                              )}
+                              {(!material.openingTime || new Date() >= new Date(material.openingTime)) && 
+                               (!material.closingTime || new Date() <= new Date(material.closingTime)) && (
+                                <div className="mt-2 alert alert-success py-1 mb-0 small">
+                                  ✓ Available now
+                                </div>
+                              )}
+                            </div>
+                          )}
+                          
                           {materialSubmissions[material._id] && (
                             <div className="alert alert-success py-2 mb-2 small">
                               <i className="bi bi-check-circle me-1"></i>
@@ -2848,13 +2893,17 @@ function StudentClassStream() {
                                 
                                 
                                 onClick={() => {
+                                  if (isMaterialExpired(material)) {
+                                    alert('This material has expired and submissions are no longer accepted.');
+                                    return;
+                                  }
                                   setSelectedMaterial(material);
                                   setShowMaterialSubmissionModal(true);
                                 }}
-                                disabled={submittingMaterial === material._id}
+                                disabled={submittingMaterial === material._id || isMaterialExpired(material)}
                               >
                                 <i className="bi bi-upload me-1"></i>
-                                {submittingMaterial === material._id ? "Uploading..." : materialSubmissions[material._id] ? "Upload Again" : "Submit Response"}
+                                {submittingMaterial === material._id ? "Uploading..." : isMaterialExpired(material) ? "Submission Closed" : materialSubmissions[material._id] ? "Upload Again" : "Submit Response"}
                               </Button>
                             </div>
                           )}
@@ -2875,13 +2924,17 @@ function StudentClassStream() {
                                 
                                 
                                 onClick={() => {
+                                  if (isMaterialExpired(material)) {
+                                    alert('This material has expired and submissions are no longer accepted.');
+                                    return;
+                                  }
                                   setSelectedMaterial(material);
                                   setShowMaterialSubmissionModal(true);
                                 }}
-                                disabled={submittingMaterial === material._id}
+                                disabled={submittingMaterial === material._id || isMaterialExpired(material)}
                               >
                                 <i className="bi bi-upload me-1"></i>
-                                {submittingMaterial === material._id ? "Uploading..." : materialSubmissions[material._id] ? "Upload Again" : "Submit Response"}
+                                {submittingMaterial === material._id ? "Uploading..." : isMaterialExpired(material) ? "Submission Closed" : materialSubmissions[material._id] ? "Upload Again" : "Submit Response"}
                               </Button>
                             </div>
                           )}
@@ -2945,6 +2998,12 @@ function StudentClassStream() {
           <Modal.Title>Submit Response: {selectedMaterial?.title}</Modal.Title>
         </Modal.Header>
         <Modal.Body>
+          {isMaterialExpired(selectedMaterial) && (
+            <div className="alert alert-danger mb-3" role="alert">
+              <i className="bi bi-exclamation-circle me-2"></i>
+              <strong>Submission Period Closed</strong> - This material's submission deadline has passed. You can no longer submit responses.
+            </div>
+          )}
           <Form>
             {/* Submission Type Selector */}
             <Form.Group className="mb-3">
@@ -2956,6 +3015,7 @@ function StudentClassStream() {
                   name="submissionType"
                   checked={materialSubmissionType === 'file'}
                   onChange={() => setMaterialSubmissionType('file')}
+                  disabled={isMaterialExpired(selectedMaterial)}
                 />
                 <Form.Check
                   type="radio"
@@ -2963,6 +3023,7 @@ function StudentClassStream() {
                   name="submissionType"
                   checked={materialSubmissionType === 'link'}
                   onChange={() => setMaterialSubmissionType('link')}
+                  disabled={isMaterialExpired(selectedMaterial)}
                 />
               </div>
             </Form.Group>
@@ -2975,6 +3036,7 @@ function StudentClassStream() {
                   type="file"
                   onChange={(e) => setMaterialSubmissionFile(e.target.files[0])}
                   accept="*/*"
+                  disabled={isMaterialExpired(selectedMaterial)}
                 />
                 {materialSubmissionFile && (
                   <small className="text-success d-block mt-2">
@@ -2996,6 +3058,7 @@ function StudentClassStream() {
                   placeholder="https://example.com/your-document"
                   value={materialSubmissionLink}
                   onChange={(e) => setMaterialSubmissionLink(e.target.value)}
+                  disabled={isMaterialExpired(selectedMaterial)}
                 />
                 <Form.Text className="text-muted">
                   Submit links to Google Docs, Dropbox, YouTube videos, or any URL
@@ -3019,10 +3082,11 @@ function StudentClassStream() {
             disabled={
               (materialSubmissionType === 'file' && !materialSubmissionFile) || 
               (materialSubmissionType === 'link' && !materialSubmissionLink.trim()) ||
-              submittingMaterial === selectedMaterial?._id
+              submittingMaterial === selectedMaterial?._id ||
+              isMaterialExpired(selectedMaterial)
             }
           >
-            {submittingMaterial === selectedMaterial?._id ? "Submitting..." : "Submit"}
+            {submittingMaterial === selectedMaterial?._id ? "Submitting..." : isMaterialExpired(selectedMaterial) ? "Submission Closed" : "Submit"}
           </Button>
         </Modal.Footer>
       </Modal>
@@ -4402,9 +4466,30 @@ function StudentProfile() {
                     <div className="flex-grow-1">
                       <h6 className="mb-1 fw-bold">{material.title}</h6>
                       <p className="mb-1 text-muted small">{material.description || 'No description'}</p>
+                      {material.createdAt && (
+                        <small className="d-block mb-2 text-info">
+                          <i className="bi bi-calendar-event me-1"></i>
+                          <strong>Uploaded:</strong> {new Date(material.createdAt).toLocaleString()}
+                        </small>
+                      )}
+                      {(material.openingTime || material.closingTime) && (
+                        <small className="d-block mb-1">
+                          {material.openingTime && (
+                            <div className="mb-1">
+                              <i className="bi bi-clock-history me-1"></i>
+                              Opens: {new Date(material.openingTime).toLocaleString()}
+                            </div>
+                          )}
+                          {material.closingTime && (
+                            <div>
+                              <i className="bi bi-clock me-1"></i>
+                              Closes: {new Date(material.closingTime).toLocaleString()}
+                            </div>
+                          )}
+                        </small>
+                      )}
                       <small className="text-muted">
                         <Badge bg="secondary" className="me-2">{material.className}</Badge>
-                        {material.createdAt && new Date(material.createdAt).toLocaleDateString()}
                       </small>
                     </div>
                     <i className="bi bi-chevron-right text-muted"></i>

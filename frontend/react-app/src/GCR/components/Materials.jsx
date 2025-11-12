@@ -305,15 +305,34 @@ function Materials({ className, showCreateModal: externalShowCreateModal, onShow
                     materials.map(material => (
                       <ListGroup.Item 
                         key={material._id}
-                        className="d-flex justify-content-between align-items-center"
+                        className="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center gap-2"
                       >
                         <div className="flex-grow-1">
                           <h5 className="mb-1">{material.title}</h5>
                           <div className="text-muted mb-1">{material.description}</div>
-                          <div className="d-flex align-items-center gap-2 flex-wrap">
-                            <small className="text-muted me-2">
-                              {new Date(material.createdAt).toLocaleDateString()}
+                          {material.createdAt && (
+                            <small className="d-block mb-2 text-info">
+                              <i className="bi bi-calendar-event me-1"></i>
+                              <strong>Uploaded:</strong> {new Date(material.createdAt).toLocaleString()}
                             </small>
+                          )}
+                          {(material.openingTime || material.closingTime) && (
+                            <small className="d-block mb-2 text-secondary">
+                              {material.openingTime && (
+                                <div className="mb-1">
+                                  <i className="bi bi-clock-history me-1"></i>
+                                  Opens: {new Date(material.openingTime).toLocaleString()}
+                                </div>
+                              )}
+                              {material.closingTime && (
+                                <div>
+                                  <i className="bi bi-clock me-1"></i>
+                                  Closes: {new Date(material.closingTime).toLocaleString()}
+                                </div>
+                              )}
+                            </small>
+                          )}
+                          <div className="d-flex align-items-center gap-2 flex-wrap">
                             <span className="badge bg-info text-dark me-2">{material.type}</span>
                             {/* Unified View button for all material types */}
                             <a 
@@ -360,11 +379,33 @@ function Materials({ className, showCreateModal: externalShowCreateModal, onShow
                 linkMaterials.map(material => (
                   <ListGroup.Item 
                     key={material._id}
-                    className="d-flex justify-content-between align-items-center"
+                    className="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center gap-2"
                   >
                     <div className="flex-grow-1">
                       <h5 className="mb-1">{material.title}</h5>
                       <div className="text-muted mb-1">{material.description}</div>
+                      {material.createdAt && (
+                        <small className="d-block mb-2 text-info">
+                          <i className="bi bi-calendar-event me-1"></i>
+                          <strong>Uploaded:</strong> {new Date(material.createdAt).toLocaleString()}
+                        </small>
+                      )}
+                      {(material.openingTime || material.closingTime) && (
+                        <small className="d-block mb-2 text-secondary">
+                          {material.openingTime && (
+                            <div className="mb-1">
+                              <i className="bi bi-clock-history me-1"></i>
+                              Opens: {new Date(material.openingTime).toLocaleString()}
+                            </div>
+                          )}
+                          {material.closingTime && (
+                            <div>
+                              <i className="bi bi-clock me-1"></i>
+                              Closes: {new Date(material.closingTime).toLocaleString()}
+                            </div>
+                          )}
+                        </small>
+                      )}
                       <div>
                         <a 
                           href={material.content}
@@ -397,11 +438,33 @@ function Materials({ className, showCreateModal: externalShowCreateModal, onShow
                 documentMaterials.map(material => (
                   <ListGroup.Item 
                     key={material._id}
-                    className="d-flex justify-content-between align-items-center"
+                    className="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center gap-2"
                   >
-                    <div>
+                    <div className="flex-grow-1">
                       <h5 className="mb-1">{material.title}</h5>
                       <div className="text-muted mb-1">{material.description}</div>
+                      {material.createdAt && (
+                        <small className="d-block mb-2 text-info">
+                          <i className="bi bi-calendar-event me-1"></i>
+                          <strong>Uploaded:</strong> {new Date(material.createdAt).toLocaleString()}
+                        </small>
+                      )}
+                      {(material.openingTime || material.closingTime) && (
+                        <small className="d-block mb-2 text-secondary">
+                          {material.openingTime && (
+                            <div className="mb-1">
+                              <i className="bi bi-clock-history me-1"></i>
+                              Opens: {new Date(material.openingTime).toLocaleString()}
+                            </div>
+                          )}
+                          {material.closingTime && (
+                            <div>
+                              <i className="bi bi-clock me-1"></i>
+                              Closes: {new Date(material.closingTime).toLocaleString()}
+                            </div>
+                          )}
+                        </small>
+                      )}
                       <div>
                         <a 
                           href={material.content && material.content.startsWith('http') ? material.content : `${API_BASE_URL}/${material.content}`}
@@ -434,11 +497,33 @@ function Materials({ className, showCreateModal: externalShowCreateModal, onShow
                 videoMaterials.map(material => (
                   <ListGroup.Item 
                     key={material._id}
-                    className="d-flex justify-content-between align-items-center"
+                    className="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center gap-2"
                   >
                     <div className="flex-grow-1">
                       <h5 className="mb-1">{material.title}</h5>
                       <div className="text-muted mb-1">{material.description}</div>
+                      {material.createdAt && (
+                        <small className="d-block mb-2 text-info">
+                          <i className="bi bi-calendar-event me-1"></i>
+                          <strong>Uploaded:</strong> {new Date(material.createdAt).toLocaleString()}
+                        </small>
+                      )}
+                      {(material.openingTime || material.closingTime) && (
+                        <small className="d-block mb-2 text-secondary">
+                          {material.openingTime && (
+                            <div className="mb-1">
+                              <i className="bi bi-clock-history me-1"></i>
+                              Opens: {new Date(material.openingTime).toLocaleString()}
+                            </div>
+                          )}
+                          {material.closingTime && (
+                            <div>
+                              <i className="bi bi-clock me-1"></i>
+                              Closes: {new Date(material.closingTime).toLocaleString()}
+                            </div>
+                          )}
+                        </small>
+                      )}
                       <div>
                         <a 
                           href={material.content}

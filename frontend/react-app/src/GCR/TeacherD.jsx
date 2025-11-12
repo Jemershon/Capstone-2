@@ -1111,7 +1111,7 @@ function DashboardAndClasses() {
       }}></div>
       
       <div style={{ position: 'relative', zIndex: 1 }}>
-      <div className="d-flex justify-content-between align-items-center mb-4">
+      <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
         <div>
           <h2 className="fw-bold mb-0" style={{ 
             background: 'linear-gradient(90deg, #a30c0c 0%, #dc3545 100%)',
@@ -1119,7 +1119,8 @@ function DashboardAndClasses() {
             WebkitTextFillColor: 'transparent',
             backgroundClip: 'text',
             position: 'relative',
-            display: 'inline-block'
+            display: 'inline-block',
+            fontSize: 'clamp(1.25rem, 2vw, 2rem)'
           }}>
             <i className="bi bi-mortarboard-fill me-2" style={{
               WebkitTextFillColor: '#a30c0c',
@@ -1140,11 +1141,12 @@ function DashboardAndClasses() {
           onClick={() => setShowCreateModal(true)}
           aria-label="Create a new class"
           style={{ 
-            fontSize: '1.8rem', 
+            fontSize: 'clamp(1.5rem, 4vw, 1.8rem)', 
             cursor: 'pointer', 
             color: '#a30c0c',
             transition: 'all 0.3s ease',
-            filter: 'drop-shadow(0 2px 4px rgba(163, 12, 12, 0.3))'
+            filter: 'drop-shadow(0 2px 4px rgba(163, 12, 12, 0.3))',
+            flexShrink: 0
           }}
           title="Create Class"
           onMouseEnter={(e) => {
@@ -1699,7 +1701,7 @@ function TeacherClassStream() {
         class: className,
         date: (material && (material.createdAt || material.date)) || new Date().toISOString(),
         message: `New material: ${safeTitle} ${safeDescription ? '- ' + safeDescription : ''}`,
-        attachments: material && material.type === 'file' ? [{ originalName: safeTitle, filePath: material.content, fileSize: material.fileSize || 0 }] : [],
+        attachments: [], // Don't show attachments since we have materialRef section
         materialRef: material || null,
         examId: material && material.examId ? material.examId : undefined,
       };
@@ -2914,36 +2916,9 @@ function TeacherClassStream() {
                   <div className="mt-2" style={{ whiteSpace: "pre-wrap" }}>{a.message}</div>
                   
                   {/* Display file attachments */}
-                  {a.attachments && a.attachments.length > 0 && (
-                    <div className="mt-3">
-                      <div className="fw-bold mb-2">Attachments:</div>
-                      {a.attachments.map((attachment, index) => (
-                        <div key={index} className="d-flex align-items-center justify-content-between bg-light p-2 rounded mb-1">
-                          <div className="d-flex align-items-center">
-                            <span className="me-2">📎</span>
-                            <span>{attachment.originalName}</span>
-                            <small className="text-muted ms-2">({(attachment.fileSize / 1024 / 1024).toFixed(2)} MB)</small>
-                          </div>
-                          <div className="flex-grow-1 ms-2">
-                            <Button 
-                              className="btn-custom-outline-primary btn-custom-sm w-100"
-                              onClick={() => {
-                                const url = attachment?.filePath && attachment.filePath.startsWith('http')
-                                  ? attachment.filePath
-                                  : `${API_BASE_URL}/${attachment.filePath}`;
-                                window.open(url, '_blank');
-                              }}
-                            >
-                              View
-                            </Button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
                   
                   {/* Display materialRef if present */}
-                  {a.materialRef && (!a.attachments || a.attachments.length === 0) && (
+                  {a.materialRef && (
                     <div className="mt-3">
                       <div className="fw-bold mb-2">Material:</div>
                       <Card className="mb-2">
@@ -2951,6 +2926,28 @@ function TeacherClassStream() {
                           <h6 className="text-center">{a.materialRef.title}</h6>
                           {a.materialRef.description && (
                             <p className="text-muted small text-center">{a.materialRef.description}</p>
+                          )}
+                          {a.materialRef.createdAt && (
+                            <small className="d-block mb-2 text-info text-center">
+                              <i className="bi bi-calendar-event me-1"></i>
+                              <strong>Uploaded:</strong> {new Date(a.materialRef.createdAt).toLocaleString()}
+                            </small>
+                          )}
+                          {(a.materialRef.openingTime || a.materialRef.closingTime) && (
+                            <small className="d-block mb-2 text-secondary text-center">
+                              {a.materialRef.openingTime && (
+                                <div className="mb-1">
+                                  <i className="bi bi-clock-history me-1"></i>
+                                  Opens: {new Date(a.materialRef.openingTime).toLocaleString()}
+                                </div>
+                              )}
+                              {a.materialRef.closingTime && (
+                                <div>
+                                  <i className="bi bi-clock me-1"></i>
+                                  Closes: {new Date(a.materialRef.closingTime).toLocaleString()}
+                                </div>
+                              )}
+                            </small>
                           )}
                             {a.materialRef.type === 'file' && a.materialRef.content && (
                               <Button
