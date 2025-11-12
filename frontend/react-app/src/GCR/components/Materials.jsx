@@ -334,8 +334,13 @@ function Materials({ className, showCreateModal: externalShowCreateModal, onShow
                           )}
                           <div className="d-flex align-items-center gap-2 flex-wrap">
                             <span className="badge bg-info text-dark me-2">{material.type}</span>
+                          </div>
+                          {/* View and Submissions buttons - full width section */}
+                          <div className="d-flex flex-column gap-2 mt-2">
                             {/* Unified View button for all material types */}
-                            <a 
+                            <Button
+                              className="btn-custom-outline-primary btn-custom-sm"
+                              as="a"
                               href={
                                 material.type === 'link' || material.type === 'video' 
                                   ? material.content 
@@ -345,13 +350,12 @@ function Materials({ className, showCreateModal: externalShowCreateModal, onShow
                               }
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="btn btn-sm btn-outline-primary"
                             >
                               View
-                            </a>
+                            </Button>
                             <Button
                               variant="outline-success"
-                              size="sm"
+                              className="materials-action-btn"
                               onClick={() => handleViewSubmissions(material)}
                             >
                               📥 Submissions
@@ -360,7 +364,7 @@ function Materials({ className, showCreateModal: externalShowCreateModal, onShow
                         </div>
                     <Button
                       variant="outline-danger"
-                      size="sm"
+                      className="materials-action-btn"
                       onClick={() => handleDelete(material._id)}
                     >
                       Delete
@@ -406,20 +410,28 @@ function Materials({ className, showCreateModal: externalShowCreateModal, onShow
                           )}
                         </small>
                       )}
-                      <div>
-                        <a 
+                      <div className="d-flex flex-column gap-2 mt-2">
+                        <Button
+                          className="btn-custom-outline-primary btn-custom-sm w-100"
+                          as="a"
                           href={material.content}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="btn btn-sm btn-outline-primary"
                         >
                           View
-                        </a>
+                        </Button>
+                        <Button
+                          variant="outline-success"
+                          className="materials-action-btn"
+                          onClick={() => handleViewSubmissions(material)}
+                        >
+                          📥 Submissions
+                        </Button>
                       </div>
                     </div>
                     <Button
                       variant="outline-danger"
-                      size="sm"
+                      className="materials-action-btn"
                       onClick={() => handleDelete(material._id)}
                     >
                       Delete
@@ -465,15 +477,23 @@ function Materials({ className, showCreateModal: externalShowCreateModal, onShow
                           )}
                         </small>
                       )}
-                      <div>
-                        <a 
+                      <div className="d-flex flex-column gap-2 mt-2">
+                        <Button
+                          className="btn-custom-outline-primary btn-custom-sm"
+                          as="a"
                           href={material.content && material.content.startsWith('http') ? material.content : `${API_BASE_URL}/${material.content}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="btn btn-sm btn-outline-info w-100"
                         >
                           View
-                        </a>
+                        </Button>
+                        <Button
+                          variant="outline-success"
+                          className="materials-action-btn"
+                          onClick={() => handleViewSubmissions(material)}
+                        >
+                          📥 Submissions
+                        </Button>
                       </div>
                     </div>
                     <Button
@@ -524,20 +544,28 @@ function Materials({ className, showCreateModal: externalShowCreateModal, onShow
                           )}
                         </small>
                       )}
-                      <div>
-                        <a 
+                      <div className="d-flex flex-column gap-2 mt-2">
+                        <Button
+                          className="btn-custom-outline-primary btn-custom-sm w-100"
+                          as="a"
                           href={material.content}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="btn btn-sm btn-outline-primary"
                         >
                           View
-                        </a>
+                        </Button>
+                        <Button
+                          variant="outline-success"
+                          className="materials-action-btn"
+                          onClick={() => handleViewSubmissions(material)}
+                        >
+                          📥 Submissions
+                        </Button>
                       </div>
                     </div>
                     <Button
                       variant="outline-danger"
-                      size="sm"
+                      className="materials-action-btn"
                       onClick={() => handleDelete(material._id)}
                     >
                       Delete

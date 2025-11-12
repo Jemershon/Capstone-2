@@ -2580,7 +2580,7 @@ function StudentClassStream() {
                                   {announcement.materialRef.type === 'file' && announcement.materialRef.content && (
                                     <div className="d-flex gap-2">
                                       <Button
-                                        className="btn-custom-outline-primary btn-custom-sm flex-grow-1"
+                                        className="materials-view-btn flex-grow-1"
                                         
                                         
                                         onClick={() => window.open(
@@ -2594,7 +2594,7 @@ function StudentClassStream() {
                                   )}
                                   {(announcement.materialRef.type === 'video' || announcement.materialRef.type === 'link') && announcement.materialRef.content && (
                                     <Button
-                                      className="btn-custom-outline-primary btn-custom-sm w-100"
+                                      className="materials-view-btn w-100"
                                       
                                       
                                       as="a"

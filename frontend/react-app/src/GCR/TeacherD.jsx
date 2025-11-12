@@ -2951,7 +2951,7 @@ function TeacherClassStream() {
                           )}
                             {a.materialRef.type === 'file' && a.materialRef.content && (
                               <Button
-                                className="btn-custom-outline-primary btn-custom-sm flex-grow-1"
+                                className="materials-view-btn flex-grow-1"
                                 onClick={() => window.open(
                                   a.materialRef.content.startsWith('http') ? a.materialRef.content : `${API_BASE_URL}/${a.materialRef.content}`,
                                   '_blank'
@@ -2962,7 +2962,7 @@ function TeacherClassStream() {
                             )}
                           {(a.materialRef.type === 'video' || a.materialRef.type === 'link') && a.materialRef.content && (
                             <Button
-                              className="btn-custom-outline-primary btn-custom-sm w-100"
+                              className="materials-view-btn w-100"
                               as="a"
                               href={a.materialRef.content}
                               target="_blank"
