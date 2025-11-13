@@ -1639,6 +1639,9 @@ function TeacherClassStream() {
   const [selectedItems, setSelectedItems] = useState([]); // For bulk actions
   const [showBulkActions, setShowBulkActions] = useState(false);
   
+  // Materials state for classwork tab
+  const [materials, setMaterials] = useState([]);
+  
   // Reference to socket.io connection
   const socketRef = useRef(null);  // Fetch class announcements
   const fetchAnnouncements = useCallback(async () => {
@@ -1689,6 +1692,18 @@ function TeacherClassStream() {
     }
   }, [className]);
 
+  const fetchMaterials = useCallback(async () => {
+    try {
+      const res = await axios.get(`${API_BASE_URL}/api/materials?className=${encodeURIComponent(className)}`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+      });
+      setMaterials(res.data || []);
+      console.log("Fetched materials for class:", res.data?.length || 0);
+    } catch (err) {
+      console.error("Fetch materials error:", err.response?.data || err.message);
+    }
+  }, [className]);
+
   const handleMaterialCreated = useCallback(async (material) => {
     try {
       console.debug('handleMaterialCreated received material:', material);
@@ -1713,25 +1728,27 @@ function TeacherClassStream() {
 
       // Refresh announcements from backend
       await fetchAnnouncements();
+      await fetchMaterials();
       setShowMaterialsModal(false);
       setShowToast(true);
       setSuccessMessage('Material posted to stream.');
     } catch (err) {
       console.error('handleMaterialCreated error', err);
     }
-  }, [className, fetchAnnouncements]);
+  }, [className, fetchAnnouncements, fetchMaterials]);
 
   const handleMaterialDeleted = useCallback(async (materialId) => {
     try {
       console.debug('handleMaterialDeleted: Material deleted, refreshing stream', materialId);
       // Refresh announcements to remove the deleted material's post
       await fetchAnnouncements();
+      await fetchMaterials();
       setSuccessMessage('Material and related stream post removed.');
       setShowToast(true);
     } catch (err) {
       console.error('handleMaterialDeleted error', err);
     }
-  }, [fetchAnnouncements]);
+  }, [fetchAnnouncements, fetchMaterials]);
   
   // Cache for API responses to prevent unnecessary refetches
   const [apiCache, setApiCache] = useState({});
@@ -1960,6 +1977,7 @@ function TeacherClassStream() {
       fetchClassInfo();
       fetchTopics();
       fetchForms();
+      fetchMaterials();
       
       // Setup Socket.IO connection for real-time updates
       const token = getAuthToken();
@@ -2071,7 +2089,7 @@ function TeacherClassStream() {
         console.log('Socket connection closed and events unsubscribed');
       }
     };
-  }, [fetchAnnouncements, fetchExams, fetchClassInfo, fetchTopics, className, API_BASE_URL]);
+  }, [fetchAnnouncements, fetchExams, fetchClassInfo, fetchTopics, fetchMaterials, className, API_BASE_URL]);
 
   // Refetch announcements when filter changes
   useEffect(() => {
@@ -2572,7 +2590,7 @@ function TeacherClassStream() {
               fetchExams(true); // Force refresh exams when switching to this tab
             }}
           >
-            Classwork
+            Exams
           </Nav.Link>
         </Nav.Item>
         <Nav.Item>
@@ -2994,62 +3012,9 @@ function TeacherClassStream() {
 
       {activeTab === "classwork" && (
         <div className="p-3 border rounded bg-white">
-          <h3>Classwork</h3>
+          <h3>Exams</h3>
           
-          {/* Uploaded Files Section */}
-          <div className="mb-4">
-            <h5 className="mb-3">📎 Uploaded Files</h5>
-            {announcements.filter(a => a.attachments && a.attachments.length > 0).length === 0 ? (
-              <Card className="text-center p-4">
-                <p className="text-muted">No files uploaded yet. Upload files in the Stream tab to see them here.</p>
-              </Card>
-            ) : (
-              <Card>
-                <Card.Body>
-                  {announcements
-                    .filter(a => a.attachments && a.attachments.length > 0)
-                    .map((announcement, index) => (
-                      <div key={announcement._id || index} className="mb-3">
-                        <div className="d-flex align-items-center mb-2">
-                          <div className="fw-bold me-2">{announcement.teacherName || announcement.teacher}</div>
-                          <small className="text-muted">
-                            {new Date(announcement.date).toLocaleDateString()} - "{announcement.message}"
-                          </small>
-                        </div>
-                        <div className="ms-3">
-                          {announcement.attachments.map((attachment, attachIndex) => (
-                            <div key={attachIndex} className="d-flex align-items-center justify-content-between bg-light p-2 rounded mb-1">
-                              <div className="d-flex align-items-center">
-                                <span className="me-2">📎</span>
-                                <span>{attachment.originalName}</span>
-                                <small className="text-muted ms-2">({(attachment.fileSize / 1024 / 1024).toFixed(2)} MB)</small>
-                              </div>
-                              <div className="flex-grow-1 ms-2">
-                                <Button 
-                                  className="btn-custom-outline-primary btn-custom-sm w-100"
-                                  onClick={() => {
-                                    const url = attachment?.filePath && attachment.filePath.startsWith('http')
-                                      ? attachment.filePath
-                                      : `${API_BASE_URL}/${attachment.filePath}`;
-                                    window.open(url, '_blank');
-                                  }}
-                                >
-                                  View
-                                </Button>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                </Card.Body>
-              </Card>
-            )}
-          </div>
-          
-          <div className="d-flex justify-content-between align-items-center mb-4">
-            <h5 className="mb-0">Exams</h5>
-          </div>
+          {/* ONLY EXAMS - NO FILES OR LINKS */}
           
           {/* Bulk Actions for Exams */}
           {exams && exams.length > 0 && (

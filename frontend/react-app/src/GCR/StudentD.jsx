@@ -2412,7 +2412,7 @@ function StudentClassStream() {
                 active={activeTab === "classwork"} 
                 onClick={() => setActiveTab("classwork")}
               >
-                Classwork
+                Exams
               </Nav.Link>
             </Nav.Item>
             <Nav.Item>
@@ -2639,10 +2639,18 @@ function StudentClassStream() {
 
             {activeTab === "classwork" && (
               <div>
-              {/* Forms Section */}
-              {forms.length > 0 && (
+              {/* Exams & Quizzes Section - ONLY EXAMS, NO FILES OR LINKS */}
+              {forms.length === 0 ? (
+                <Card className="modern-card text-center p-4">
+                  <div className="mb-3">
+                    <i className="bi bi-clipboard-check" style={{ fontSize: '3rem', color: '#ccc' }}></i>
+                  </div>
+                  <h5>No Exams or Quizzes Yet</h5>
+                  <p className="text-muted">Your teacher hasn't posted any exams or quizzes yet. Check back later!</p>
+                </Card>
+              ) : (
                 <div className="mb-4">
-                  <h5 className="mb-3">📝 Forms & Quizzes</h5>
+                  <h5 className="mb-3">📝 Exams & Quizzes</h5>
                   {forms.map((form) => (
                     <Card key={form._id} className="mb-3 border-primary">
                       <Card.Body>
@@ -2655,7 +2663,7 @@ function StudentClassStream() {
                             <div className="d-flex align-items-center gap-2">
                               <strong>{form.owner}</strong>
                               <Badge bg="primary">
-                                {form.settings?.isQuiz ? 'Quiz' : 'Form'}
+                                {form.settings?.isQuiz ? 'Quiz' : 'Exam'}
                               </Badge>
                             </div>
                             <small className="text-muted">
@@ -2695,67 +2703,6 @@ function StudentClassStream() {
                   ))}
                 </div>
               )}
-              
-              {/* Uploaded Files Section */}
-              <div className="mb-4">
-                <h5 className="mb-3">📎 Class Files</h5>
-                {announcements.filter(a => a.attachments && a.attachments.length > 0).length === 0 ? (
-                  <Card className="modern-card text-center p-4">
-                    <p className="text-muted">No files shared yet</p>
-                  </Card>
-                ) : (
-                  <Card className="modern-card">
-                    <Card.Body>
-                      {announcements
-                        .filter(a => a.attachments && a.attachments.length > 0)
-                        .map((announcement, index) => (
-                          <div key={announcement._id || index} className="mb-3">
-                            <div className="d-flex align-items-center mb-2">
-                              <div className="fw-bold me-2">{announcement.teacher}</div>
-                              <small className="text-muted">
-                                {new Date(announcement.date).toLocaleDateString()} - "{announcement.message}"
-                              </small>
-                            </div>
-                            <div className="ms-3">
-                              {announcement.attachments.map((attachment, attachIndex) => (
-                                <div key={attachIndex} className="d-flex align-items-center justify-content-between bg-light p-2 rounded mb-1">
-                                  <div className="d-flex align-items-center">
-                                    <span className="me-2">📎</span>
-                                    <span>{attachment.originalName}</span>
-                                    <small className="text-muted ms-2">({(attachment.fileSize / 1024 / 1024).toFixed(2)} MB)</small>
-                                  </div>
-                                  <div className="d-flex gap-2">
-                                    <Button 
-                                      className="btn-custom-outline-primary btn-custom-sm"
-                                      onClick={() => {
-                                        const url = attachment?.filePath && attachment.filePath.startsWith('http')
-                                          ? attachment.filePath
-                                          : `${API_BASE_URL}/${attachment.filePath}`;
-                                        window.open(url, '_blank');
-                                      }}
-                                    >
-                                      View
-                                    </Button>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        ))}
-                      </Card.Body>
-                    </Card>
-                  )}
-                </div>
-
-                {/* Exams section removed - Use Forms/Surveys instead */}
-                {/*
-                <Row>
-                  <Col md={12}>
-                    <h5 className="mb-3">📊 Exams</h5>
-                    ... exam listing removed ...
-                  </Col>
-                </Row>
-                */}
               </div>
             )}
 
@@ -2878,26 +2825,12 @@ function StudentClassStream() {
                             <div className="d-flex gap-2 flex-column">
                               <Button
                                 className="btn-custom-outline-primary btn-custom-sm w-100"
-                                
-                                
-                                onClick={() => handleFilePreview(
-                                  material.content.startsWith('http') ? material.content : `${API_BASE_URL}/${material.content}`,
-                                  material.title,
-                                  null
-                                )}
+                                onClick={() => {
+                                  const url = material.content.startsWith('http') ? material.content : `${API_BASE_URL}/${material.content}`;
+                                  window.open(url, '_blank');
+                                }}
                               >
-                                View
-                              </Button>
-                              <Button
-                                className="btn-custom-outline-secondary btn-custom-sm w-100"
-                                
-                                
-                                as="a"
-                                href={material.content.startsWith('http') ? material.content : `${API_BASE_URL}/${material.content}`}
-                                target="_blank"
-                                download
-                              >
-                                Download
+                                <i className="bi bi-eye me-1"></i>View
                               </Button>
                               <Button
                                 className="btn-custom-outline-success btn-custom-sm w-100"
