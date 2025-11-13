@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import axios from "axios";
 import { API_BASE_URL, getAuthToken, getUsername, checkAuth, updateExam, deleteExam } from "../api";
 import { NavLink, Link, Routes, Route, useNavigate, useParams } from "react-router-dom";
-import { io } from "socket.io-client";
+import { ensureSocketConnected } from "../socketClient";
 import {
   Container,
   Row,
@@ -1973,27 +1973,31 @@ function TeacherClassStream() {
       if (token) {
         try {
           console.log('Connecting to socket server at:', API_BASE_URL);
-          // Connect to socket server with explicit options
-          const socket = io(API_BASE_URL, {
-            reconnectionAttempts: 5,
-            reconnectionDelay: 1000,
-            timeout: 10000,
-            transports: ['websocket', 'polling']
-          });
+          // Use the shared socket client for proper authentication and lifecycle management
+          const socket = ensureSocketConnected();
+          
+          if (!socket) {
+            console.error('Failed to establish socket connection');
+            return;
+          }
           
           socketRef.current = socket;
           
-          socket.on('connect_error', (err) => {
-            console.error('Socket connection error:', err.message);
-          });
-          
-          socket.on('connect', () => {
-            console.log('Socket connected successfully');
-            // Authenticate and join class room for class-specific events
+          // Ensure socket is connected before emitting
+          if (!socket.connected && !socket.connecting) {
+            console.log('Socket not yet connected, waiting for connection...');
+            socket.once('connect', () => {
+              // Authenticate and join class room for class-specific events
+              socket.emit('authenticate', token);
+              socket.emit('join-class', className);
+              console.log('Joined class room:', className);
+            });
+          } else {
+            // Socket is already connected, authenticate and join class
             socket.emit('authenticate', token);
             socket.emit('join-class', className);
             console.log('Joined class room:', className);
-          });
+          }
           
           // Listen for exam updates
           socket.on('exam-created', (newExam) => {
@@ -4900,7 +4904,12 @@ function Grades() {
 
   // Socket listener for real-time grade updates
   useEffect(() => {
-    const socket = io(API_BASE_URL);
+    const socket = ensureSocketConnected();
+    
+    if (!socket) {
+      console.warn('Socket connection not available for leaderboard');
+      return;
+    }
     
     // Listen for exam submissions from all classes
     socket.on('exam-submitted', (data) => {
@@ -4917,7 +4926,9 @@ function Grades() {
     });
 
     return () => {
-      socket.disconnect();
+      // Leave socket listeners but don't disconnect the shared socket
+      socket.off('exam-submitted');
+      socket.off('form-submitted');
     };
   }, [fetchLeaderboardData]);
 

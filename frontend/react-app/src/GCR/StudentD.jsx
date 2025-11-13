@@ -5,7 +5,7 @@ import { Container, Row, Col, Nav, Navbar, Card, Button, Table, Modal, Form, Tab
 import { getAuthToken, getUsername, getUserRole, checkAuth, clearAuthData, API_BASE_URL } from "../api";
 import NotificationsDropdown from "./components/NotificationsDropdown";
 import Comments from "./components/Comments";
-import { io } from "socket.io-client";
+import { ensureSocketConnected } from "../socketClient";
 
 // Add custom styles for responsive design and modern theme
 const customStyles = `
@@ -1639,11 +1639,17 @@ function StudentClassStream() {
 
   // Socket listener for real-time grade updates
   useEffect(() => {
-    const socket = io(API_BASE_URL);
+    const socket = ensureSocketConnected();
+    
+    if (!socket) {
+      console.warn('Socket connection not available');
+      return;
+    }
     
     // Join the class room
     if (className) {
       socket.emit('join-class', className);
+      console.log(`[StudentD] Joined class room: ${className}`);
     }
     
     // Listen for exam submissions (including our own)
@@ -1679,7 +1685,11 @@ function StudentClassStream() {
     });
 
     return () => {
-      socket.disconnect();
+      // Leave the class room but don't disconnect the shared socket
+      if (className) {
+        socket.emit('leave-class', className);
+        console.log(`[StudentD] Left class room: ${className}`);
+      }
     };
   }, [className]);
 
@@ -2288,9 +2298,10 @@ function StudentClassStream() {
       
       // Tell the server to notify all clients about the submission
       try {
-        const socket = io(API_BASE_URL);
-        socket.emit('exam-submitted', { examId: selectedExam._id, className });
-        socket.disconnect();
+        const socket = ensureSocketConnected();
+        if (socket) {
+          socket.emit('exam-submitted', { examId: selectedExam._id, className });
+        }
       } catch (socketErr) {
         console.error("Error with socket notification:", socketErr);
       }

@@ -286,7 +286,7 @@ const FormViewer = () => {
       
       // Mark as submitted to prevent double submissions
       setAlreadySubmitted(true);
-      setSuccess("Form submitted successfully! Thank you for your response.");
+      setSuccess(form.settings?.confirmationMessage || "Form submitted successfully! Thank you for your response.");
       
       // Emit socket event to notify other clients that form was submitted
       try {

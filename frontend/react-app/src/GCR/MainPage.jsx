@@ -956,7 +956,7 @@ export default function LandingPage() {
             Gabrielian Online Academic Learning System
           </h1>
           <p className="lead mt-3">
-            College of Computer Studies Department
+            College of Computer Studies
           </p>
           <div className="mt-4 d-flex gap-3 landing-hero-buttons justify-content-end justify-content-md-start">
             <button
