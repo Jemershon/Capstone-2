@@ -134,17 +134,24 @@ router.post("/materials", authenticateToken, requireTeacherOrAdmin, async (req, 
 router.delete("/materials/:id", authenticateToken, requireTeacherOrAdmin, async (req, res) => {
   try {
     const materialId = req.params.id;
+    console.log(`🗑️ DELETE material request - ID: ${materialId}, User: ${req.user.username}`);
+    
     const material = await Material.findById(materialId);
     if (!material) {
+      console.log(`❌ Material not found: ${materialId}`);
       return res.status(404).json({ error: "Material not found" });
     }
 
+    console.log(`📦 Material found: ${material.title}, Class: ${material.class}`);
+
     // Only the owner teacher or admin can delete
     if (material.teacher !== req.user.username && req.user.role !== "Admin") {
+      console.log(`❌ Unauthorized delete attempt by ${req.user.username}`);
       return res.status(403).json({ error: "Not authorized to delete this material" });
     }
 
     await Material.findByIdAndDelete(materialId);
+    console.log(`✅ Material deleted from database: ${materialId}`);
 
     // Delete related announcements that reference this material
     try {
@@ -195,21 +202,26 @@ router.delete("/materials/:id", authenticateToken, requireTeacherOrAdmin, async 
       if (toDelete.length > 0) {
         const deleted = await Announcement.deleteMany({ _id: { $in: toDelete } });
         console.log(`✅ Deleted ${deleted.deletedCount} related announcements for material ${materialId}`);
-
-        // Emit socket event to notify clients
-        try {
-          if (req.app.io && material.class) {
-            req.app.io.to(`class:${material.class}`).emit('announcement-deleted', {
-              materialId,
-              message: 'Material and related announcement deleted'
-            });
-            console.log(`📡 Emitted announcement-deleted event to class:${material.class}`);
-          }
-        } catch (emitErr) {
-          console.warn('Failed to emit announcement-deleted event', emitErr);
-        }
       } else {
         console.log(`⚠️ No announcements found related to material ${materialId}`);
+      }
+
+      // Always emit socket event to notify clients about material deletion
+      try {
+        if (req.app.io && material.class) {
+          const eventData = {
+            materialId,
+            message: 'Material deleted',
+            className: material.class
+          };
+          req.app.io.to(`class:${material.class}`).emit('announcement-deleted', eventData);
+          console.log(`📡 Socket event emitted - Event: announcement-deleted, Room: class:${material.class}, Data:`, eventData);
+          console.log(`📡 Active rooms for this socket server:`, req.app.io.sockets.adapter.rooms);
+        } else {
+          console.warn(`⚠️ Cannot emit socket event - io: ${!!req.app.io}, class: ${material.class}`);
+        }
+      } catch (emitErr) {
+        console.error('❌ Failed to emit announcement-deleted event:', emitErr);
       }
     } catch (annErr) {
       console.error('Failed to delete related announcements for material', materialId, annErr);

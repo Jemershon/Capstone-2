@@ -8,13 +8,18 @@ export function getSocket() {
   if (socket) return socket;
 
   try {
-    socket = io(API_BASE_URL, {
-      transports: ['websocket', 'polling'],
+    // Let the client use default transport strategy (polling -> websocket fallback)
+    const secure = typeof API_BASE_URL === 'string' && API_BASE_URL.startsWith('https');
+  console.log('[Socket.IO] initializing client to', API_BASE_URL, 'secure:', secure);
+  socket = io(API_BASE_URL, {
+      // do not force a single transport to allow polling fallback in constrained environments
       autoConnect: false,
       reconnection: true,
       reconnectionDelay: 1000,
-      reconnectionAttempts: 5,
-      timeout: 10000
+      reconnectionAttempts: 10,
+      timeout: 20000,
+      // mark secure when using https to ensure correct websocket protocol (wss)
+      secure
     });
 
     // Authenticate on connect if a token is available

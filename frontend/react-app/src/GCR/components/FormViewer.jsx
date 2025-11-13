@@ -47,6 +47,8 @@ const FormViewer = () => {
   const [shuffledOptions, setShuffledOptions] = useState({}); // Map of questionId -> shuffled options
   const [alreadySubmitted, setAlreadySubmitted] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState(null);
+  const [respondentName, setRespondentName] = useState("");
+  const [respondentEmail, setRespondentEmail] = useState("");
   
   useEffect(() => {
     loadForm();
@@ -220,6 +222,13 @@ const FormViewer = () => {
       setError("This form is in preview mode or you are viewing as a teacher/admin. You cannot submit responses.");
       return;
     }
+
+    // Enforce login requirement if the form requires it
+    const token = localStorage.getItem("token");
+    if (form.settings?.requireLogin && !token) {
+      setError("You must be logged in to submit this form. Please sign in and try again.");
+      return;
+    }
     
     if (alreadySubmitted) {
       setError("You have already submitted this form. Multiple submissions are not allowed.");
@@ -242,10 +251,8 @@ const FormViewer = () => {
       
       const timeSpent = Math.floor((Date.now() - startTime) / 1000);
       
-      // Get respondent info from token if available
+      // Get respondent info from token if available, otherwise use collected email/name
       let respondent = null;
-      const token = localStorage.getItem("token");
-      
       if (token) {
         try {
           // Decode token to get user info
@@ -266,6 +273,17 @@ const FormViewer = () => {
         } catch (err) {
           console.log("Could not decode token:", err);
         }
+      } else if (form.settings?.collectEmail) {
+        // If form asks to collect email and user is anonymous, ensure we have an email
+        if (!respondentEmail) {
+          setError("This form requires an email address. Please provide your email before submitting.");
+          setSubmitting(false);
+          return;
+        }
+        respondent = {
+          email: respondentEmail,
+          name: respondentName || undefined
+        };
       }
       
       const payload = {
@@ -760,6 +778,41 @@ const FormViewer = () => {
               label={`${Math.round(progress)}%`} 
               className="mb-4"
             />
+          )}
+
+          {/* Require login notice */}
+          {form.settings?.requireLogin && !token && (
+            <Alert variant="info" className="mb-3">
+              <strong>Login required:</strong> You must be signed in to submit this form. Please log in and return to submit your responses.
+            </Alert>
+          )}
+
+          {/* Collect email/name for anonymous respondents if enabled */}
+          {!token && form.settings?.collectEmail && (
+            <Card className="mb-3">
+              <Card.Body>
+                <Form.Group className="mb-2">
+                  <Form.Label className="fw-bold">Your Name (optional)</Form.Label>
+                  <Form.Control
+                    type="text"
+                    value={respondentName}
+                    onChange={(e) => setRespondentName(e.target.value)}
+                    placeholder="Full name"
+                  />
+                </Form.Group>
+                <Form.Group>
+                  <Form.Label className="fw-bold">Email address</Form.Label>
+                  <Form.Control
+                    type="email"
+                    value={respondentEmail}
+                    onChange={(e) => setRespondentEmail(e.target.value)}
+                    placeholder="you@example.com"
+                    required
+                  />
+                  <Form.Text className="text-muted">This form requires an email address to submit.</Form.Text>
+                </Form.Group>
+              </Card.Body>
+            </Card>
           )}
           
           {error && (

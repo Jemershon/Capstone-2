@@ -1739,14 +1739,18 @@ function TeacherClassStream() {
 
   const handleMaterialDeleted = useCallback(async (materialId) => {
     try {
-      console.debug('handleMaterialDeleted: Material deleted, refreshing stream', materialId);
-      // Refresh announcements to remove the deleted material's post
-      await fetchAnnouncements();
-      await fetchMaterials();
+      console.debug('🗑️ handleMaterialDeleted called for material:', materialId);
+      // Immediately refresh both announcements AND materials to remove the deleted material's post
+      console.log('🔄 Refreshing announcements and materials...');
+      await Promise.all([
+        fetchAnnouncements(),
+        fetchMaterials()
+      ]);
+      console.log('✅ Announcements and materials refreshed');
       setSuccessMessage('Material and related stream post removed.');
       setShowToast(true);
     } catch (err) {
-      console.error('handleMaterialDeleted error', err);
+      console.error('❌ handleMaterialDeleted error', err);
     }
   }, [fetchAnnouncements, fetchMaterials]);
   
@@ -2057,12 +2061,15 @@ function TeacherClassStream() {
           
           // Listen for announcement deletions (material deletions)
           socket.on('announcement-deleted', (data) => {
-            if (!cancelled && data && data.materialId) {
-              console.log('Received material/announcement deletion:', data);
+            console.log('🔔 Received announcement-deleted event:', data);
+            if (!cancelled) {
+              console.log('🔄 Refreshing announcements...');
               // Refresh announcements to remove deleted material posts
               fetchAnnouncements();
-              setSuccessMessage(data.message || 'Material removed from stream');
+              setSuccessMessage(data?.message || 'Material removed from stream');
               setShowToast(true);
+            } else {
+              console.warn('⚠️ Component cancelled, ignoring announcement-deleted event');
             }
           });
         } catch (err) {

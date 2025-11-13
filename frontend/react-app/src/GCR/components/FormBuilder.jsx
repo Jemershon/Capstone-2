@@ -177,7 +177,13 @@ const FormBuilder = () => {
 
       const formData = {
         ...cleanFormData,
-        settings: settingsWithUtc,
+        // Backwards-compatibility: backend expects allowMultipleResponses
+        settings: {
+          ...settingsWithUtc,
+          allowMultipleResponses: settingsWithUtc.allowMultipleResponses ?? settingsWithUtc.allowMultipleSubmissions,
+          // Keep the original flag for older clients
+          allowMultipleSubmissions: settingsWithUtc.allowMultipleSubmissions
+        },
         status: publish ? "published" : form.status,
       };
       
@@ -550,28 +556,6 @@ const FormBuilder = () => {
                 <Tab eventKey="general" title="General">
                   <Form.Check
                     type="switch"
-                    id="requireLogin"
-                    label="Require login to submit"
-                    checked={form.settings.requireLogin}
-                    onChange={(e) => setForm({
-                      ...form,
-                      settings: { ...form.settings, requireLogin: e.target.checked }
-                    })}
-                    className="mb-2"
-                  />
-                  <Form.Check
-                    type="switch"
-                    id="collectEmail"
-                    label="Collect email addresses"
-                    checked={form.settings.collectEmail}
-                    onChange={(e) => setForm({
-                      ...form,
-                      settings: { ...form.settings, collectEmail: e.target.checked }
-                    })}
-                    className="mb-2"
-                  />
-                  <Form.Check
-                    type="switch"
                     id="allowMultipleSubmissions"
                     label="Allow multiple submissions"
                     checked={form.settings.allowMultipleSubmissions}
@@ -613,17 +597,6 @@ const FormBuilder = () => {
                       settings: { ...form.settings, showProgressBar: e.target.checked }
                     })}
                     className="mb-2"
-                  />
-                  <Form.Check
-                    type="switch"
-                    id="showResponseSummary"
-                    label="Show response summary after submission"
-                    checked={form.settings.showResponseSummary}
-                    onChange={(e) => setForm({
-                      ...form,
-                      settings: { ...form.settings, showResponseSummary: e.target.checked }
-                    })}
-                    className="mb-3"
                   />
                   <Form.Text className="text-muted d-block mb-3">
                     <i className="bi bi-info-circle me-1"></i>

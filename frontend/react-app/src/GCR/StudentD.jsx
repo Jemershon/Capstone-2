@@ -1642,14 +1642,18 @@ function StudentClassStream() {
     const socket = ensureSocketConnected();
     
     if (!socket) {
-      console.warn('Socket connection not available');
+      console.warn('⚠️ [StudentD] Socket connection not available');
       return;
     }
+    
+    console.log('🔌 [StudentD] Socket status - Connected:', socket.connected, 'ID:', socket.id);
     
     // Join the class room
     if (className) {
       socket.emit('join-class', className);
-      console.log(`[StudentD] Joined class room: ${className}`);
+      console.log(`✅ [StudentD] Emitted join-class event for: ${className}`);
+    } else {
+      console.warn('⚠️ [StudentD] No className available to join');
     }
     
     // Listen for exam submissions (including our own)
@@ -1684,7 +1688,21 @@ function StudentClassStream() {
       }
     });
 
+    // Listen for material/announcement deletions - refresh stream to remove deleted posts
+    const handleAnnouncementDeleted = (data) => {
+      console.log('🔔 [StudentD] Received announcement-deleted event:', data);
+      console.log('🔔 [StudentD] Current className:', className);
+      // Refresh announcements to remove deleted material posts (fetchAnnouncements will grab token internally)
+      console.log('🔄 [StudentD] Fetching announcements after material deletion...');
+      fetchAnnouncements().catch(err => console.error('Error fetching announcements after announcement-deleted event:', err));
+    };
+    socket.on('announcement-deleted', handleAnnouncementDeleted);
+    console.log('✅ [StudentD] Socket listener registered for announcement-deleted');
+
     return () => {
+      // Remove all listeners to prevent duplicates
+      socket.off('announcement-deleted', handleAnnouncementDeleted);
+      
       // Leave the class room but don't disconnect the shared socket
       if (className) {
         socket.emit('leave-class', className);
@@ -1803,11 +1821,13 @@ function StudentClassStream() {
 
   const fetchAnnouncements = async (token) => {
     try {
+      const authToken = token || getAuthToken();
       const topicFilter = filterTopic ? `&topic=${filterTopic}` : '';
+      const headers = authToken ? { Authorization: `Bearer ${authToken}` } : {};
       const response = await axios.get(`${API_BASE_URL}/api/announcements?className=${encodeURIComponent(className)}${topicFilter}`, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers
       });
-      setAnnouncements(response.data);
+      setAnnouncements(response.data || []);
     } catch (err) {
       console.error("Error fetching announcements:", err);
     }
