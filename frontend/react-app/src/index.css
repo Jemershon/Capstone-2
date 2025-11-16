@@ -1,8 +1,188 @@
+@media (max-width: 767.98px) {
+  /* Improve spacing of the filters/actions row within modern-card on small screens */
+  .modern-card .row > [class*="col-"] {
+    margin-bottom: 0.5rem !important;
+  }
+
+  /* Allow inputs and selects to shrink instead of forcing layouts */
+  .modern-card input, .modern-card select, .modern-card .form-control {
+    min-width: 0 !important;
+    width: 100% !important;
+  }
+
+  /* Ensure action buttons wrap and keep spacing on mobile */
+  .modern-card .d-flex.flex-wrap {
+    flex-wrap: wrap !important;
+    gap: 0.5rem !important;
+    align-items: center;
+  }
+
+  .modern-card .d-flex.flex-wrap .btn {
+    margin-bottom: 0.25rem !important;
+  }
+
+  /* Restore white pill look for bell button in mobile navbar */
+  .modern-mobile-navbar #dropdown-notifications,
+  .d-md-none #dropdown-notifications {
+    background: #fff !important;
+    border-radius: 50% !important;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08) !important;
+    color: #a30c0c !important;
+    padding: 0.25rem !important;
+    min-width: 38px !important;
+    min-height: 38px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border: 1px solid #e0e0e0 !important;
+  }
+  .modern-mobile-navbar #dropdown-notifications .bi-bell,
+  .d-md-none #dropdown-notifications .bi-bell {
+    color: #a30c0c !important;
+    font-size: 1.4rem !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    line-height: 1 !important;
+    vertical-align: middle !important;
+    filter: none !important;
+    opacity: 1 !important;
+  }
+}
+
+/* Final override: restore original white pill bell on mobile and reset transforms */
+@media (max-width: 767.98px) {
+  #dropdown-notifications,
+  .modern-mobile-navbar #dropdown-notifications,
+  .d-md-none #dropdown-notifications {
+    background: #fff !important;
+    border-radius: 50% !important;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.12) !important;
+    color: #a30c0c !important;
+    padding: 6px !important;
+    min-width: 36px !important;
+    min-height: 36px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border: 1px solid rgba(0,0,0,0.06) !important;
+  }
+  #dropdown-notifications .bi-bell,
+  .modern-mobile-navbar #dropdown-notifications .bi-bell,
+  .d-md-none #dropdown-notifications .bi-bell {
+    color: #333 !important;
+    font-size: 1.15rem !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    line-height: 1 !important;
+    vertical-align: middle !important;
+    transform: none !important;
+    opacity: 1 !important;
+  }
+}
+
+/* Reinstate the native 'btn-light' pill appearance for the bell on mobile */
+@media (max-width: 767.98px) {
+  .modern-mobile-navbar .btn#dropdown-notifications,
+  .d-md-none .btn#dropdown-notifications,
+  #dropdown-notifications.btn {
+    background: #ffffff !important;
+    color: inherit !important;
+    border: 1px solid rgba(0,0,0,0.08) !important;
+    border-radius: 8px !important;
+    padding: 6px !important;
+    min-width: 36px !important;
+    min-height: 36px !important;
+    box-shadow: none !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+  .modern-mobile-navbar .btn#dropdown-notifications .bi-bell,
+  .d-md-none .btn#dropdown-notifications .bi-bell,
+  #dropdown-notifications.btn .bi-bell {
+    color: var(--brand-red) !important;
+    font-size: 1.1rem !important;
+    transform: none !important;
+    opacity: 1 !important;
+  }
+}
 .nav-link-custom {
   color: white !important;
   border-radius: 5px;
   padding: 8px 12px;
   transition: background-color 0.2s ease-in-out;
+}
+
+/* Additional mobile alignment fixes for bell + hamburger */
+@media (max-width: 767.98px) {
+  .modern-mobile-navbar .navbar-toggler,
+  .d-md-none .navbar-toggler {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    color: white !important;
+    padding: 0.25rem !important;
+    font-size: 1.2rem !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    height: 38px !important;
+    width: 38px !important;
+  }
+
+  .modern-mobile-navbar .dropdown-toggle#dropdown-notifications,
+  .d-md-none .dropdown-toggle#dropdown-notifications,
+  .notifications-fixed-mobile {
+    height: 38px !important;
+    min-width: 38px !important;
+    padding: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    background: transparent !important;
+    border-radius: 6px !important;
+  }
+
+  .modern-mobile-navbar .dropdown-toggle#dropdown-notifications .bi-bell,
+  .d-md-none .dropdown-toggle#dropdown-notifications .bi-bell {
+    padding: 0 !important;
+    margin: 0 !important;
+    line-height: 1 !important;
+    display: inline-block !important;
+    vertical-align: middle !important;
+    font-size: 1.1rem !important;
+  }
+}
+
+/* Nudge the bell up slightly to align with the hamburger on some devices */
+@media (max-width: 767.98px) {
+  .d-md-none #dropdown-notifications .bi-bell,
+  .modern-mobile-navbar #dropdown-notifications .bi-bell {
+    transform: translateY(-10px) !important;
+  }
+}
+
+/* Ensure mobile-mode button (#dropdown-notifications) matches toggler size and is centered */
+@media (max-width: 767.98px) {
+  .d-md-none #dropdown-notifications,
+  .modern-mobile-navbar #dropdown-notifications {
+    height: 38px !important;
+    min-width: 38px !important;
+    padding: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    background: transparent !important;
+    border-radius: 6px !important;
+  }
+
+  .d-md-none #dropdown-notifications .bi-bell,
+  .modern-mobile-navbar #dropdown-notifications .bi-bell {
+    padding: 0 !important;
+    margin: 0 !important;
+    line-height: 1 !important;
+    font-size: 1.1rem !important;
+  }
 }
 
 .nav-link-custom:hover {
@@ -55,6 +235,53 @@
   /* Make tables responsive on mobile */
   .table-responsive {
     overflow-x: auto !important;
+  }
+
+  /* Prevent dropdown menus in tables from being clipped by parent containers:
+     allow vertical overflow to be visible while retaining horizontal scroll */
+  .table-responsive, .card .table-responsive, .forms-table-wrapper .table-responsive {
+    overflow-x: auto !important;
+    overflow-y: visible !important;
+  }
+
+  /* Ensure dropdown menus are above other content */
+  .dropdown-menu {
+    position: absolute;
+    z-index: 30000 !important;
+  }
+
+  /* Make the forms table wrapper explicitly non-clipping for dropdowns */
+  .forms-table-wrapper {
+    overflow: visible !important;
+    position: relative !important;
+  }
+
+  .forms-table-wrapper .dropdown-menu {
+    /* Let Popper decide placement, but ensure ancestor doesn't clip */
+    position: absolute !important;
+    z-index: 30000 !important;
+  }
+
+  /* Extra safeguards for forms table: ensure table cells and rows don't clip dropdowns */
+  .forms-table-wrapper table,
+  .forms-table-wrapper thead,
+  .forms-table-wrapper tbody,
+  .forms-table-wrapper tr,
+  .forms-table-wrapper td,
+  .forms-table-wrapper th {
+    overflow: visible !important;
+  }
+
+  /* If any ancestor has transform/opacity creating a stacking context, raise z-index on dropdown */
+  .forms-table-wrapper .dropdown-menu {
+    z-index: 99999 !important;
+  }
+
+  /* Prevent any dropdown from having an internal scrollbar or being clipped */
+  .no-clip-dropdown {
+    max-height: none !important;
+    overflow: visible !important;
+    z-index: 200000 !important;
   }
   
   /* Ensure cards and content fit mobile screens */
@@ -162,5 +389,171 @@
     z-index: 2000;
   }
 }
+}
+/* Fix modal footer buttons on narrow screens: prevent global .d-flex.gap-2 rules
+   from forcing buttons to be full-width inside modal footers. Also hide the
+   floating Create FAB while any modal is open so it doesn't overlap. */
+@media (max-width: 767.98px) {
+  .modal-footer {
+    flex-wrap: nowrap !important;
+    justify-content: flex-end !important;
+  }
+
+  .modal-footer .btn {
+    width: auto !important;
+    margin-bottom: 0 !important;
+    min-width: 100px !important;
+  }
+
+  /* Hide the floating create FAB while a modal is open */
+  body.modal-open .fab-create-class {
+    display: none !important;
+    pointer-events: none !important;
+  }
+}
+
+/* Topics card tidy-up: ensure topic chips + icon buttons stay compact and aligned */
+@media (max-width: 767.98px) {
+  .topics-card .d-flex.flex-wrap.gap-2 {
+    gap: 8px !important;
+    align-items: center;
+  }
+
+  .topics-card .d-flex.flex-wrap.gap-2 > .d-inline-flex {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    margin-right: 6px !important;
+  }
+
+  .topics-card .d-flex.flex-wrap.gap-2 .btn {
+    width: auto !important;
+    white-space: nowrap !important;
+    padding: 6px 12px !important;
+    border-radius: 10px !important;
+    font-size: 0.95rem !important;
+    height: auto !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  /* Make the small edit/delete icon buttons compact and square */
+  .topics-card .d-flex.flex-wrap.gap-2 .btn.btn-custom-outline-secondary,
+  .topics-card .d-flex.flex-wrap.gap-2 .btn.btn-custom-outline-danger {
+    padding: 6px !important;
+    width: 36px !important;
+    height: 36px !important;
+    min-width: 36px !important;
+    border-radius: 8px !important;
+    font-size: 1rem !important;
+    line-height: 1 !important;
+  }
+
+  /* If a topic is active (primary variant), keep it pill-like but compact */
+  .topics-card .d-flex.flex-wrap.gap-2 .btn.btn-primary {
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+  }
+}
+
+/* Compact form action buttons on mobile (View / Preview / Edit) */
+@media (max-width: 767.98px) {
+  .form-action-group {
+    gap: 8px !important;
+    align-items: center !important;
+    flex-wrap: wrap !important;
+    justify-content: flex-start !important;
+  }
+
+  .form-action-group .btn {
+    flex: 0 0 auto !important;
+    width: auto !important;
+    min-width: 92px !important;
+    padding: 8px 12px !important;
+    font-size: 0.95rem !important;
+    border-radius: 10px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  /* Make the primary green action a little more prominent but not full width */
+  .form-action-group .btn.btn-success {
+    min-width: 110px !important;
+  }
+
+  /* Ensure outline buttons remain compact */
+  .form-action-group .btn[variant^="outline"],
+  .form-action-group .btn.btn-outline-secondary,
+  .form-action-group .btn.btn-outline-primary {
+    min-width: 92px !important;
+    padding: 8px 10px !important;
+  }
+
+  /* Small visual spacing tweak so icons inside buttons align vertically */
+  .form-action-group .btn .bi {
+    vertical-align: middle !important;
+    margin-right: 6px !important;
+    font-size: 1rem !important;
+  }
+}
+
+/* Ensure card action dropdown (three-dots) stays at top-right on narrow screens */
+@media (max-width: 767.98px) {
+  .card {
+    position: relative !important;
+    /* Allow absolutely-positioned dropdowns and their menus to escape card bounds */
+    overflow: visible !important;
+  }
+
+  /* Keep dropdown inline in the flex container (avoid absolute positioning that can break popper) */
+  .card .d-flex.justify-content-between {
+    padding-right: 0 !important;
+  }
+
+  /* Default: keep dropdowns inline in cards so they don't overlap content
+     (applies to card types where we don't want the toggle relocated) */
+  .card .d-flex.justify-content-between > .dropdown {
+    position: static !important;
+    margin-left: 8px !important;
+    align-self: flex-start !important;
+    z-index: 1060 !important;
+    pointer-events: auto !important;
+  }
+
+  /* Announcement cards: place the three-dot toggle at the top-right of the card */
+  .announcement-card {
+    position: relative !important;
+  }
+
+  .announcement-card > .card-body > .d-flex.justify-content-between > .dropdown {
+    position: absolute !important;
+    top: 8px !important;
+    right: 8px !important;
+    margin-left: 0 !important;
+    align-self: flex-start !important;
+    z-index: 1080 !important;
+    pointer-events: auto !important;
+  }
+  /* Add canvas space to the right so the toggle doesn't overlap content */
+  .announcement-card .card-body {
+    padding-right: 72px !important;
+  }
+
+  /* Explicit class that will win over other .dropdown rules for announcement toggles */
+  .announcement-card .announcement-dropdown {
+    position: absolute !important;
+    top: 8px !important;
+    right: 12px !important;
+    z-index: 1080 !important;
+    pointer-events: auto !important;
+  }
+
+  /* Slightly reduce the toggle padding so it sits compactly */
+  .card .d-flex.justify-content-between > .dropdown .dropdown-toggle {
+    padding: 0.25rem !important;
+    cursor: pointer !important;
+  }
 }
 

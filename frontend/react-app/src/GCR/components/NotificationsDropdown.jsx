@@ -345,7 +345,12 @@ function NotificationsDropdown({ inNavbar = false, mobileMode = false }) {
             pointer-events: auto !important;
           }
           .navbar .dropdown-toggle#dropdown-notifications .bi-bell {
-            padding: 6px !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            line-height: 1 !important;
+            display: inline-block !important;
+            vertical-align: middle !important;
+            font-size: 1.1rem !important;
           }
           .navbar .dropdown-toggle#dropdown-notifications {
             z-index: 1100 !important;
@@ -465,8 +470,7 @@ function NotificationsDropdown({ inNavbar = false, mobileMode = false }) {
         centered
         size="md"
         dialogClassName="notifications-modal-dialog"
-  modalClassName="notifications-modal"
-  >
+      >
         <Modal.Header closeButton>
           <Modal.Title>All Notifications</Modal.Title>
         </Modal.Header>

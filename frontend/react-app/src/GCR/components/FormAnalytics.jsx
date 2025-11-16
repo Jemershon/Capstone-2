@@ -365,56 +365,7 @@ const FormAnalytics = () => {
       {error && <Alert variant="danger" dismissible onClose={() => setError("")}>{error}</Alert>}
       {success && <Alert variant="success" dismissible onClose={() => setSuccess("")}>{success}</Alert>}
       
-      {/* Summary Stats */}
-      <Row className="mb-4">
-        <Col md={3}>
-          <Card className="text-center">
-            <Card.Body>
-              <h3 className="text-primary">{analytics.totalResponses}</h3>
-              <small className="text-muted">Total Responses</small>
-            </Card.Body>
-          </Card>
-        </Col>
-        <Col md={3}>
-          <Card className="text-center">
-            <Card.Body>
-              <h3 className="text-success">
-                {analytics.averageScore ? `${analytics.averageScore.toFixed(1)}%` : 'N/A'}
-              </h3>
-              <small className="text-muted">Average Score</small>
-              {form.settings.isQuiz && form.questions.length > 0 && (
-                <div className="mt-1">
-                  <Badge bg="secondary">
-                    Total: {form.questions.reduce((sum, q) => sum + (q.points || 0), 0)} pts
-                  </Badge>
-                </div>
-              )}
-            </Card.Body>
-          </Card>
-        </Col>
-        <Col md={3}>
-          <Card className="text-center">
-            <Card.Body>
-              <h3 className="text-info">
-                {analytics.averageCompletionTime 
-                  ? `${Math.floor(analytics.averageCompletionTime / 60)}m` 
-                  : 'N/A'}
-              </h3>
-              <small className="text-muted">Avg. Time</small>
-            </Card.Body>
-          </Card>
-        </Col>
-        <Col md={3}>
-          <Card className="text-center">
-            <Card.Body>
-              <h3 className="text-warning">
-                {analytics.completionRate ? `${analytics.completionRate.toFixed(1)}%` : 'N/A'}
-              </h3>
-              <small className="text-muted">Completion Rate</small>
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
+      {/* Summary stats removed per request */}
       
       {/* Individual Responses - No tabs */}
       <Card>
@@ -423,7 +374,6 @@ const FormAnalytics = () => {
             <tr>
               <th>Respondent</th>
               <th>Submitted</th>
-              <th>Time Spent</th>
               {form.settings.isQuiz && <th>Score</th>}
               <th>Status</th>
             </tr>
@@ -454,9 +404,7 @@ const FormAnalytics = () => {
                       <td>
                         <small>{new Date(response.submittedAt).toLocaleString()}</small>
                       </td>
-                      <td>
-                        <small>{Math.floor(response.timeSpent / 60)}m {response.timeSpent % 60}s</small>
-                      </td>
+                      {/* Time Spent column removed per request */}
                       {form.settings.isQuiz && (
                         <td>
                           <div>

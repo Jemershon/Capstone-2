@@ -838,8 +838,11 @@ const customStyles = `
     box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
     border: none;
     padding: 8px 0;
-    z-index: 9999 !important;
-    position: fixed !important;
+    z-index: 9999;
+    /* Let Popper/React-Bootstrap position the menu — use absolute so it can be
+       positioned relative to the page/container. Forcing fixed can break
+       Popper placement and make the menu unclickable on some viewports. */
+    position: absolute;
   }
   
   .dropdown-item {
@@ -1141,8 +1144,9 @@ function DashboardAndClasses() {
             marginTop: '8px'
           }}></div>
         </div>
+        {/* Desktop only: inline Create Class button */}
         <i 
-          className="bi bi-plus-circle-fill" 
+          className="bi bi-plus-circle-fill d-none d-md-inline"
           onClick={() => setShowCreateModal(true)}
           aria-label="Create a new class"
           style={{ 
@@ -1163,6 +1167,39 @@ function DashboardAndClasses() {
             e.currentTarget.style.filter = 'drop-shadow(0 2px 4px rgba(163, 12, 12, 0.3))';
           }}
         ></i>
+        {/* Mobile only: floating action button */}
+        <>
+          {/* FAB for mobile, absolutely positioned bottom right */}
+          <i
+            className="bi bi-plus-circle-fill d-md-none fab-create-class"
+            onClick={() => setShowCreateModal(true)}
+            aria-label="Create a new class"
+            style={{
+              position: 'fixed',
+              bottom: '24px',
+              right: '24px',
+              fontSize: '2.8rem',
+              color: '#a30c0c',
+              background: 'white',
+              borderRadius: '50%',
+              boxShadow: '0 4px 16px rgba(163, 12, 12, 0.18)',
+              zIndex: 2000,
+              cursor: 'pointer',
+              transition: 'all 0.3s cubic-bezier(.4,2,.6,1)',
+              padding: '0.2em',
+              border: '2px solid #fff',
+            }}
+            title="Create Class"
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'scale(1.15) rotate(90deg)';
+              e.currentTarget.style.boxShadow = '0 8px 24px rgba(163, 12, 12, 0.25)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'scale(1) rotate(0deg)';
+              e.currentTarget.style.boxShadow = '0 4px 16px rgba(163, 12, 12, 0.18)';
+            }}
+          ></i>
+        </>
       </div>
 
         {(error || successMessage) && ( 
@@ -2637,7 +2674,7 @@ function TeacherClassStream() {
       {activeTab === "stream" && (
         <div>
           {/* Topic filter buttons */}
-          <Card className="p-3 mb-3">
+          <Card className="p-3 mb-3 topics-card">
             <div className="d-flex align-items-center justify-content-between mb-2">
               <h6 className="mb-0">📁 Topics</h6>
               <Button 
@@ -2842,7 +2879,7 @@ function TeacherClassStream() {
                       </div>
                     )}
                     
-                    <div className="d-flex gap-2">
+                    <div className="d-flex gap-2 form-action-group">
                       <Button
                         variant="success"
                         size="sm"
@@ -2878,7 +2915,7 @@ function TeacherClassStream() {
             <Card className="p-4 text-center text-muted">No posts yet. Start the conversation!</Card>
           ) : (
             announcements.map((a) => (
-              <Card key={a._id || a.id} className="mb-3">
+              <Card key={a._id || a.id} className="mb-3 announcement-card">
                 <Card.Body>
                   <div className="d-flex justify-content-between align-items-start">
                     <div className="d-flex align-items-start gap-2 flex-grow-1">
@@ -2913,7 +2950,7 @@ function TeacherClassStream() {
                         <div className="text-muted" style={{ fontSize: 12 }}>{new Date(a.date).toLocaleString()}</div>
                       </div>
                     </div>
-                    <Dropdown align="end">
+                    <Dropdown align="end" onClick={(e) => e.stopPropagation()} className="announcement-dropdown">
                       <Dropdown.Toggle 
                         variant="link" 
                         size="sm" 
@@ -3104,7 +3141,7 @@ function TeacherClassStream() {
                               </small>
                             </div>
                           </div>
-                          <Dropdown align="end">
+                          <Dropdown align="end" onClick={(e) => e.stopPropagation()}>
                             <Dropdown.Toggle 
                               variant="link" 
                               size="sm" 
@@ -4676,7 +4713,6 @@ function Grades() {
   const fileInputRef = useRef(null);
   const [activeGradeTab, setActiveGradeTab] = useState("auto"); // "auto" or "manual"
   const [filterClass, setFilterClass] = useState("all");
-  const [filterStatus, setFilterStatus] = useState("all");
   const [exams, setExams] = useState([]); // Store exams data to check returned status
   const [returning, setReturning] = useState(false);
   const [classes, setClasses] = useState([]); // Store classes for section derivation
@@ -5017,16 +5053,7 @@ function Grades() {
       data = data.filter(item => item.className === filterClass);
     }
     
-    // Apply status filter
-    if (filterStatus !== "all") {
-      if (filterStatus === "early") {
-        data = data.filter(item => item.isEarly === true);
-      } else if (filterStatus === "late") {
-        data = data.filter(item => item.isLate === true);
-      } else if (filterStatus === "ontime") {
-        data = data.filter(item => item.isEarly === false && item.isLate === false);
-      }
-    }
+    // (Status filter removed) don't apply any status filtering here
     
     return data;
   };
@@ -5149,7 +5176,6 @@ function Grades() {
             onClick={() => {
               setActiveGradeTab("auto");
               setFilterClass("all");
-              setFilterStatus("all");
             }}
           >
             <Card.Body>
@@ -5170,7 +5196,6 @@ function Grades() {
             onClick={() => {
               setActiveGradeTab("auto");
               setFilterClass("all");
-              setFilterStatus("all");
             }}
           >
             <Card.Body>
@@ -5191,7 +5216,6 @@ function Grades() {
             onClick={() => {
               setActiveGradeTab("manual");
               setFilterClass("all");
-              setFilterStatus("all");
             }}
           >
             <Card.Body>
@@ -5212,7 +5236,6 @@ function Grades() {
             onClick={() => {
               setActiveGradeTab("auto");
               setFilterClass("all");
-              setFilterStatus("all");
               setSearchTerm("");
             }}
           >
@@ -5254,7 +5277,7 @@ function Grades() {
 
           {/* Filters and Actions */}
           <Row className="mb-3">
-            <Col md={4}>
+            <Col xs={12} md={4}>
               <Form.Label className="small fw-bold">Search</Form.Label>
               <Form.Control
                 type="text"
@@ -5264,7 +5287,7 @@ function Grades() {
                 size="sm"
               />
             </Col>
-            <Col md={3}>
+            <Col xs={12} md={4}>
               <Form.Label className="small fw-bold">Filter by Class</Form.Label>
               <Form.Select
                 value={filterClass}
@@ -5277,22 +5300,10 @@ function Grades() {
                 ))}
               </Form.Select>
             </Col>
-            <Col md={3}>
-              <Form.Label className="small fw-bold">Filter by Status</Form.Label>
-              <Form.Select
-                value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value)}
-                size="sm"
-              >
-                <option value="all">All Status</option>
-                <option value="early">Early</option>
-                <option value="ontime">On Time</option>
-                <option value="late">Late</option>
-              </Form.Select>
-            </Col>
-            <Col md={2}>
+            
+            <Col xs={12} md={4}>
               <Form.Label className="small fw-bold">Actions</Form.Label>
-              <div className="d-flex gap-1">
+              <div className="d-flex gap-1 flex-wrap justify-content-md-end">
                 <Button 
                   className="btn-custom-outline-success btn-custom-sm"
                   onClick={handleExportGrades}
@@ -5396,11 +5407,22 @@ function Grades() {
                       <small>{formatDate(submission.submittedAt)}</small>
                     </td>
                     <td>
-                      <Dropdown align="end">
+                      <Dropdown
+                        align="end"
+                        onClick={(e) => e.stopPropagation()}
+                        popperConfig={{
+                          strategy: 'absolute',
+                          modifiers: [
+                            { name: 'offset', options: { offset: [0, 6] } },
+                            { name: 'preventOverflow', options: { boundary: 'viewport', padding: 8 } },
+                            { name: 'flip', options: { fallbackPlacements: ['top', 'right', 'left'] } }
+                          ]
+                        }}
+                      >
                         <Dropdown.Toggle variant="light" size="sm" id={`dropdown-${submission._id}`} className="border-0" style={{ boxShadow: 'none' }}>
                           <i className="bi bi-three-dots-vertical"></i>
                         </Dropdown.Toggle>
-                        <Dropdown.Menu align="end">
+                        <Dropdown.Menu align="end" className="no-clip-dropdown" style={{ maxHeight: 'none', overflow: 'visible' }}>
                           <Dropdown.Item onClick={() => handleDeleteSubmission(submission._id)}>
                             <i className="bi bi-trash me-2"></i>Delete
                           </Dropdown.Item>
@@ -6474,13 +6496,13 @@ export default function TeacherDashboard() {
           <Navbar expand="lg" className="modern-mobile-navbar shadow-sm" expanded={mobileNavOpen} onToggle={(val) => setMobileNavOpen(val)}>
             <Container fluid>
               <div className="d-flex align-items-center justify-content-between w-100">
-                <Navbar.Brand className="fw-bold fs-4">🏫 Teacher</Navbar.Brand>
-                <div className="d-flex align-items-center mobile-toggle-group">
-                  {/* Mobile-only notification toggle (sits beside the hamburger) */}
-                  <div className="d-md-none notifications-fixed-mobile me-2">
+                <Navbar.Brand className="fw-bold fs-4 mb-0" style={{display: 'flex', alignItems: 'center'}}>🏫 Teacher</Navbar.Brand>
+                {/* Absolute container for bell and hamburger at upper right, no extra height */}
+                <div className="d-md-none position-absolute" style={{top: 10, right: 16, display: 'flex', alignItems: 'center', zIndex: 2001}}>
+                  <div className="notifications-fixed-mobile" style={{display: 'flex', alignItems: 'center', marginRight: 6, position: 'static'}}>
                     <NotificationsDropdown mobileMode={true} />
                   </div>
-                  <Navbar.Toggle aria-controls="mobile-nav" />
+                  <Navbar.Toggle aria-controls="mobile-nav" style={{display: 'flex', alignItems: 'center'}} />
                 </div>
               </div>
               <Navbar.Collapse id="mobile-nav">
