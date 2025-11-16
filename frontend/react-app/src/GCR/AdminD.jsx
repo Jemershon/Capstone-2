@@ -707,9 +707,7 @@ function DashboardHome() {
                 size="sm"
                 onClick={() => setShowCreateUserModal(true)}
                 aria-label="Create new user"
-              >
-                + Create User
-              </Button>
+              >+User</Button>
             </Card.Header>
             <Card.Body style={{ maxHeight: "500px", overflowY: "auto" }}>
               {displayedUsers.length === 0 ? (

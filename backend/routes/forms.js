@@ -63,10 +63,7 @@ router.get("/", authenticateToken, async (req, res) => {
       
       query = {
         status: "published", // Only show published forms
-        $or: [
-          { className: { $in: classNames } }, // Forms assigned to student's classes
-          { "settings.requireLogin": false }  // Public forms
-        ]
+        className: { $in: classNames } // Forms assigned to student's classes
       };
     }
     
@@ -361,11 +358,6 @@ router.post("/:id/responses", async (req, res) => {
     // Legacy deadline check (kept for backward compatibility)
     if (form.settings.deadline && now > new Date(form.settings.deadline)) {
       return res.status(400).json({ error: "Form deadline has passed" });
-    }
-    
-    // Check if login required
-    if (form.settings.requireLogin && !req.headers.authorization) {
-      return res.status(401).json({ error: "Login required to submit this form" });
     }
     
     // Check for duplicate submissions (only if user is logged in and form doesn't allow multiple responses)

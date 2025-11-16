@@ -106,9 +106,10 @@ const formSchema = new mongoose.Schema(
       isQuiz: { type: Boolean, default: false }, // Quiz mode
       autoGrade: { type: Boolean, default: false },
       showCorrectAnswers: { type: Boolean, default: false },
-      allowMultipleSubmissions: { type: Boolean, default: false },
-      collectEmail: { type: Boolean, default: true },
-      requireLogin: { type: Boolean, default: true }, // If false, anonymous submissions allowed
+      allowMultipleSubmissions: { type: Boolean, default: false }, // Legacy field name
+      allowMultipleResponses: { type: Boolean, default: false }, // Preferred field name
+      collectEmail: { type: Boolean, default: false },
+      requireLogin: { type: Boolean, default: false }, // If false, anonymous submissions allowed
       shuffleQuestions: { type: Boolean, default: false }, // Randomize question order per student
       shuffleAnswers: { type: Boolean, default: false }, // Randomize answer options (for MC, checkboxes, dropdown)
       usePhilippineStyle: { type: Boolean, default: false }, // Enable Philippine exam format
