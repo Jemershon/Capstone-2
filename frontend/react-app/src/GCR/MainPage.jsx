@@ -660,8 +660,6 @@ export default function LandingPage() {
       const res = await axios.post(`${API_BASE_URL}/api/auth/google`, body, { timeout: 10000 });
       const { setAuthData } = await import('../api');
       setAuthData(res.data.token, res.data.user.username, res.data.user.role);
-      setError('Login successful via Google');
-      setShowToast(true);
       // Redirect immediately for better UX
       try {
         const role = res?.data?.user?.role;
@@ -782,10 +780,6 @@ export default function LandingPage() {
       
       // Store authentication data using our helper function
       setAuthData(res.data.token, res.data.user.username, res.data.user.role);
-      
-      // Show success message
-      setError("Login successful!");
-      setShowToast(true);
       
       console.log("Redirecting to dashboard for role:", res.data.user.role);
       

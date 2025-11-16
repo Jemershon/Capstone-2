@@ -93,8 +93,23 @@ const FormViewer = () => {
   const loadForm = async () => {
     try {
       setLoading(true);
+      console.log("📝 Loading form:", formId);
       const response = await axios.get(`${API_BASE_URL}/api/forms/${formId}`);
       const formData = response.data;
+      console.log("✅ Form loaded successfully:", {
+        title: formData.title,
+        questions: formData.questions?.length || 0,
+        status: formData.status,
+        isQuiz: formData.settings?.isQuiz
+      });
+      
+      if (!formData.questions || formData.questions.length === 0) {
+        console.warn("⚠️ Form has no questions!");
+        setError("This form has no questions yet. Please contact your teacher.");
+        setLoading(false);
+        return;
+      }
+      
       setForm(formData);
       
       // Check if logged-in user has already submitted this form
@@ -606,7 +621,22 @@ const FormViewer = () => {
   if (!form) {
     return (
       <Container className="py-5">
-        <Alert variant="danger">Form not found</Alert>
+        <Alert variant="danger">
+          <Alert.Heading>❌ Form Not Found</Alert.Heading>
+          <p className="mb-0">{error || "The form you're looking for doesn't exist or has been deleted."}</p>
+        </Alert>
+      </Container>
+    );
+  }
+  
+  // Check if form has questions
+  if (!form.questions || form.questions.length === 0) {
+    return (
+      <Container className="py-5">
+        <Alert variant="warning">
+          <Alert.Heading>📝 No Questions Available</Alert.Heading>
+          <p className="mb-0">This form has no questions yet. Please contact your teacher.</p>
+        </Alert>
       </Container>
     );
   }

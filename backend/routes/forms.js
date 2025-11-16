@@ -854,32 +854,50 @@ router.post("/:id/send-to-class", authenticateToken, requireTeacherOrAdmin, asyn
     const classArray = Array.isArray(targetClasses) ? targetClasses : [targetClasses];
     
     const createdForms = [];
+    const updatedForms = [];
     
-    // Create copy for each target class
+    // Create copy for each target class (or update if same class)
     for (const targetClass of classArray) {
-      const newForm = new Form({
-        title: originalForm.title,
-        description: originalForm.description,
-        owner: username,
-        className: targetClass,
-        questions: originalForm.questions,
-        sections: originalForm.sections,
-        examHeader: originalForm.examHeader,
-        settings: {
-          ...originalForm.settings,
-          deadline: newDeadline ? new Date(newDeadline) : originalForm.settings.deadline,
-        },
-        theme: originalForm.theme,
-        status: "published", // Auto-publish when sent to class
-      });
-      
-      await newForm.save();
-      createdForms.push(newForm);
+      // If sending to the same class, just update the original form instead of duplicating
+      if (targetClass === originalForm.className) {
+        // Update deadline if provided (use exact time without timezone conversion)
+        if (newDeadline) {
+          originalForm.settings.deadline = newDeadline;
+          await originalForm.save();
+        }
+        updatedForms.push(originalForm);
+        console.log(`Form already in class ${targetClass}, updated instead of duplicating`);
+      } else {
+        // Different class - create a copy
+        const newForm = new Form({
+          title: originalForm.title,
+          description: originalForm.description,
+          owner: username,
+          className: targetClass,
+          questions: originalForm.questions,
+          sections: originalForm.sections,
+          examHeader: originalForm.examHeader,
+          settings: {
+            ...originalForm.settings,
+            deadline: newDeadline || originalForm.settings.deadline,
+          },
+          theme: originalForm.theme,
+          status: "published", // Auto-publish when sent to class
+        });
+        
+        await newForm.save();
+        createdForms.push(newForm);
+      }
     }
     
+    const totalForms = createdForms.length + updatedForms.length;
+    const allForms = [...createdForms, ...updatedForms];
+    
     res.json({ 
-      message: `Form sent to ${createdForms.length} class(es) successfully`,
-      forms: createdForms
+      message: `Form sent to ${totalForms} class(es) successfully (${createdForms.length} copied, ${updatedForms.length} updated)`,
+      forms: allForms,
+      created: createdForms.length,
+      updated: updatedForms.length
     });
   } catch (err) {
     console.error("Send to class error:", err);

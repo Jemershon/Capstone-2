@@ -2626,6 +2626,90 @@ app.get("/api/grades", authenticateToken, async (req, res) => {
       console.error('[/api/grades] Failed to include pending submissions in teacher grades:', pendingErr && pendingErr.message ? pendingErr.message : pendingErr);
     }
     
+    // ALSO include Form/Quiz submissions (from FormResponse collection)
+    try {
+      // Get all forms (quizzes) from teacher's classes
+      const classForms = await Form.find({ 
+        className: { $in: classNames },
+        'settings.isQuiz': true // Only include quizzes in grades
+      }).select('_id title className settings');
+      
+      const formIds = classForms.map(f => f._id);
+      
+      console.log(`[/api/grades] Found ${formIds.length} quizzes in teacher's classes`);
+      
+      if (formIds.length > 0) {
+        const formResponses = await FormResponse.find({ formId: { $in: formIds } })
+          .populate('formId', 'title className settings')
+          .sort({ submittedAt: -1 });
+        
+        console.log(`[/api/grades] Found ${formResponses.length} quiz responses`);
+        
+        // Get all unique student usernames to fetch user info
+        const studentUsernames = [...new Set(formResponses.map(resp => resp.respondent?.username).filter(Boolean))];
+        
+        if (studentUsernames.length > 0) {
+          const students = await User.find({ username: { $in: studentUsernames } }).select('username name email section');
+          const studentMap = {};
+          students.forEach(s => {
+            studentMap[s.username] = {
+              name: s.name || s.username,
+              email: s.email || '',
+              section: s.section || 'No Section'
+            };
+          });
+          
+          // Add quiz responses to grades
+          for (const resp of formResponses) {
+            const form = resp.formId;
+            if (!form || !resp.respondent?.username) continue;
+            
+            // Check if this response already has a grade entry
+            const existingGrade = grades.find(g => 
+              g.student === resp.respondent.username && 
+              g.examId && form._id &&
+              (g.examId.toString() === form._id.toString())
+            );
+            
+            if (!existingGrade) {
+              const studentInfo = studentMap[resp.respondent.username] || { 
+                name: resp.respondent.name || resp.respondent.username, 
+                email: resp.respondent.email || '', 
+                section: 'No Section' 
+              };
+              
+              // Determine if needs manual grading
+              const needsManualGrading = resp.status === 'submitted' && !resp.score?.autoGraded;
+              
+              resultGrades.push({
+                _id: resp._id,
+                class: form.className,
+                student: resp.respondent.username,
+                studentName: studentInfo.name,
+                studentEmail: studentInfo.email,
+                section: studentInfo.section,
+                grade: needsManualGrading ? 'Pending' : `${resp.score?.total || 0}/${resp.score?.maxScore || 0}`,
+                feedback: resp.feedback || '',
+                examId: form._id,
+                examTitle: form.title || 'Quiz',
+                submittedAt: resp.submittedAt,
+                finalScore: resp.score?.total || 0,
+                totalQuestions: resp.score?.maxScore || 0,
+                rawScore: resp.score?.total || 0,
+                percentage: resp.score?.percentage || 0,
+                creditsUsed: 0,
+                manualGrading: needsManualGrading,
+                pending: needsManualGrading,
+                isQuiz: true // Flag to differentiate from exam submissions
+              });
+            }
+          }
+        }
+      }
+    } catch (formErr) {
+      console.error('[/api/grades] Failed to include form/quiz responses:', formErr);
+    }
+    
     res.json(resultGrades);
   } catch (err) {
     console.error("Get grades error:", err);

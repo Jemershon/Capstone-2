@@ -156,23 +156,43 @@ const FormBuilder = () => {
       // Clean form data - remove MongoDB internal fields and extra computed fields
       const { _id, __v, createdAt, updatedAt, responseCount, availabilityStatus, ...cleanFormData } = form;
       
-      // Prepare payload: keep local datetime strings in the UI (`openAt`, `closeAt`)
-      // but also include explicit UTC ISO timestamps for backend processing.
+      // Prepare payload: Use the exact datetime the teacher selected without timezone conversion
       const settingsWithUtc = { ...cleanFormData.settings };
       try {
         if (cleanFormData.settings?.openAt) {
-          // convert local datetime-local string to a proper UTC ISO for backend
-          settingsWithUtc.openAtUtc = new Date(cleanFormData.settings.openAt).toISOString();
+          // Keep the exact datetime without timezone adjustment
+          // datetime-local format: "2025-11-16T14:00"
+          // Store as-is or append seconds if needed
+          const openAtValue = cleanFormData.settings.openAt;
+          if (openAtValue.includes('T')) {
+            // Check if it has seconds already
+            const parts = openAtValue.split('T')[1];
+            settingsWithUtc.openAtUtc = parts.split(':').length === 2 
+              ? openAtValue + ':00' 
+              : openAtValue;
+          } else {
+            settingsWithUtc.openAtUtc = openAtValue;
+          }
         }
       } catch (e) {
-        console.warn("Failed to compute openAtUtc:", e);
+        console.warn("Failed to process openAt:", e);
       }
       try {
         if (cleanFormData.settings?.closeAt) {
-          settingsWithUtc.closeAtUtc = new Date(cleanFormData.settings.closeAt).toISOString();
+          // Keep the exact datetime without timezone adjustment
+          const closeAtValue = cleanFormData.settings.closeAt;
+          if (closeAtValue.includes('T')) {
+            // Check if it has seconds already
+            const parts = closeAtValue.split('T')[1];
+            settingsWithUtc.closeAtUtc = parts.split(':').length === 2 
+              ? closeAtValue + ':00' 
+              : closeAtValue;
+          } else {
+            settingsWithUtc.closeAtUtc = closeAtValue;
+          }
         }
       } catch (e) {
-        console.warn("Failed to compute closeAtUtc:", e);
+        console.warn("Failed to process closeAt:", e);
       }
 
       const formData = {
