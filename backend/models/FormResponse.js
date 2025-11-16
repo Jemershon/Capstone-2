@@ -60,6 +60,10 @@ const responseSchema = new mongoose.Schema(
       enum: ["submitted", "graded", "reviewed"],
       default: "submitted",
     },
+    
+    // Grade visibility
+    gradesReturned: { type: Boolean, default: false },
+    returnedAt: Date,
   },
   { timestamps: true }
 );

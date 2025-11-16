@@ -542,6 +542,8 @@ button.btn-secondary,
   background: #17a2b8 !important;
   color: white !important;
   transform: translateY(-3px) !important;
+}
+
 .btn-secondary:hover,
 .btn.btn-secondary:hover {
   background: var(--brand-red) !important;
@@ -676,11 +678,11 @@ button.btn-secondary,
 
 .table thead {
   background: linear-gradient(135deg, var(--brand-red) 0%, var(--brand-red-dark) 100%) !important;
-  color: white !important;
+  color: #222 !important;
 }
 
 .table thead th {
-  color: white !important;
+  color: #222 !important;
 }
 
 .table tbody tr {
@@ -688,8 +690,8 @@ button.btn-secondary,
 }
 
 .table tbody tr:hover {
-  background-color: rgba(163, 12, 12, 0.04);
-  transform: scale(1.01);
+  background-color: transparent !important;
+  transform: none !important;
 }
 
 /* ===== BADGES ===== */

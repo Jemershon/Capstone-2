@@ -147,6 +147,27 @@ const FormAnalytics = () => {
     }
   };
   
+  const handleReturnAllGrades = async () => {
+    if (!window.confirm("Return all graded responses to students? They will be able to see their scores and feedback.")) {
+      return;
+    }
+    
+    try {
+      const response = await axios.post(
+        `${API_BASE_URL}/api/forms/${formId}/return-grades`,
+        {},
+        {
+          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+        }
+      );
+      
+      setSuccess(`Grades returned to ${response.data.studentsNotified} students successfully!`);
+      loadData(); // Reload to update status
+    } catch (err) {
+      setError(err.response?.data?.error || "Failed to return grades");
+    }
+  };
+  
   const renderQuestionAnalytics = (question, questionStats) => {
     if (!questionStats) {
       return (
@@ -325,10 +346,18 @@ const FormAnalytics = () => {
               <h2>{form.title}</h2>
               <p className="text-muted">{form.description}</p>
             </div>
-            <Button variant="success" onClick={handleExportCSV}>
-              <i className="bi bi-download me-2"></i>
-              Export CSV
-            </Button>
+            <div className="d-flex gap-2">
+              {form.settings.isQuiz && responses.some(r => r.status === 'graded' && !r.gradesReturned) && (
+                <Button variant="primary" onClick={handleReturnAllGrades}>
+                  <i className="bi bi-check-circle me-2"></i>
+                  Return All Grades
+                </Button>
+              )}
+              <Button variant="success" onClick={handleExportCSV}>
+                <i className="bi bi-download me-2"></i>
+                Export CSV
+              </Button>
+            </div>
           </div>
         </Col>
       </Row>
@@ -387,40 +416,20 @@ const FormAnalytics = () => {
         </Col>
       </Row>
       
-      {/* Tabs */}
-      <Tabs activeKey={activeTab} onSelect={(k) => setActiveTab(k)} className="mb-3">
-        <Tab eventKey="summary" title="Question Analytics">
-          <Row>
-            <Col>
-              {form.questions.map((question) => {
-                const questionStats = analytics?.questionAnalytics?.find(
-                  qs => qs.questionId === question._id || qs.questionId === question._id.toString()
-                );
-                return (
-                  <div key={question._id}>
-                    {renderQuestionAnalytics(question, questionStats)}
-                  </div>
-                );
-              })}
-            </Col>
-          </Row>
-        </Tab>
-        
-        <Tab eventKey="responses" title={`Individual Responses (${responses.length})`}>
-          <Card>
-            <Table responsive hover>
-              <thead>
-                <tr>
-                  <th>Respondent</th>
-                  <th>Submitted</th>
-                  <th>Time Spent</th>
-                  {form.settings.isQuiz && <th>Score</th>}
-                  <th>Status</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {responses.map((response) => {
+      {/* Individual Responses - No tabs */}
+      <Card>
+        <Table responsive hover>
+          <thead>
+            <tr>
+              <th>Respondent</th>
+              <th>Submitted</th>
+              <th>Time Spent</th>
+              {form.settings.isQuiz && <th>Score</th>}
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {responses.map((response) => {
                   const needsGrading = form.settings.isQuiz && 
                     form.questions.some(q => 
                       (q.type === 'short_answer' || q.type === 'paragraph') && q.required
@@ -474,43 +483,19 @@ const FormAnalytics = () => {
                       <td>
                         {hasManualQuestions && !response.feedback ? (
                           <Badge bg="warning">Needs Grading</Badge>
+                        ) : response.gradesReturned ? (
+                          <Badge bg="info">Returned</Badge>
                         ) : (
                           <Badge bg="success">Graded</Badge>
                         )}
                       </td>
-                      <td>
-                        <div className="d-flex gap-2">
-                          {form.settings.isQuiz && hasManualQuestions && (
-                            <Button 
-                              size="sm" 
-                              variant="primary"
-                              onClick={() => handleOpenGrading(response)}
-                            >
-                              <i className="bi bi-pencil-square me-1"></i>
-                              Grade
-                            </Button>
-                          )}
-                          <Button 
-                            size="sm" 
-                            variant="outline-secondary"
-                            onClick={() => {
-                              setSelectedResponse(response);
-                              // Could open a view-only modal here
-                            }}
-                          >
-                            <i className="bi bi-eye me-1"></i>
-                            View
-                          </Button>
-                        </div>
-                      </td>
+                      {/* No Actions column */}
                     </tr>
                   );
                 })}
-              </tbody>
-            </Table>
-          </Card>
-        </Tab>
-      </Tabs>
+          </tbody>
+        </Table>
+      </Card>
       
       {/* Manual Grading Modal */}
       <Modal show={showGradingModal} onHide={() => setShowGradingModal(false)} size="lg">

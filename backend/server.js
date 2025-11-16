@@ -2546,17 +2546,75 @@ app.delete("/api/grades/:id", authenticateToken, requireTeacherOrAdmin, async (r
 
 // Teacher: Get grades
 app.get("/api/grades", authenticateToken, async (req, res) => {
+  console.log('[/api/grades] Handler invoked for', req.method, req.originalUrl, 'user:', req.user ? req.user.username : 'unauthenticated');
   try {
     const { page = 1, limit = 100 } = req.query;
-    const classes = await Class.find({ teacher: req.user.username }).select("name");
+    const classes = await Class.find({ teacher: req.user.username }).select("name section year");
     const classNames = classes.map(cls => cls.name);
+    
+    // Create a map of class names to their year/section
+    const normalize = (s) => (s || '').trim().toLowerCase();
+    const classMap = {};
+    const classMapNorm = {};
+    classes.forEach(c => {
+      // Prefer year field (e.g., "4-2") over section field
+      const sectionValue = c.year || c.section || 'No Section';
+      classMap[c.name] = sectionValue;
+      classMapNorm[normalize(c.name)] = sectionValue;
+      console.log(`[/api/grades] Adding to classMap: "${c.name}" -> "${sectionValue}"`);
+    });
+    
     const grades = await Grade.find({ class: { $in: classNames } })
       .skip((page - 1) * limit)
       .limit(parseInt(limit));
     
-    // Also include pending/newly-submitted exam submissions so teacher sees students who just submitted
-    // Both manual-graded and auto-graded exams should appear in the teacher's view immediately
-    const resultGrades = [...grades];
+    console.log(`[/api/grades] Class map:`, classMap);
+    console.log(`[/api/grades] Sample grade class:`, grades[0]?.class);
+    console.log(`[/api/grades] Sample grade class lookup:`, grades[0] ? classMap[grades[0].class] : 'no grades');
+    
+    // Get student info for existing grades
+    const gradeStudents = [...new Set(grades.map(g => g.student))];
+    const gradeStudentUsers = await User.find({ username: { $in: gradeStudents } }).select('username name email');
+    const gradeStudentMap = {};
+    gradeStudentUsers.forEach(s => {
+      gradeStudentMap[s.username] = {
+        name: s.name || s.username,
+        email: s.email || ''
+      };
+    });
+    
+    // Enrich existing grades with section info and student names
+    const resultGrades = [];
+    for (const grade of grades) {
+      const gradeObj = grade.toObject ? grade.toObject() : grade;
+      const studentInfo = gradeStudentMap[gradeObj.student] || { name: gradeObj.student, email: '' };
+      let sectionValue = classMap[gradeObj.class] || classMapNorm[normalize(gradeObj.class)];
+      if (!sectionValue) {
+        // Final fallback: query Class by name (case-insensitive)
+        try {
+          const cls = await Class.findOne({ name: { $regex: `^${(gradeObj.class || '').replace(/[.*+?^${}()|[\\]\\\\]/g, '\\$&')}$`, $options: 'i' } }).select('year section name');
+          if (cls) {
+            sectionValue = cls.year || cls.section || 'No Section';
+            // Backfill into maps for future lookups
+            classMap[cls.name] = sectionValue;
+            classMapNorm[normalize(cls.name)] = sectionValue;
+            console.log(`[/api/grades] Fallback fetched Class '${cls.name}' -> '${sectionValue}'`);
+          } else {
+            sectionValue = 'No Section';
+            console.warn(`[/api/grades] No Class found in fallback for '${gradeObj.class}'`);
+          }
+        } catch (e) {
+          console.warn(`[/api/grades] Fallback query failed for class '${gradeObj.class}':`, e?.message || e);
+          sectionValue = 'No Section';
+        }
+      }
+      resultGrades.push({
+        ...gradeObj,
+        studentName: studentInfo.name,
+        studentEmail: studentInfo.email,
+        section: sectionValue
+      });
+    }
     
     try {
       // Get all exams from teacher's classes (not just ones created by this teacher)
@@ -2575,13 +2633,12 @@ app.get("/api/grades", authenticateToken, async (req, res) => {
         
         // Get all unique student usernames to fetch user info
         const studentUsernames = [...new Set(allSubmissions.map(sub => sub.student))];
-        const students = await User.find({ username: { $in: studentUsernames } }).select('username name email section');
+        const students = await User.find({ username: { $in: studentUsernames } }).select('username name email');
         const studentMap = {};
         students.forEach(s => {
           studentMap[s.username] = {
             name: s.name || s.username,
-            email: s.email || '',
-            section: s.section || 'No Section'
+            email: s.email || ''
           };
         });
         
@@ -2598,7 +2655,22 @@ app.get("/api/grades", authenticateToken, async (req, res) => {
           );
           
           if (!existingGrade) {
-            const studentInfo = studentMap[sub.student] || { name: sub.student, email: '', section: 'No Section' };
+            const studentInfo = studentMap[sub.student] || { name: sub.student, email: '' };
+            let classSection = classMap[exam.class] || classMapNorm[normalize(exam.class)];
+            if (!classSection) {
+              try {
+                const cls = await Class.findOne({ name: { $regex: `^${(exam.class || '').replace(/[.*+?^${}()|[\\]\\\\]/g, '\\$&')}$`, $options: 'i' } }).select('year section name');
+                if (cls) {
+                  classSection = cls.year || cls.section || 'No Section';
+                  classMap[cls.name] = classSection;
+                  classMapNorm[normalize(cls.name)] = classSection;
+                } else {
+                  classSection = 'No Section';
+                }
+              } catch (e) {
+                classSection = 'No Section';
+              }
+            }
             // No grade entry yet - add it
             resultGrades.push({
               _id: sub._id,
@@ -2606,7 +2678,7 @@ app.get("/api/grades", authenticateToken, async (req, res) => {
               student: sub.student,
               studentName: studentInfo.name,
               studentEmail: studentInfo.email,
-              section: studentInfo.section,
+              section: classSection,
               grade: exam.manualGrading ? 'Pending' : `${sub.finalScore || 0}/${sub.totalQuestions || 0}`,
               feedback: sub.feedback || '',
               examId: exam._id,
@@ -2681,13 +2753,16 @@ app.get("/api/grades", authenticateToken, async (req, res) => {
               // Determine if needs manual grading
               const needsManualGrading = resp.status === 'submitted' && !resp.score?.autoGraded;
               
+              // Resolve section from class map first, then fallback to student's own section
+              const classSectionForQuiz = classMap[form.className] || classMapNorm[normalize(form.className)] || studentInfo.section || 'No Section';
+
               resultGrades.push({
                 _id: resp._id,
                 class: form.className,
                 student: resp.respondent.username,
                 studentName: studentInfo.name,
                 studentEmail: studentInfo.email,
-                section: studentInfo.section,
+                section: classSectionForQuiz,
                 grade: needsManualGrading ? 'Pending' : `${resp.score?.total || 0}/${resp.score?.maxScore || 0}`,
                 feedback: resp.feedback || '',
                 examId: form._id,
@@ -2889,6 +2964,56 @@ app.delete("/api/exam-submissions/:submissionId", authenticateToken, requireTeac
   } catch (err) {
     console.error("Delete submission error:", err);
     res.status(500).json({ error: "Failed to delete submission" });
+  }
+});
+
+// Teacher: Return grade to student with feedback
+app.post("/api/exam-submissions/:submissionId/return-grade", authenticateToken, requireTeacherOrAdmin, async (req, res) => {
+  try {
+    const { submissionId } = req.params;
+    const { feedback, finalScore } = req.body;
+    
+    // Find the submission
+    const submission = await ExamSubmission.findById(submissionId).populate('examId', 'class createdBy');
+    
+    if (!submission) {
+      return res.status(404).json({ error: "Submission not found" });
+    }
+    
+    // Verify teacher owns the class this exam belongs to
+    const exam = submission.examId;
+    if (exam && exam.createdBy !== req.user.username && req.user.role !== 'admin') {
+      return res.status(403).json({ error: "You can only return grades from your own classes" });
+    }
+    
+    // Update submission with feedback, score, and mark as returned
+    submission.feedback = feedback || submission.feedback || "";
+    if (finalScore !== undefined && finalScore !== null) {
+      submission.finalScore = parseInt(finalScore);
+    }
+    submission.gradeReturned = true;
+    submission.returnedAt = new Date();
+    
+    await submission.save();
+    console.log(`Grade returned for submission ${submissionId} by ${req.user.username}`);
+    
+    // Emit socket event to student
+    const io = req.app.get('io');
+    if (io && submission.student) {
+      io.emit(`grade-returned-${submission.student}`, {
+        submissionId: submission._id,
+        examTitle: exam?.title || 'Exam',
+        feedback: submission.feedback,
+        score: submission.finalScore,
+        totalQuestions: submission.totalQuestions
+      });
+    }
+    
+    res.json({ message: "Grade returned successfully", submission });
+    
+  } catch (err) {
+    console.error("Return grade error:", err);
+    res.status(500).json({ error: "Failed to return grade" });
   }
 });
 

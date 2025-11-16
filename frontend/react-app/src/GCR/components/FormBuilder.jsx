@@ -725,6 +725,39 @@ const FormBuilder = () => {
                   
                   {form.settings.usePhilippineStyle && (
                     <>
+                      <Alert variant="info" className="mb-3">
+                        <small>
+                          <i className="bi bi-info-circle me-2"></i>
+                          Philippine style exams are automatically set as quizzes that can be graded.
+                        </small>
+                      </Alert>
+                      
+                      {/* Auto-grading options for Philippine exams */}
+                      <Form.Check
+                        type="switch"
+                        id="autoGradePhilippine"
+                        label="Auto-grade responses"
+                        checked={form.settings.autoGrade}
+                        onChange={(e) => setForm({
+                          ...form,
+                          settings: { ...form.settings, autoGrade: e.target.checked }
+                        })}
+                        className="mb-2"
+                      />
+                      <Form.Check
+                        type="switch"
+                        id="showCorrectAnswersPhilippine"
+                        label="Show correct answers after submission"
+                        checked={form.settings.showCorrectAnswers}
+                        onChange={(e) => setForm({
+                          ...form,
+                          settings: { ...form.settings, showCorrectAnswers: e.target.checked }
+                        })}
+                        className="mb-3"
+                      />
+                      
+                      <hr className="my-4" />
+                      
                       <h6 className="mt-4 mb-3">📋 Exam Header Information</h6>
                       <Row>
                         <Col md={6}>

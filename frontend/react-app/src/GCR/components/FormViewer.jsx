@@ -132,12 +132,17 @@ const FormViewer = () => {
         }
       }
       
-      // Shuffle questions if enabled
-      let questionsToDisplay = formData.questions;
-      if (formData.settings?.shuffleQuestions) {
-        questionsToDisplay = shuffleArray(formData.questions);
+      // Shuffle questions if enabled, otherwise use original order
+      let questionsToDisplay = formData.questions || [];
+      if (formData.settings?.shuffleQuestions && questionsToDisplay.length > 0) {
+        questionsToDisplay = shuffleArray(questionsToDisplay);
       }
       setShuffledQuestions(questionsToDisplay);
+      
+      console.log("✅ Questions initialized:", {
+        total: questionsToDisplay.length,
+        shuffled: formData.settings?.shuffleQuestions || false
+      });
       
       // Shuffle answer options if enabled
       if (formData.settings?.shuffleAnswers) {
@@ -181,10 +186,17 @@ const FormViewer = () => {
   };
   
   const getVisibleQuestions = () => {
-    if (!form) return [];
+    if (!form || !form.questions) return [];
     
-    // Use shuffled questions if shuffle is enabled, otherwise use original order
-    const questionsToFilter = form.settings?.shuffleQuestions ? shuffledQuestions : form.questions;
+    // Use shuffled questions if shuffle is enabled AND shuffled questions exist, otherwise use original order
+    const questionsToFilter = (form.settings?.shuffleQuestions && shuffledQuestions.length > 0) 
+      ? shuffledQuestions 
+      : form.questions;
+    
+    if (!questionsToFilter || questionsToFilter.length === 0) {
+      console.warn("⚠️ No questions to filter");
+      return [];
+    }
     
     return questionsToFilter.filter(question => {
       if (!question.conditionalLogic || !question.conditionalLogic.enabled) {
@@ -304,19 +316,39 @@ const FormViewer = () => {
       setSuccess(form.settings?.confirmationMessage || "Form submitted successfully! Thank you for your response.");
       
       // Emit socket event to notify other clients that form was submitted
+      // Wait for socket emission before redirecting
       try {
         const socket = io(API_BASE_URL);
-        if (form.className) {
-          socket.emit('form-submitted', { 
-            formId: formId, 
-            className: form.className,
-            title: form.title 
-          });
-        }
+        await new Promise((resolve) => {
+          if (form.className) {
+            socket.emit('form-submitted', { 
+              formId: formId, 
+              className: form.className,
+              title: form.title,
+              studentUsername: respondent?.username
+            }, () => {
+              console.log('✅ Form submission socket event sent');
+              resolve();
+            });
+            // Fallback timeout in case callback never fires
+            setTimeout(resolve, 500);
+          } else {
+            resolve();
+          }
+        });
         socket.disconnect();
       } catch (socketErr) {
         console.log("Could not emit socket event:", socketErr);
       }
+      
+      // Redirect student back to their dashboard/stream after showing success message
+      setTimeout(() => {
+        window.close(); // Close the form tab
+        // If tab doesn't close (popup blocker), redirect to dashboard
+        setTimeout(() => {
+          window.location.href = '/student/dashboard';
+        }, 100);
+      }, 2000);
       
       // Don't reload form - disable submission permanently
       setSubmitting(false);
@@ -702,6 +734,20 @@ const FormViewer = () => {
     ? (Object.keys(answers).filter(k => answers[k]).length / visibleQuestions.length) * 100 
     : 0;
   
+  // Debug logging
+  console.log("📝 FormViewer Render Debug:", {
+    totalQuestions: form.questions?.length || 0,
+    visibleQuestions: visibleQuestions.length,
+    hasSections: form.sections?.length || 0,
+    usePhilippineStyle: form.settings?.usePhilippineStyle,
+    questions: form.questions?.map(q => ({
+      id: q._id,
+      title: q.title || q.question,
+      sectionId: q.sectionId,
+      type: q.type
+    }))
+  });
+  
   return (
     <Container className="py-4" style={{ maxWidth: '800px' }}>
       <Card 
@@ -800,96 +846,19 @@ const FormViewer = () => {
           
           {/* Questions */}
           <Form onSubmit={handleSubmit}>
-            {/* Philippine Style: Group by Sections */}
-            {form.settings?.usePhilippineStyle && form.sections && form.sections.length > 0 ? (
-              <>
-                {form.sections.map((section, sectionIdx) => {
-                  const sectionQuestions = visibleQuestions.filter(
-                    q => q.sectionId === section._id
-                  );
-                  
-                  if (sectionQuestions.length === 0) return null;
-                  
-                  return (
-                    <div key={section._id} className="mb-4">
-                      {/* Section Header */}
-                      <div className="bg-primary text-white p-3 rounded-top">
-                        <h4 className="mb-1">{section.title}</h4>
-                        {section.instructions && (
-                          <p className="mb-0 small">{section.instructions}</p>
-                        )}
-                        {section.pointsPerItem && (
-                          <small className="d-block mt-1">
-                            Points per item: {section.pointsPerItem}
-                          </small>
-                        )}
-                      </div>
-                      
-                      {/* Section Questions */}
-                      <div className="border border-top-0 rounded-bottom p-3">
-                        {sectionQuestions.map((question, qIdx) => (
-                          <div key={question._id} className="mb-4">
-                            <Form.Group>
-                              <Form.Label className="fw-bold">
-                                {qIdx + 1}. {question.title || question.question}
-                                {question.required && <span className="text-danger"> *</span>}
-                                {question.points && (
-                                  <span className="ms-2 badge bg-secondary">
-                                    {question.points} {question.points === 1 ? 'pt' : 'pts'}
-                                  </span>
-                                )}
-                              </Form.Label>
-                              {question.description && (
-                                <small className="text-muted d-block mb-2">
-                                  {question.description}
-                                </small>
-                              )}
-                              {renderQuestion(question)}
-                            </Form.Group>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })}
-                
-                {/* Questions without section */}
-                {visibleQuestions.filter(q => !q.sectionId).length > 0 && (
-                  <div className="mb-4">
-                    <div className="bg-secondary text-white p-3 rounded-top">
-                      <h5 className="mb-0">Other Questions</h5>
-                    </div>
-                    <div className="border border-top-0 rounded-bottom p-3">
-                      {visibleQuestions.filter(q => !q.sectionId).map((question, idx) => (
-                        <Card key={question._id} className="mb-3">
-                          <Card.Body>
-                            <Form.Group>
-                              <Form.Label className="fw-bold">
-                                {idx + 1}. {question.title || question.question}
-                                {question.required && <span className="text-danger"> *</span>}
-                                {question.points && (
-                                  <span className="ms-2 badge bg-secondary">
-                                    {question.points} {question.points === 1 ? 'pt' : 'pts'}
-                                  </span>
-                                )}
-                              </Form.Label>
-                              {question.description && (
-                                <small className="text-muted d-block mb-2">
-                                  {question.description}
-                                </small>
-                              )}
-                              {renderQuestion(question)}
-                            </Form.Group>
-                          </Card.Body>
-                        </Card>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </>
+            {visibleQuestions.length === 0 ? (
+              <Alert variant="warning">
+                <Alert.Heading>⚠️ No Questions Available</Alert.Heading>
+                <p className="mb-0">This form has no questions to display. Please contact your teacher.</p>
+                <small className="text-muted d-block mt-2">
+                  Debug: Total questions in form: {form.questions?.length || 0}, 
+                  Sections: {form.sections?.length || 0}, 
+                  Philippine Style: {form.settings?.usePhilippineStyle ? 'Yes' : 'No'}
+                </small>
+              </Alert>
             ) : (
-              /* Standard Style: List all questions */
               <>
+                {/* Always show questions in simple Google Forms style - ignore sections for now */}
                 {visibleQuestions.map((question, idx) => (
                   <Card key={question._id} className="mb-3">
                     <Card.Body>

@@ -1669,7 +1669,16 @@ function StudentClassStream() {
       }
     });
 
-    // Listen for material/announcement deletions - refresh stream to remove deleted posts
+    // Listen for grades being returned
+    socket.on('grades-returned-' + getUsername(), (data) => {
+      console.log('Grades returned notification received:', data);
+      const token = getAuthToken();
+      if (token) {
+        fetchForms(token);
+      }
+    });
+
+    // Listen for material/announcement deletions - remove deleted form from stream immediately
     const handleAnnouncementDeleted = (data) => {
       console.log('🔔 [StudentD] Received announcement-deleted event:', data);
       console.log('🔔 [StudentD] Current className:', className);
@@ -1683,6 +1692,7 @@ function StudentClassStream() {
     return () => {
       // Remove all listeners to prevent duplicates
       socket.off('announcement-deleted', handleAnnouncementDeleted);
+      socket.off('grades-returned-' + getUsername());
       
       // Leave the class room but don't disconnect the shared socket
       if (className) {
@@ -1900,7 +1910,8 @@ function StudentClassStream() {
             console.log(`Form ${form.title} status response:`, statusRes.data);
             return {
               ...form,
-              hasSubmitted: statusRes.data.hasSubmitted === true
+              hasSubmitted: statusRes.data.hasSubmitted === true,
+              gradesReturned: statusRes.data.gradesReturned === true
             };
           } catch (err) {
             console.error(`Could not fetch submission status for form ${form.title} (${form._id}):`, {
@@ -1910,7 +1921,8 @@ function StudentClassStream() {
             });
             return {
               ...form,
-              hasSubmitted: false // Default to not submitted if error
+              hasSubmitted: false, // Default to not submitted if error
+              gradesReturned: false
             };
           }
         })
@@ -2507,14 +2519,14 @@ function StudentClassStream() {
                           
                           <div className="d-flex gap-2">
                             <Button
-                              variant={form.hasSubmitted === true ? "success" : "primary"}
+                              variant={form.hasSubmitted === true ? (form.gradesReturned ? "info" : "success") : "primary"}
                               size="sm"
                               disabled={form.hasSubmitted === true}
                               onClick={() => window.open(`/forms/${form._id}`, '_blank')}
                               title={form.hasSubmitted === true ? "You have already submitted this form" : ""}
                             >
                               <i className={`bi ${form.hasSubmitted === true ? 'bi-check2-circle' : 'bi-pencil-square'} me-2`}></i>
-                              {form.hasSubmitted === true ? 'Submitted' : (form.settings?.isQuiz ? 'Take Quiz' : 'Fill Form')}
+                              {form.hasSubmitted === true && form.gradesReturned ? 'View Grade' : form.hasSubmitted === true ? 'Submitted' : (form.settings?.isQuiz ? 'Take Quiz' : 'Fill Form')}
                             </Button>
                           </div>
                         </Card.Body>
@@ -2689,14 +2701,14 @@ function StudentClassStream() {
                         
                         <div className="d-flex gap-2">
                           <Button
-                            variant={form.hasSubmitted === true ? "success" : "primary"}
+                            variant={form.hasSubmitted === true ? (form.gradesReturned ? "info" : "success") : "primary"}
                             size="sm"
                             disabled={form.hasSubmitted === true}
                             onClick={() => window.open(`/forms/${form._id}`, '_blank')}
                             title={form.hasSubmitted === true ? "You have already submitted this form" : ""}
                           >
                             <i className={`bi ${form.hasSubmitted === true ? 'bi-check2-circle' : 'bi-pencil-square'} me-2`}></i>
-                            {form.hasSubmitted === true ? 'Submitted' : (form.settings?.isQuiz ? 'Take Quiz' : 'Fill Form')}
+                            {form.hasSubmitted === true && form.gradesReturned ? 'View Grade' : form.hasSubmitted === true ? 'Submitted' : (form.settings?.isQuiz ? 'Take Quiz' : 'Fill Form')}
                           </Button>
                         </div>
                       </Card.Body>

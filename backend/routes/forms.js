@@ -587,6 +587,7 @@ router.get("/:id/my-submission-status", authenticateToken, async (req, res) => {
 
     res.json({
       hasSubmitted: !!submission,
+      gradesReturned: submission?.gradesReturned || false,
       submission: submission || null
     });
   } catch (err) {
@@ -823,6 +824,72 @@ router.put("/:formId/responses/:responseId/grade", authenticateToken, requireTea
     res.json({ message: "Grades saved successfully", response });
   } catch (err) {
     console.error("Grade response error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Return grades to all students for a form
+router.post("/:formId/return-grades", authenticateToken, requireTeacherOrAdmin, async (req, res) => {
+  try {
+    const { username } = req.user;
+    const { formId } = req.params;
+    
+    const form = await Form.findById(formId);
+    if (!form) {
+      return res.status(404).json({ error: "Form not found" });
+    }
+    
+    if (form.owner !== username && !form.collaborators.includes(username)) {
+      return res.status(403).json({ error: "Not authorized to return grades for this form" });
+    }
+    
+    // Update all responses to mark grades as returned
+    const result = await FormResponse.updateMany(
+      { 
+        formId: formId,
+        status: "graded",
+        gradesReturned: { $ne: true }
+      },
+      { 
+        $set: { 
+          gradesReturned: true,
+          returnedAt: new Date()
+        }
+      }
+    );
+    
+    // Get all unique students who have graded responses
+    const responses = await FormResponse.find({
+      formId: formId,
+      gradesReturned: true
+    });
+    
+    // Emit socket event to each student
+    const io = req.app.get('io');
+    if (io) {
+      const notifiedStudents = new Set();
+      responses.forEach(response => {
+        if (response.respondent && response.respondent.username) {
+          const studentUsername = response.respondent.username;
+          if (!notifiedStudents.has(studentUsername)) {
+            notifiedStudents.add(studentUsername);
+            io.emit(`grades-returned-${studentUsername}`, {
+              formId: formId,
+              formTitle: form.title,
+              message: `Your grades for "${form.title}" have been returned`
+            });
+          }
+        }
+      });
+    }
+    
+    res.json({ 
+      message: "Grades returned successfully", 
+      count: result.modifiedCount,
+      studentsNotified: responses.filter(r => r.respondent && r.respondent.username).length
+    });
+  } catch (err) {
+    console.error("Return grades error:", err);
     res.status(500).json({ error: err.message });
   }
 });

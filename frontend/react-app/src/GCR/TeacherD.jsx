@@ -30,7 +30,6 @@ import NotificationsDropdown from "./components/NotificationsDropdown";
 import Materials from "./components/Materials";
 import Comments from "./components/Comments";
 import ExamCreator from "./components/ExamCreator";
-import ManualGradingPanel from "./components/ManualGradingPanel";
 import FormsList from "./components/FormsList";
 import FormBuilder from "./components/FormBuilder";
 import FormAnalytics from "./components/FormAnalytics";
@@ -748,7 +747,7 @@ const customStyles = `
   /* Table Modern */
   .table {
     border-radius: 15px;
-    overflow: hidden;
+    /* overflow: hidden; */
   }
   
   .table thead {
@@ -758,11 +757,15 @@ const customStyles = `
   
   .table tbody tr {
     transition: all 0.2s ease;
+    color: #333 !important;
+  }
+  
+  .table tbody tr td {
+    color: #333 !important;
   }
   
   .table tbody tr:hover {
-    background-color: rgba(163, 12, 12, 0.04);
-    transform: scale(1.01);
+    background-color: transparent;
   }
   
   /* Badge Modern */
@@ -835,6 +838,8 @@ const customStyles = `
     box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
     border: none;
     padding: 8px 0;
+    z-index: 9999 !important;
+    position: fixed !important;
   }
   
   .dropdown-item {
@@ -931,7 +936,7 @@ function DashboardAndClasses() {
     `;
     document.head.appendChild(style);
     return () => document.head.removeChild(style);
-  }, []);
+  }, [classes]);
   
   // Stat card modals
   const [showStatsModal, setShowStatsModal] = useState(false);
@@ -4661,6 +4666,7 @@ function Exams() {
 
 // ================= Grades (Leaderboard) =================
 function Grades() {
+  const navigate = useNavigate();
   const [leaderboardData, setLeaderboardData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -4673,26 +4679,56 @@ function Grades() {
   const [filterStatus, setFilterStatus] = useState("all");
   const [exams, setExams] = useState([]); // Store exams data to check returned status
   const [returning, setReturning] = useState(false);
+  const [classes, setClasses] = useState([]); // Store classes for section derivation
+  
+  // Return Grade Modal States
+  const [showReturnGradeModal, setShowReturnGradeModal] = useState(false);
+  const [selectedSubmissionForReturn, setSelectedSubmissionForReturn] = useState(null);
+  const [returnGradeFeedback, setReturnGradeFeedback] = useState("");
+  const [returnGradeScore, setReturnGradeScore] = useState("");
+  const [returningGrade, setReturningGrade] = useState(false);
 
   const fetchLeaderboardData = useCallback(async () => {
     setLoading(true);
     try {
-      const headers = { Authorization: `Bearer ${localStorage.getItem("token")}` };
-      const response = await retry(() => 
-        axios.get(`${API_BASE_URL}/api/grades`, { headers })
-      );
+      const token = localStorage.getItem("token");
+      if (!token) {
+        console.warn('No auth token found in localStorage');
+        setError('Authentication required. Please login.');
+        setShowToast(true);
+        // Redirect to login after short delay
+        setTimeout(() => navigate('/login'), 800);
+        return;
+      }
+      console.log('Using auth token (masked):', token.substring(0,10) + '...');
+      const headers = { Authorization: `Bearer ${token}` };
+      
+      // Fetch both classes and grades in parallel
+      const [classesResponse, gradesResponse] = await Promise.all([
+        retry(() => axios.get(`${API_BASE_URL}/api/classes?page=1&limit=100`, { headers })),
+        retry(() => axios.get(`${API_BASE_URL}/api/grades`, { headers }))
+      ]);
+      
+      const fetchedClasses = classesResponse.data || [];
+      setClasses(fetchedClasses);
       
       // Transform /api/grades response to match leaderboardData structure
       // /api/grades returns an array of grades (both Grade documents and pending ExamSubmissions)
-      const gradesArray = Array.isArray(response.data) ? response.data : [];
+      const gradesArray = Array.isArray(gradesResponse.data) ? gradesResponse.data : [];
+      console.log('Grades API response:', gradesArray);
       
       // Filter and structure the data to match the expected format
-      const allSubmissions = gradesArray.map(item => ({
+      const allSubmissions = gradesArray.map(item => {
+        const classNameFromItem = item.class || item.className || '';
+        const cls = (fetchedClasses || []).find(c => (c.name || '').toLowerCase() === (classNameFromItem || '').toLowerCase());
+        const derivedSection = cls ? (cls.year || cls.section) : undefined;
+        const resolvedSection = item.section && item.section !== 'No Section' ? item.section : (derivedSection || 'No Section');
+        return ({
         _id: item._id,
         student: item.student,
         studentName: item.studentName || item.student,
         studentEmail: item.studentEmail || '',
-        section: item.section || 'No Section',
+        section: resolvedSection,
         creditPoints: item.creditPoints || 0,
         examTitle: item.examTitle || item.grade || 'Unknown',
         className: item.class || 'Unknown Class',
@@ -4709,7 +4745,8 @@ function Grades() {
         grade: item.grade || 'Pending',
         feedback: item.feedback || '',
         examId: item.examId
-      }));
+        });
+      });
       
       setLeaderboardData({
         allSubmissions: allSubmissions,
@@ -4729,13 +4766,18 @@ function Grades() {
       setExams(examsResponse.data || []);
       
     } catch (err) {
-      console.error("Fetch grades error:", err.response?.data || err.message);
-      setError(err.response?.data?.error || "Failed to load grades data");
+      console.error("Fetch grades error full:", err);
+      const status = err.response?.status;
+      if (status === 401 || status === 403) {
+        setError("Authentication required or session expired. Please log in.");
+      } else {
+        setError(err.response?.data?.error || err.message || "Failed to load grades data");
+      }
       setShowToast(true);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [navigate]);
 
   // Delete a single submission
   const handleDeleteSubmission = async (submissionId) => {
@@ -4756,6 +4798,48 @@ function Grades() {
       console.error("Delete submission error:", err.response?.data || err.message);
       setError(err.response?.data?.error || "Failed to delete submission");
       setShowToast(true);
+    }
+  };
+
+  // Handle Return Grade
+  const handleReturnGrade = (submission) => {
+    setSelectedSubmissionForReturn(submission);
+    setReturnGradeFeedback(submission.feedback || "");
+    setReturnGradeScore(submission.finalScore || "");
+    setShowReturnGradeModal(true);
+  };
+
+  // Submit Return Grade
+  const handleSubmitReturnGrade = async () => {
+    if (!selectedSubmissionForReturn) return;
+
+    setReturningGrade(true);
+    try {
+      const headers = { Authorization: `Bearer ${localStorage.getItem("token")}` };
+      await axios.post(
+        `${API_BASE_URL}/api/exam-submissions/${selectedSubmissionForReturn._id}/return-grade`,
+        { 
+          feedback: returnGradeFeedback,
+          finalScore: returnGradeScore ? parseInt(returnGradeScore) : undefined
+        },
+        { headers }
+      );
+      
+      // Refresh leaderboard data
+      await fetchLeaderboardData();
+      
+      setShowReturnGradeModal(false);
+      setSelectedSubmissionForReturn(null);
+      setReturnGradeFeedback("");
+      setReturnGradeScore("");
+      setError("");
+      setShowToast(false);
+    } catch (err) {
+      console.error("Return grade error:", err.response?.data || err.message);
+      setError(err.response?.data?.error || "Failed to return grade");
+      setShowToast(true);
+    } finally {
+      setReturningGrade(false);
     }
   };
 
@@ -5035,27 +5119,7 @@ function Grades() {
           <p className="text-muted mb-0">Track and manage student submissions</p>
         </div>
         
-        {/* Return Scores for Unreturned Exams */}
-        {Object.values(groupedByExam).some(exam => !exam.returned) && (
-          <div>
-            <small className="text-muted d-block mb-2">Unreturned Exams:</small>
-            <div className="d-flex gap-2 flex-wrap">
-              {Object.values(groupedByExam)
-                .filter(exam => !exam.returned)
-                .map(exam => (
-                  <Button
-                    key={exam.examId}
-                    className="btn-custom-success btn-custom-sm"
-                    onClick={() => handleReturnScores(exam.examId, exam.examTitle)}
-                    disabled={returning}
-                  >
-                    <i className="bi bi-check-circle me-1"></i>
-                    Return "{exam.examTitle}" ({exam.submissions.length})
-                  </Button>
-                ))}
-            </div>
-          </div>
-        )}
+        {/* Removed Unreturned Exams section and buttons as requested */}
       </div>
 
       {error && (
@@ -5283,41 +5347,29 @@ function Grades() {
             </h6>
             <small className="text-muted">Last updated: {new Date().toLocaleTimeString()}</small>
           </Card.Header>
-          <div className="table-responsive">
-            <Table hover className="mb-0 align-middle">
-              <thead className="table-light">
+          <Card.Body className="p-0">
+            <Table responsive hover>
+              <thead>
                 <tr>
-                  <th style={{ width: '50px' }}>#</th>
                   <th>Student</th>
                   <th>Section</th>
                   <th>Class</th>
                   <th>Form/Exam</th>
-                  <th className="text-center">Score</th>
-                  {activeGradeTab === "auto" && <th className="text-center">Credits</th>}
-                  <th className="text-center">Submitted</th>
-                  <th className="text-center">Status</th>
-                  <th className="text-center">Actions</th>
+                  <th>Score</th>
+                  <th>Submitted</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {currentData.map((submission, index) => (
+                {currentData.map((submission) => (
                   <tr key={submission._id}>
                     <td>
-                      <Badge bg={index < 3 ? "warning" : "secondary"} className="px-2">
-                        {index + 1}
-                        {index === 0 && " 🥇"}
-                        {index === 1 && " 🥈"}
-                        {index === 2 && " 🥉"}
-                      </Badge>
-                    </td>
-                    <td>
                       <div className="d-flex align-items-center">
-                        <div className="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center me-2" 
-                             style={{ width: 32, height: 32, fontSize: '0.9rem' }}>
+                        <div className="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center me-2" style={{ width: 32, height: 32, fontSize: '0.9rem' }}>
                           {(submission.studentName || submission.student).charAt(0).toUpperCase()}
                         </div>
                         <div>
-                          <div className="fw-semibold">{submission.studentName || submission.student}</div>
+                          <div className="fw-semibold" style={{ color: '#333' }}>{submission.studentName || submission.student}</div>
                           <small className="text-muted">{submission.student}</small>
                         </div>
                       </div>
@@ -5331,64 +5383,40 @@ function Grades() {
                     <td>
                       <div className="fw-semibold small">{submission.examTitle}</div>
                     </td>
-                    <td className="text-center">
-                      {activeGradeTab === "auto" ? (
-                        <div>
-                          <Badge bg={getScoreColor(submission.finalScore, submission.totalQuestions)} className="px-3 py-2">
-                            {submission.finalScore}/{submission.totalQuestions || '?'}
-                          </Badge>
-                          {submission.creditsUsed > 0 && (
-                            <div className="small text-muted mt-1">
-                              Raw: {submission.rawScore}/{submission.totalQuestions}
-                            </div>
-                          )}
-                        </div>
-                      ) : (
+                    <td>
+                      {submission.finalScore !== undefined ? (
                         <Badge bg="secondary" className="px-3 py-2">
-                          Pending
+                          {submission.finalScore}/{submission.totalQuestions || '?'}
                         </Badge>
+                      ) : (
+                        <Badge bg="secondary" className="px-3 py-2">Pending</Badge>
                       )}
                     </td>
-                    {activeGradeTab === "auto" && (
-                      <td className="text-center">
-                        {submission.creditsUsed > 0 ? (
-                          <Badge bg="warning" className="px-2">+{submission.creditsUsed}</Badge>
-                        ) : (
-                          <span className="text-muted">-</span>
-                        )}
-                      </td>
-                    )}
-                    <td className="text-center">
+                    <td>
                       <small>{formatDate(submission.submittedAt)}</small>
                     </td>
-                    <td className="text-center">
-                      {submission.isEarly === true && (
-                        <Badge bg="success"><i className="bi bi-lightning-fill"></i> Early</Badge>
-                      )}
-                      {submission.isLate === true && (
-                        <Badge bg="danger"><i className="bi bi-clock-fill"></i> Late</Badge>
-                      )}
-                      {submission.isEarly === false && submission.isLate === false && (
-                        <Badge bg="primary"><i className="bi bi-check-circle-fill"></i> On Time</Badge>
-                      )}
-                      {submission.isEarly === null && (
-                        <Badge bg="secondary">No Due</Badge>
-                      )}
-                    </td>
-                    <td className="text-center">
-                      <Button
-                        className="btn-custom-outline-danger btn-custom-sm"
-                        onClick={() => handleDeleteSubmission(submission._id)}
-                        title="Delete submission"
-                      >
-                        <i className="bi bi-trash"></i>
-                      </Button>
+                    <td>
+                      <Dropdown align="end">
+                        <Dropdown.Toggle variant="light" size="sm" id={`dropdown-${submission._id}`} className="border-0" style={{ boxShadow: 'none' }}>
+                          <i className="bi bi-three-dots-vertical"></i>
+                        </Dropdown.Toggle>
+                        <Dropdown.Menu align="end">
+                          <Dropdown.Item onClick={() => handleDeleteSubmission(submission._id)}>
+                            <i className="bi bi-trash me-2"></i>Delete
+                          </Dropdown.Item>
+                          {activeGradeTab === "manual" && (
+                            <Dropdown.Item onClick={() => handleReturnGrade(submission)}>
+                              <i className="bi bi-check-circle me-2"></i>Return Grade
+                            </Dropdown.Item>
+                          )}
+                        </Dropdown.Menu>
+                      </Dropdown>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </Table>
-          </div>
+          </Card.Body>
         </Card>
       )}
 
@@ -5397,12 +5425,67 @@ function Grades() {
         <i className="bi bi-info-circle"></i> <strong>Note:</strong> Submissions are automatically cleaned up after 24 hours.
       </Alert>
 
-      {/* Manual Grading Panel */}
-      {activeGradeTab === "manual" && (
-        <div className="mt-4">
-          <ManualGradingPanel />
-        </div>
-      )}
+      {/* Return Grade Modal */}
+      <Modal show={showReturnGradeModal} onHide={() => setShowReturnGradeModal(false)} size="lg">
+        <Modal.Header closeButton>
+          <Modal.Title>Return Grade with Feedback</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {selectedSubmissionForReturn && (
+            <div>
+              <div className="mb-4">
+                <h6>Student: <strong>{selectedSubmissionForReturn.studentName || selectedSubmissionForReturn.student}</strong></h6>
+                <p className="text-muted mb-1">Exam: {selectedSubmissionForReturn.examTitle}</p>
+                <p className="text-muted mb-0">Total Questions: <Badge bg="info">{selectedSubmissionForReturn.totalQuestions}</Badge></p>
+              </div>
+              <Form.Group className="mb-3">
+                <Form.Label><strong>Score</strong></Form.Label>
+                <Form.Control
+                  type="number"
+                  placeholder="Enter score"
+                  value={returnGradeScore}
+                  onChange={(e) => setReturnGradeScore(e.target.value)}
+                />
+                <Form.Text className="text-muted">
+                  Total Questions: {selectedSubmissionForReturn.totalQuestions}
+                </Form.Text>
+              </Form.Group>
+              <Form.Group className="mb-3">
+                <Form.Label><strong>Feedback for Student</strong></Form.Label>
+                <Form.Control
+                  as="textarea"
+                  rows={5}
+                  placeholder="Add feedback, comments, or suggestions for the student..."
+                  value={returnGradeFeedback}
+                  onChange={(e) => setReturnGradeFeedback(e.target.value)}
+                />
+              </Form.Group>
+            </div>
+          )}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowReturnGradeModal(false)}>
+            Cancel
+          </Button>
+          <Button 
+            variant="primary" 
+            onClick={handleSubmitReturnGrade}
+            disabled={returningGrade}
+          >
+            {returningGrade ? (
+              <>
+                <Spinner animation="border" size="sm" className="me-2" />
+                Returning...
+              </>
+            ) : (
+              <>
+                <i className="bi bi-check-circle me-2"></i>
+                Return Grade
+              </>
+            )}
+          </Button>
+        </Modal.Footer>
+      </Modal>
     </div>
   );
 }
