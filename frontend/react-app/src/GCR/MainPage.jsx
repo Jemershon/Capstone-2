@@ -662,22 +662,20 @@ export default function LandingPage() {
       setAuthData(res.data.token, res.data.user.username, res.data.user.role);
       setError('Login successful via Google');
       setShowToast(true);
-      // Redirect safely: guard against missing/invalid role to avoid uncaught exceptions
-      setTimeout(() => {
-        try {
-          const role = res?.data?.user?.role;
-          if (role === 'Student') return navigate('/student/dashboard');
-          if (role === 'Teacher') return navigate('/teacher/dashboard');
-          if (role === 'Admin') return navigate('/admin/dashboard');
-          // fallback: navigate to homepage and log for debugging
-          console.warn('Unknown user role after Google login:', role);
-          navigate('/');
-        } catch (navErr) {
-          console.error('Navigation error after Google login:', navErr);
-          // Ensure user isn't left on a blank screen
-          navigate('/');
-        }
-      }, 800);
+      // Redirect immediately for better UX
+      try {
+        const role = res?.data?.user?.role;
+        if (role === 'Student') return navigate('/student/dashboard');
+        if (role === 'Teacher') return navigate('/teacher/dashboard');
+        if (role === 'Admin') return navigate('/admin/dashboard');
+        // fallback: navigate to homepage and log for debugging
+        console.warn('Unknown user role after Google login:', role);
+        navigate('/');
+      } catch (navErr) {
+        console.error('Navigation error after Google login:', navErr);
+        // Ensure user isn't left on a blank screen
+        navigate('/');
+      }
     } catch (err) {
       console.error('Google login error:', err.response?.data || err.message);
       setError(err.response?.data?.error || 'Google login failed');
@@ -791,20 +789,18 @@ export default function LandingPage() {
       
       console.log("Redirecting to dashboard for role:", res.data.user.role);
       
-      // Redirect after a short delay
-      setTimeout(() => {
-        try {
-          const role = res?.data?.user?.role;
-          if (role === 'Student') return navigate('/student/dashboard');
-          if (role === 'Teacher') return navigate('/teacher/dashboard');
-          if (role === 'Admin') return navigate('/admin/dashboard');
-          console.warn('Login returned invalid/unknown role:', role);
-          navigate('/');
-        } catch (navErr) {
-          console.error('Navigation error after login:', navErr);
-          navigate('/');
-        }
-      }, 1000);
+      // Redirect immediately for better UX
+      try {
+        const role = res?.data?.user?.role;
+        if (role === 'Student') return navigate('/student/dashboard');
+        if (role === 'Teacher') return navigate('/teacher/dashboard');
+        if (role === 'Admin') return navigate('/admin/dashboard');
+        console.warn('Login returned invalid/unknown role:', role);
+        navigate('/');
+      } catch (navErr) {
+        console.error('Navigation error after login:', navErr);
+        navigate('/');
+      }
     } catch (err) {
       console.error("Login error:", err.response?.data || err.message);
       setError(err.response?.data?.error || "Login failed. Check credentials.");

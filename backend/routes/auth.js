@@ -33,23 +33,46 @@ router.post("/register", async (req, res) => {
 router.post("/login", async (req, res) => {
   try {
     const { username, password } = req.body;
-    console.log("Login attempt for username:", username);
     if (!username || !password) {
       return res.status(400).json({ error: "Username and password are required" });
     }
-    const user = await User.findOne({ username });
-    console.log("User found:", user ? "Yes" : "No");
-    if (user) {
-      console.log("User role:", user.role);
-      console.log("Password match:", await bcrypt.compare(password, user.password));
-    }
-    if (!user || !(await bcrypt.compare(password, user.password))) {
+    
+    // Find user and select password field
+    const user = await User.findOne({ username }).select('+password');
+    
+    if (!user) {
       return res.status(401).json({ error: "Invalid credentials" });
     }
-    const token = jwt.sign({ id: user._id, role: user.role, username: user.username }, process.env.JWT_SECRET || "devsecret123", {
-      expiresIn: "1h",
+    
+    // Compare password - this is the slow part but necessary for security
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    
+    if (!isPasswordValid) {
+      return res.status(401).json({ error: "Invalid credentials" });
+    }
+    
+    // Generate JWT token with all necessary user data
+    const token = jwt.sign(
+      { 
+        id: user._id, 
+        role: user.role, 
+        username: user.username,
+        email: user.email,
+        name: user.name
+      }, 
+      process.env.JWT_SECRET || "devsecret123", 
+      { expiresIn: "24h" } // Extended from 1h to 24h for better UX
+    );
+    
+    res.json({ 
+      token, 
+      user: { 
+        role: user.role, 
+        username: user.username,
+        name: user.name,
+        email: user.email
+      } 
     });
-    res.json({ token, user: { role: user.role, username: user.username } });
   } catch (err) {
     console.error("Login error:", err);
     res.status(500).json({ error: "Login failed" });

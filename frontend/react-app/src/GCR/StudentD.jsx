@@ -725,53 +725,34 @@ function StudentDashboard() {
   const isClassRoute = location.pathname.includes('/class/');
 
   useEffect(() => {
-    const verifyToken = async () => {
-      // Skip if we've verified recently (within last 5 minutes)
-      const now = Date.now();
-      if (now - lastAuthCheck < 5 * 60 * 1000) {
-        console.log("⚡ Skipping auth check - recently verified");
-        setLoading(false);
-        return;
-      }
-
-      try {
-        const token = getAuthToken();
-        const username = getUsername();
-        const role = getUserRole();
-        
-        if (!token || !username || role !== "Student") {
-          throw new Error("Invalid authentication data");
-        }
-
-        const response = await axios.get(`${API_BASE_URL}/api/verify-token`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-
-        if (response.data.valid && response.data.user.role === "Student") {
-          setUser({
-            name: response.data.user.name || username,
-            username: username,
-            role: "Student"
-          });
-          setIsAuthenticated(true);
-          setLastAuthCheck(now); // Update last check timestamp
-        } else {
-          throw new Error("Invalid token or role");
-        }
-      } catch (error) {
-        console.error("🚫 Authentication failed:", error);
+    // Fast client-side auth check - no API call needed on initial load
+    try {
+      const token = getAuthToken();
+      const username = getUsername();
+      const role = getUserRole();
+      
+      if (!token || !username || role !== "Student") {
+        console.log("🚫 No valid auth data found");
         clearAuthData();
         setIsAuthenticated(false);
         navigate("/");
-      } finally {
-        setLoading(false);
+        return;
       }
-    };
 
-    // Only verify once on mount, not on every render
-    if (isAuthenticated) {
-      verifyToken();
-    } else {
+      // Token exists and role matches - set user immediately
+      setUser({
+        name: username,
+        username: username,
+        role: "Student"
+      });
+      setIsAuthenticated(true);
+      console.log("✅ Auth verified from localStorage");
+    } catch (error) {
+      console.error("🚫 Auth check failed:", error);
+      clearAuthData();
+      setIsAuthenticated(false);
+      navigate("/");
+    } finally {
       setLoading(false);
     }
   }, []); // Empty dependency array - only run once on mount
