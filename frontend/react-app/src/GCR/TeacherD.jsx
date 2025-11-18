@@ -27,6 +27,7 @@ import { useLocation } from 'react-router-dom';
 
 // Import components
 import NotificationsDropdown from "./components/NotificationsDropdown";
+import PortalMenu from "./components/PortalMenu";
 import Materials from "./components/Materials";
 import Comments from "./components/Comments";
 import ExamCreator from "./components/ExamCreator";
@@ -597,7 +598,10 @@ const customStyles = `
   .class-card-modern {
     border-radius: 20px;
     border: 1px solid rgba(255, 204, 0, 0.2);
-    overflow: hidden;
+     /* Allow dropdown menus to escape card bounds so Popper can position them
+       without being clipped. Use visible so the menu is not hidden by the
+       card's rounded corners */
+     overflow: visible !important;
     transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     box-shadow: 0 10px 25px rgba(0,0,0,0.15), 0 0 15px rgba(255, 204, 0, 0.1);
     background: linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(250, 250, 250, 0.98) 100%);
@@ -630,6 +634,25 @@ const customStyles = `
     padding: 25px;
     position: relative;
     z-index: 1;
+  }
+
+  /* Ensure any dropdown added inside the card footer doesn't get clipped and
+     aligns to the right edge of the card. These rules improve Popper behavior
+     and avoid duplicate/showing copies because of ancestor overflow. */
+  .class-card-modern .dropdown,
+  .class-card-modern .card-footer .dropdown {
+    position: relative;
+    overflow: visible;
+    z-index: 2;
+  }
+
+  .class-card-modern .card-footer .dropdown-menu {
+    /* Allow Popper to position it, but ensure it's fixed for escape from
+       stacking contexts (e.g., parent transforms). Do NOT override top/left
+       so Popper can align the menu to the toggle. */
+    position: fixed !important;
+    min-width: 140px !important;
+    z-index: 20000 !important;
   }
   
   .class-card-modern .card-body strong {
@@ -839,10 +862,10 @@ const customStyles = `
     border: none;
     padding: 8px 0;
     z-index: 9999;
-    /* Let Popper/React-Bootstrap position the menu — use absolute so it can be
-       positioned relative to the page/container. Forcing fixed can break
-       Popper placement and make the menu unclickable on some viewports. */
-    position: absolute;
+    /* Do not hardcode position here — Popper (react-bootstrap) will set the
+       position attribute inline to either 'absolute' or 'fixed' based on the
+       configured strategy. Overriding it here causes conflicts on some
+       devices and can result in multiple visible menu instances. */
   }
   
   .dropdown-item {
@@ -1286,17 +1309,18 @@ function DashboardAndClasses() {
                   <strong>Students:</strong> {(cls.students || []).length}
                 </p>
               </Card.Body>
-              <Card.Footer className="d-flex justify-content-end align-items-center gap-2">
-                <Dropdown align="end" onClick={(e) => e.stopPropagation()}>
+              <Card.Footer className="d-flex justify-content-end align-items-center gap-2" style={{ position: 'relative', zIndex: 1 }}>
+                <Dropdown align="end" onClick={(e) => e.stopPropagation()} popperConfig={{ strategy: 'fixed' }}>
                   <Dropdown.Toggle 
                     variant="link" 
                     size="sm" 
                     className="text-muted p-0"
+                    aria-label="More options"
                     style={{ boxShadow: 'none', border: 'none' }}
                   >
                     <i className="bi bi-three-dots-vertical" style={{ fontSize: '1.2rem' }}></i>
                   </Dropdown.Toggle>
-                  <Dropdown.Menu>
+                  <Dropdown.Menu as={PortalMenu} className="no-clip-dropdown" style={{ maxHeight: 'none', overflow: 'visible' }}>
                     {cls.archived ? (
                       <Dropdown.Item 
                         onClick={(e) => {
@@ -2950,16 +2974,17 @@ function TeacherClassStream() {
                         <div className="text-muted" style={{ fontSize: 12 }}>{new Date(a.date).toLocaleString()}</div>
                       </div>
                     </div>
-                    <Dropdown align="end" onClick={(e) => e.stopPropagation()} className="announcement-dropdown">
+                    <Dropdown align="end" onClick={(e) => e.stopPropagation()} className="announcement-dropdown" popperConfig={{ strategy: 'fixed' }}>
                       <Dropdown.Toggle 
                         variant="link" 
                         size="sm" 
                         className="text-muted p-0"
+                        aria-label="More options"
                         style={{ boxShadow: 'none', border: 'none' }}
                       >
                         <i className="bi bi-three-dots-vertical" style={{ fontSize: '1.2rem' }}></i>
                       </Dropdown.Toggle>
-                      <Dropdown.Menu>
+                      <Dropdown.Menu as={PortalMenu} className="no-clip-dropdown" style={{ maxHeight: 'none', overflow: 'visible' }}>
                         <Dropdown.Item 
                           onClick={() => openReuseModal(a, 'announcement')}
                         >
@@ -3061,21 +3086,21 @@ function TeacherClassStream() {
 
       {activeTab === "classwork" && (
         <div className="p-3 border rounded bg-white">
-          <h3>Exams</h3>
-          
-          {/* ONLY EXAMS - NO FILES OR LINKS */}
-          
-          {/* Bulk Actions for Exams */}
-          {exams && exams.length > 0 && (
+          <h3>Exams & Quizzes</h3>
+          {/* Bulk Actions for Exams & Quizzes */}
+          {(exams.length > 0 || forms.filter(f => f.settings?.isQuiz).length > 0) && (
             <Card className="mb-3 p-3">
               <div className="d-flex justify-content-between align-items-center">
                 <Form.Check
                   type="checkbox"
-                  label="Select All Exams"
-                  checked={selectedItems.length === exams.length && exams.length > 0}
+                  label="Select All"
+                  checked={selectedItems.length === (exams.length + forms.filter(f => f.settings?.isQuiz).length) && (exams.length + forms.filter(f => f.settings?.isQuiz).length) > 0}
                   onChange={(e) => {
                     if (e.target.checked) {
-                      setSelectedItems(exams.map(ex => ex._id));
+                      setSelectedItems([
+                        ...exams.map(ex => ex._id),
+                        ...forms.filter(f => f.settings?.isQuiz).map(f => f._id)
+                      ]);
                       setShowBulkActions(true);
                     } else {
                       setSelectedItems([]);
@@ -3094,23 +3119,23 @@ function TeacherClassStream() {
               </div>
             </Card>
           )}
-          
           {loading ? (
             <div className="text-center p-5">
               <div className="spinner-border text-primary" role="status">
                 <span className="visually-hidden">Loading...</span>
               </div>
-              <p className="mt-2">Loading exams...</p>
+              <p className="mt-2">Loading exams and quizzes...</p>
             </div>
           ) : (
             <div className="mb-4">
-              {exams && exams.length > 0 ? (
+              {(exams.length > 0 || forms.filter(f => f.settings?.isQuiz).length > 0) ? (
                 <Card>
                   <Card.Header>
-                    <h6 className="mb-0 py-2">Active Exams</h6>
+                    <h6 className="mb-0 py-2">Active Exams & Quizzes</h6>
                   </Card.Header>
                   <Card.Body>
                     <ListGroup>
+                      {/* Exams */}
                       {exams.map(exam => (
                         <ListGroup.Item 
                           key={exam._id || `exam-${Math.random()}`}
@@ -3132,7 +3157,7 @@ function TeacherClassStream() {
                               }}
                             />
                             <div className="flex-grow-1">
-                              <h6 className="mb-1">{exam.title || "Untitled Exam"}</h6>
+                              <h6 className="mb-1">{exam.title || "Untitled Exam"} <Badge bg="primary" className="ms-2">Exam</Badge></h6>
                               <small className="text-muted">
                                 {exam.createdBy && `Posted by ${exam.createdBy}`} 
                                 {exam.description && ` • ${exam.description}`}
@@ -3141,16 +3166,17 @@ function TeacherClassStream() {
                               </small>
                             </div>
                           </div>
-                          <Dropdown align="end" onClick={(e) => e.stopPropagation()}>
+                          <Dropdown align="end" onClick={(e) => e.stopPropagation()} popperConfig={{ strategy: 'fixed' }}>
                             <Dropdown.Toggle 
                               variant="link" 
                               size="sm" 
                               className="text-muted p-0"
+                              aria-label="More options"
                               style={{ boxShadow: 'none', border: 'none' }}
                             >
                               <i className="bi bi-three-dots-vertical" style={{ fontSize: '1.2rem' }}></i>
                             </Dropdown.Toggle>
-                            <Dropdown.Menu>
+                            <Dropdown.Menu as={PortalMenu} className="no-clip-dropdown" style={{ maxHeight: 'none', overflow: 'visible' }}>
                               <Dropdown.Item 
                                 onClick={async () => {
                                   setSelectedExam(exam);
@@ -3203,13 +3229,74 @@ function TeacherClassStream() {
                           </Dropdown>
                         </ListGroup.Item>
                       ))}
+                      {/* Quiz Forms */}
+                      {forms.filter(f => f.settings?.isQuiz).map(form => (
+                        <ListGroup.Item 
+                          key={form._id || `quiz-${Math.random()}`}
+                          className="d-flex justify-content-between align-items-center"
+                        >
+                          <div className="d-flex align-items-start gap-2 flex-grow-1">
+                            <Form.Check
+                              type="checkbox"
+                              checked={selectedItems.includes(form._id)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setSelectedItems([...selectedItems, form._id]);
+                                  setShowBulkActions(true);
+                                } else {
+                                  const newSelected = selectedItems.filter(id => id !== form._id);
+                                  setSelectedItems(newSelected);
+                                  if (newSelected.length === 0) setShowBulkActions(false);
+                                }
+                              }}
+                            />
+                            <div className="flex-grow-1">
+                              <h6 className="mb-1">{form.title || "Untitled Quiz"} <Badge bg="info" className="ms-2">Quiz</Badge></h6>
+                              <small className="text-muted">
+                                {form.createdBy && `Posted by ${form.createdBy}`} 
+                                {form.description && ` • ${form.description}`}
+                                {form.createdAt && ` • Created: ${new Date(form.createdAt).toLocaleDateString()}`}
+                                {form.settings?.deadline && ` • Due: ${new Date(form.settings.deadline).toLocaleString()}`}
+                              </small>
+                            </div>
+                          </div>
+                          <Dropdown align="end" onClick={(e) => e.stopPropagation()} popperConfig={{ strategy: 'fixed' }}>
+                            <Dropdown.Toggle 
+                              variant="link" 
+                              size="sm" 
+                              className="text-muted p-0"
+                              aria-label="More options"
+                              style={{ boxShadow: 'none', border: 'none' }}
+                            >
+                              <i className="bi bi-three-dots-vertical" style={{ fontSize: '1.2rem' }}></i>
+                            </Dropdown.Toggle>
+                            <Dropdown.Menu as={PortalMenu} className="no-clip-dropdown" style={{ maxHeight: 'none', overflow: 'visible' }}>
+                              <Dropdown.Item 
+                                onClick={() => window.open(`/teacher/forms/${form._id}/responses`, '_self')}
+                              >
+                                <i className="bi bi-bar-chart me-2"></i> Responses
+                              </Dropdown.Item>
+                              <Dropdown.Item 
+                                onClick={() => window.open(`/forms/${form._id}?preview=true`, '_blank')}
+                              >
+                                <i className="bi bi-eye me-2"></i> Preview
+                              </Dropdown.Item>
+                              <Dropdown.Item 
+                                onClick={() => window.open(`/teacher/forms/${form._id}/edit`, '_self')}
+                              >
+                                <i className="bi bi-pencil me-2"></i> Edit
+                              </Dropdown.Item>
+                            </Dropdown.Menu>
+                          </Dropdown>
+                        </ListGroup.Item>
+                      ))}
                     </ListGroup>
                   </Card.Body>
                 </Card>
               ) : (
                 <Alert variant="info" className="text-center">
-                  <p className="mb-0">No exams created yet for this class.</p>
-                  <p className="mb-0">Click "Create Exam" to add your first exam.</p>
+                  <p className="mb-0">No exams or quizzes created yet for this class.</p>
+                  <p className="mb-0">Click "Create Exam" or send a Quiz to add your first item.</p>
                 </Alert>
               )}
             </div>
@@ -5419,7 +5506,7 @@ function Grades() {
                           ]
                         }}
                       >
-                        <Dropdown.Toggle variant="light" size="sm" id={`dropdown-${submission._id}`} className="border-0" style={{ boxShadow: 'none' }}>
+                        <Dropdown.Toggle variant="light" size="sm" id={`dropdown-${submission._id}`} className="border-0" aria-label="More options" style={{ boxShadow: 'none' }}>
                           <i className="bi bi-three-dots-vertical"></i>
                         </Dropdown.Toggle>
                         <Dropdown.Menu align="end" className="no-clip-dropdown" style={{ maxHeight: 'none', overflow: 'visible' }}>

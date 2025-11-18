@@ -1,6 +1,8 @@
+
 import express from "express";
 import Form from "../models/Form.js";
 import FormResponse from "../models/FormResponse.js";
+import Exam from "../models/Exam.js";
 import { authenticateToken, requireTeacherOrAdmin } from "../middlewares/auth.js";
 
 const router = express.Router();
@@ -925,6 +927,7 @@ router.post("/:id/send-to-class", authenticateToken, requireTeacherOrAdmin, asyn
     
     // Create copy for each target class (or update if same class)
     for (const targetClass of classArray) {
+      let formToUse = null;
       // If sending to the same class, just update the original form instead of duplicating
       if (targetClass === originalForm.className) {
         // Update deadline if provided (use exact time without timezone conversion)
@@ -933,6 +936,7 @@ router.post("/:id/send-to-class", authenticateToken, requireTeacherOrAdmin, asyn
           await originalForm.save();
         }
         updatedForms.push(originalForm);
+        formToUse = originalForm;
         console.log(`Form already in class ${targetClass}, updated instead of duplicating`);
       } else {
         // Different class - create a copy
@@ -951,9 +955,38 @@ router.post("/:id/send-to-class", authenticateToken, requireTeacherOrAdmin, asyn
           theme: originalForm.theme,
           status: "published", // Auto-publish when sent to class
         });
-        
         await newForm.save();
         createdForms.push(newForm);
+        formToUse = newForm;
+      }
+
+      // If the form is a quiz, also create an Exam entry for the Exams tab
+      if (formToUse && formToUse.settings && formToUse.settings.isQuiz) {
+        // Check if an Exam for this form/class already exists to avoid duplicates
+        const existingExam = await Exam.findOne({
+          title: formToUse.title,
+          class: formToUse.className,
+          createdBy: formToUse.owner
+        });
+        if (!existingExam) {
+          const exam = new Exam({
+            title: formToUse.title,
+            description: formToUse.description,
+            class: formToUse.className,
+            due: formToUse.settings.deadline || formToUse.settings.closeAt,
+            questions: (formToUse.questions || []).map(q => ({
+              text: q.text,
+              type: q.type,
+              options: q.options,
+              correctAnswer: q.correctAnswer
+            })),
+            createdBy: formToUse.owner,
+            manualGrading: !!formToUse.settings.manualGrading,
+            allowResubmission: true,
+            returned: false
+          });
+          await exam.save();
+        }
       }
     }
     

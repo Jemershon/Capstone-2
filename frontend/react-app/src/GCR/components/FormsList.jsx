@@ -297,11 +297,13 @@ const FormsList = () => {
                       <Dropdown
                         align="end"
                         onClick={(e) => e.stopPropagation()}
+                        popperConfig={{ strategy: 'fixed' }}
                       >
                         <Dropdown.Toggle 
                           variant="link" 
                           size="sm" 
                           className="text-muted p-0"
+                          aria-label="More options"
                           style={{ boxShadow: 'none', border: 'none' }}
                         >
                           <i className="bi bi-three-dots-vertical"></i>

@@ -18,6 +18,7 @@ import {
   Alert,
   Dropdown,
 } from "react-bootstrap";
+import PortalMenu from "./components/PortalMenu";
 // NotificationsDropdown not shown for Admin dashboard per request
 
 // Add custom styles for responsive design and modern theme
@@ -630,16 +631,17 @@ function DashboardHome() {
                               <h6 className="mb-0 fw-bold">{cls.name}</h6>
                               <small className="text-muted">{cls.section}</small>
                             </div>
-                            <Dropdown align="end" onClick={(e) => e.stopPropagation()}>
+                            <Dropdown align="end" onClick={(e) => e.stopPropagation()} popperConfig={{ strategy: 'fixed' }}>
                               <Dropdown.Toggle 
                                 variant="link" 
                                 size="sm" 
                                 className="text-muted p-0"
+                                aria-label="More options"
                                 style={{ boxShadow: 'none', border: 'none' }}
                               >
                                 <i className="bi bi-three-dots-vertical" style={{ fontSize: '1.2rem' }}></i>
                               </Dropdown.Toggle>
-                              <Dropdown.Menu>
+                              <Dropdown.Menu as={PortalMenu} className="no-clip-dropdown" style={{ maxHeight: 'none', overflow: 'visible' }}>
                                 <Dropdown.Item 
                                   onClick={() => {
                                     setSelectedClass(cls);
@@ -738,16 +740,17 @@ function DashboardHome() {
                                 {user.role}
                               </small>
                             </div>
-                            <Dropdown align="end" onClick={(e) => e.stopPropagation()}>
+                            <Dropdown align="end" onClick={(e) => e.stopPropagation()} popperConfig={{ strategy: 'fixed' }}>
                               <Dropdown.Toggle 
                                 variant="link" 
                                 size="sm" 
                                 className="text-muted p-0"
+                                aria-label="More options"
                                 style={{ boxShadow: 'none', border: 'none' }}
                               >
                                 <i className="bi bi-three-dots-vertical" style={{ fontSize: '1.2rem' }}></i>
                               </Dropdown.Toggle>
-                              <Dropdown.Menu>
+                              <Dropdown.Menu as={PortalMenu} className="no-clip-dropdown" style={{ maxHeight: 'none', overflow: 'visible' }}>
                                 <Dropdown.Item 
                                   onClick={() => {
                                     setSelectedUser(user);
@@ -825,16 +828,19 @@ function DashboardHome() {
                               <small className="text-muted d-block">Role: {gUser.role}</small>
                               <small className="text-muted d-block">Google ID: <code style={{fontSize: '0.75rem'}}>{gUser.googleId}</code></small>
                             </div>
-                            <Dropdown align="end">
+                            <Dropdown align="end" popperConfig={{ strategy: 'fixed' }}>
                               <Dropdown.Toggle 
                                 variant="link" 
                                 size="sm" 
                                 className="text-muted p-0"
+                                aria-label="More options"
+                                aria-label="More options"
+                                aria-label="More options"
                                 style={{ boxShadow: 'none', border: 'none' }}
                               >
                                 <i className="bi bi-three-dots-vertical" style={{ fontSize: '1.2rem' }}></i>
                               </Dropdown.Toggle>
-                              <Dropdown.Menu>
+                              <Dropdown.Menu as={PortalMenu} className="no-clip-dropdown" style={{ maxHeight: 'none', overflow: 'visible' }}>
                                 <Dropdown.Item 
                                   onClick={async () => {
                                     if (window.confirm(`Unlink Google account from "${gUser.name || gUser.username}"? This will keep the user but remove Google sign-in.`)) {

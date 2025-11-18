@@ -430,7 +430,7 @@ function NotificationsDropdown({ inNavbar = false, mobileMode = false }) {
           </Button>
         </>
       ) : (
-        <Dropdown>
+        <Dropdown popperConfig={{ strategy: 'fixed' }}>
           <Dropdown.Toggle
             variant={inNavbar ? 'link' : 'light'}
             id="dropdown-notifications"
@@ -438,6 +438,7 @@ function NotificationsDropdown({ inNavbar = false, mobileMode = false }) {
             // ensure the toggle is clickable even if other elements overlap
             style={{ zIndex: 9999, pointerEvents: 'auto', ...(inNavbar ? { color: 'white', padding: '0.25rem 0.5rem', fontSize: '1.1rem' } : {}) }}
             aria-haspopup="true"
+            aria-label="Notifications"
             aria-expanded={false}
             tabIndex={0}
           >

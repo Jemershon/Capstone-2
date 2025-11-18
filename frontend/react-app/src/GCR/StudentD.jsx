@@ -4,6 +4,7 @@ import axios from "axios";
 import { Container, Row, Col, Nav, Navbar, Card, Button, Table, Modal, Form, Tab, Tabs, Badge, Alert, Spinner, Toast, ListGroup, Dropdown } from "react-bootstrap";
 import { getAuthToken, getUsername, getUserRole, checkAuth, clearAuthData, API_BASE_URL } from "../api";
 import NotificationsDropdown from "./components/NotificationsDropdown";
+import PortalMenu from "./components/PortalMenu";
 import Comments from "./components/Comments";
 import { ensureSocketConnected } from "../socketClient";
 
@@ -1289,17 +1290,18 @@ function StudentMainDashboard() {
                   <strong>Students:</strong> {(cls.students || []).length}
                 </p>
               </Card.Body>
-              <Card.Footer className="d-flex justify-content-end align-items-center gap-2">
-                <Dropdown align="end" onClick={(e) => e.stopPropagation()}>
+              <Card.Footer className="d-flex justify-content-end align-items-center gap-2" style={{ position: 'relative', zIndex: 1 }}>
+                <Dropdown align="end" onClick={(e) => e.stopPropagation()} popperConfig={{ strategy: 'fixed' }}>
                   <Dropdown.Toggle 
                     variant="link" 
                     size="sm" 
                     className="text-muted p-0"
+                    aria-label="More options"
                     style={{ boxShadow: 'none', border: 'none' }}
                   >
                     <i className="bi bi-three-dots-vertical" style={{ fontSize: '1.2rem' }}></i>
                   </Dropdown.Toggle>
-                  <Dropdown.Menu>
+                  <Dropdown.Menu as={PortalMenu} className="no-clip-dropdown" style={{ maxHeight: 'none', overflow: 'visible' }}>
                     <Dropdown.Item 
                       className="text-danger d-flex align-items-center"
                       onClick={() => openUnenrollModal(cls)}

@@ -244,9 +244,11 @@
     overflow-y: visible !important;
   }
 
-  /* Ensure dropdown menus are above other content */
-  .dropdown-menu {
-    position: absolute;
+  /* Ensure dropdown menus inside responsive containers are above other content
+     — do not set the global dropdown-menu position here, Popper will set it. */
+  .table-responsive .dropdown-menu,
+  .forms-table-wrapper .dropdown-menu {
+    position: absolute !important;
     z-index: 30000 !important;
   }
 
@@ -256,8 +258,10 @@
     position: relative !important;
   }
 
+  /* Let Popper decide placement — we only force the table-specific menus to
+     be positioned so they aren't clipped. Other dropdowns should use their
+     computed positioning (Popper inline styles). */
   .forms-table-wrapper .dropdown-menu {
-    /* Let Popper decide placement, but ensure ancestor doesn't clip */
     position: absolute !important;
     z-index: 30000 !important;
   }
