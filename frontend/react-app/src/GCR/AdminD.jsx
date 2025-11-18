@@ -834,8 +834,6 @@ function DashboardHome() {
                                 size="sm" 
                                 className="text-muted p-0"
                                 aria-label="More options"
-                                aria-label="More options"
-                                aria-label="More options"
                                 style={{ boxShadow: 'none', border: 'none' }}
                               >
                                 <i className="bi bi-three-dots-vertical" style={{ fontSize: '1.2rem' }}></i>

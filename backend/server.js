@@ -72,8 +72,10 @@ import bulkActionsRoutes, { setupBulkActionModels } from "./routes/bulkActions.j
 import reuseRoutes, { setupReuseModels } from "./routes/reuse.js";
 import analyticsRoutes, { setupAnalyticsModels } from "./routes/analytics.js";
 import formsRoutes from "./routes/forms.js";
+import announcementsRoutes from "./routes/announcements.js";
 import { sendBulkAnnouncementEmails } from "./services/sendgridService.js";
 import Exam from "./models/Exam.js";
+import Announcement from "./models/Announcement.js";
 import Notification from "./models/Notification.js";
 import User from "./models/User.js";
 import Class from "./models/Class.js";
@@ -606,6 +608,7 @@ const ExamSubmissionSchema = new mongoose.Schema(
   {
     examId: { type: mongoose.Schema.Types.ObjectId, ref: "Exam" },
     student: String,
+    studentId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
     answers: [
       {
         questionIndex: Number,
@@ -643,7 +646,8 @@ const GradeSchema = new mongoose.Schema({
 });
 
 const Assignment = mongoose.model("Assignment", AssignmentSchema);
-const Announcement = mongoose.model("Announcement", AnnouncementSchema);
+// `Announcement` model is imported from `./models/Announcement.js` above;
+// do not re-declare it here to avoid duplicate identifier errors in ESM.
 // Exam model imported from models/Exam.js
 const ExamSubmission = mongoose.model("ExamSubmission", ExamSubmissionSchema);
 const Grade = mongoose.model("Grade", GradeSchema);
@@ -875,7 +879,7 @@ app.post("/api/register", async (req, res) => {
       Exam.deleteMany({ createdBy: cleanUsername }),
       
       // Clean up exam submissions by this user (for students)
-      ExamSubmission.deleteMany({ studentUsername: cleanUsername }),
+      ExamSubmission.deleteMany({ student: cleanUsername }),
       
       // Clean up grades for this user
       Grade.deleteMany({ student: cleanUsername }),
@@ -1114,7 +1118,7 @@ app.post("/api/cleanup-my-data", authenticateToken, async (req, res) => {
         : Promise.resolve({ modifiedCount: 0 }),
       
       // Clean up exam submissions for deleted exams
-      ExamSubmission.find({ studentUsername: username }).then(async (submissions) => {
+      ExamSubmission.find({ student: username }).then(async (submissions) => {
         const examIds = [...new Set(submissions.map(s => s.exam).filter(Boolean))];
         const existingExams = await Exam.find({ _id: { $in: examIds } }).select('_id');
         const existingExamIds = new Set(existingExams.map(e => e._id.toString()));
@@ -1259,7 +1263,7 @@ app.delete("/api/delete-account", authenticateToken, async (req, res) => {
       Exam.deleteMany({ createdBy: username }),
       
       // Delete all exam submissions by this user
-      ExamSubmission.deleteMany({ studentUsername: username }),
+      ExamSubmission.deleteMany({ student: username }),
       
       // Delete all grades for/by this user
       Grade.deleteMany({ $or: [{ student: username }, { gradedBy: username }] }),
@@ -2220,7 +2224,7 @@ app.get("/api/student-grades/:username", authenticateToken, requireStudent, asyn
 
     // Also include pending manual submissions so students see their submitted manual exams
     try {
-      const pendingSubmissions = await ExamSubmission.find({ student: username, returned: false }).sort({ submittedAt: -1 });
+      const pendingSubmissions = await ExamSubmission.find({ $or: [{ studentId: req.user?.id || null }, { student: username }], returned: false }).sort({ submittedAt: -1 });
       for (const sub of pendingSubmissions) {
         // Fetch exam to get title and manual flag
         const exam = await Exam.findById(sub.examId).select('title manualGrading class');
@@ -3228,6 +3232,7 @@ app.use("/api", bulkActionsRoutes);
 app.use("/api", reuseRoutes);
 app.use("/api", analyticsRoutes);
 app.use("/api/forms", formsRoutes);
+app.use("/api/announcements", announcementsRoutes);
 
 // Student: Submit exam answers
 app.use("/api", authRoutes);
@@ -3246,19 +3251,49 @@ app.get("/api/exam-submissions/check/:examId", authenticateToken, async (req, re
   try {
     const examId = req.params.examId;
     const student = req.user.username;
-    
+    const userId = req.user?.id || null;
     console.log(`Checking if student ${student} has already submitted exam ${examId}`);
-    
+
     // Check if submission exists
-    const existingSubmission = await ExamSubmission.findOne({ examId, student });
-    
+    const existingSubmission = await ExamSubmission.findOne({ examId, $or: [{ studentId: userId }, { student }] }).lean();
+
+    // Extra debug log to help diagnose false positives
+    if (existingSubmission) {
+      console.log('Existing submission found for check endpoint:', {
+        submissionId: existingSubmission._id,
+        examId: existingSubmission.examId,
+        student: existingSubmission.student,
+        submittedAt: existingSubmission.submittedAt
+      });
+    } else {
+      console.log('No existing submission found for student on this exam');
+    }
+
     return res.status(200).json({ 
       hasSubmitted: !!existingSubmission,
-      message: existingSubmission ? "Student has already submitted this exam" : "Student has not submitted this exam yet"
+      message: existingSubmission ? "Student has already submitted this exam" : "Student has not submitted this exam yet",
+      debug: existingSubmission ? { submissionId: existingSubmission._id, submittedAt: existingSubmission.submittedAt, student: existingSubmission.student, studentId: existingSubmission.studentId } : null
     });
   } catch (err) {
     console.error("Error checking exam submission:", err);
     return res.status(500).json({ error: "Failed to check exam submission" });
+  }
+});
+
+// Admin/Teacher helper: Find all submissions (both exam and form) for a username to help debug duplicate issues
+app.get('/api/debug/submissions', authenticateToken, requireTeacherOrAdmin, async (req, res) => {
+  try {
+    const { username } = req.query;
+    if (!username) return res.status(400).json({ error: 'username query parameter is required' });
+
+    const examSubs = await ExamSubmission.find({ $or: [{ studentId: req.user?.id || null }, { student: username }] }).lean();
+    const formSubs = await FormResponse.find({ 'respondent.username': username }).lean();
+
+    console.log(`Debug query for submissions by ${username}: found ${examSubs.length} exam submissions and ${formSubs.length} form submissions`);
+    res.json({ examSubmissions: examSubs, formSubmissions: formSubs });
+  } catch (err) {
+    console.error('Debug submissions error:', err);
+    res.status(500).json({ error: 'Failed to fetch debug submissions' });
   }
 });
 
@@ -3280,7 +3315,14 @@ app.post("/api/exam-submissions", authenticateToken, async (req, res) => {
     }
 
     // Check if student has already submitted this exam
-    const existingSubmission = await ExamSubmission.findOne({ examId, student });
+    const userId = req.user?.id || null;
+    const existingSubmission = await ExamSubmission.findOne({
+      examId,
+      $or: [
+        { studentId: userId },
+        { student: req.user.username }
+      ]
+    });
     if (existingSubmission) {
       // Check if resubmission is allowed
       if (!exam.allowResubmission) {
@@ -3379,6 +3421,7 @@ app.post("/api/exam-submissions", authenticateToken, async (req, res) => {
       const submission = new ExamSubmission({
         examId,
         student,
+        studentId: req.user?.id || null,
         answers,
         rawScore: null, // Will be set by teacher
         finalScore: null, // Will be set by teacher
@@ -3579,6 +3622,7 @@ app.post("/api/exam-submissions", authenticateToken, async (req, res) => {
     const submission = new ExamSubmission({
       examId,
       student,
+      studentId: req.user?.id || null,
       answers,
       rawScore,
       finalScore: finalScore,
@@ -3684,8 +3728,9 @@ app.post("/api/exam-submissions", authenticateToken, async (req, res) => {
 app.get("/api/exam-submissions/student", authenticateToken, async (req, res) => {
   try {
     const student = req.user.username;
+    const userId = req.user?.id || null;
     
-    const submissions = await ExamSubmission.find({ student })
+    const submissions = await ExamSubmission.find({ $or: [{ studentId: userId }, { student }] })
       .populate('examId', 'title className due')
       .select('examId submittedAt finalScore rawScore creditsUsed feedback totalQuestions returned')
       .sort({ submittedAt: -1 });

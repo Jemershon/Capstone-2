@@ -9,17 +9,20 @@ import {
 import { API_BASE_URL } from "../../api";
 
 // PortalMenu: render dropdown menu into document.body to avoid clipping by overflow/stacking contexts
-const PortalMenu = React.forwardRef(({ children, className, style, ...props }, ref) => {
+// NOTE: we only pass `className` and `style` to the DOM node to avoid forwarding
+// arbitrary props (like `show` or `close`) that React will warn about when
+// applied to plain <div> elements.
+const PortalMenu = React.forwardRef(({ children, className, style }, ref) => {
   if (typeof document === 'undefined') {
     return (
-      <div ref={ref} className={className} style={style} {...props}>
+      <div ref={ref} className={className} style={style}>
         {children}
       </div>
     );
   }
 
   return ReactDOM.createPortal(
-    <div ref={ref} className={className} style={style} {...props}>
+    <div ref={ref} className={className} style={style}>
       {children}
     </div>,
     document.body
@@ -147,17 +150,43 @@ const FormsList = () => {
       setError("Please select at least one class");
       return;
     }
-    
     try {
+      // Before sending, check for existing Exams with the same title in each target class
+      const token = localStorage.getItem("token");
+      const conflicts = [];
+      for (const cls of selectedClasses) {
+        try {
+          const resp = await axios.get(`${API_BASE_URL}/api/exams?className=${encodeURIComponent(cls)}`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          const exams = resp.data || [];
+          const duplicate = exams.find(e => (e.title || '').trim() === (selectedForm.title || '').trim());
+          if (duplicate) conflicts.push({ className: cls, examId: duplicate._id });
+        } catch (e) {
+          // ignore failures per-class and continue checking others
+          console.warn('Failed to check exams for class', cls, e && e.message ? e.message : e);
+        }
+      }
+
+      if (conflicts.length > 0) {
+        const classList = conflicts.map(c => c.className).join(', ');
+        const proceed = window.confirm(`An Exam with the same title already exists in the following class(es): ${classList}.\n\nTo avoid duplicate entries, consider deleting or unpublishing the existing Exam first.\n\nDo you still want to send this Form to the selected class(es) and create duplicate Exams?`);
+        if (!proceed) {
+          // User chose not to proceed
+          setError('Send cancelled to avoid creating duplicate Exam(s)');
+          return;
+        }
+      }
+
       await axios.post(
         `${API_BASE_URL}/api/forms/${selectedForm._id}/send-to-class`,
         {
           targetClasses: selectedClasses,
           newDeadline: newDeadline || undefined,
         },
-        { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
+        { headers: { Authorization: `Bearer ${token}` } }
       );
-      
+
       setShowSendToClassModal(false);
       setSelectedForm(null);
       setSelectedClasses([]);

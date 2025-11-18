@@ -18,6 +18,37 @@ export const setupModels = (models) => {
 
 const router = express.Router();
 
+// Normalize incoming question objects to match the Exam model schema.
+// Ensures `text` exists and maps frontend question `type` values to
+// the compact enum used by the Exam schema ("short" | "multiple").
+function normalizeQuestions(rawQuestions) {
+  if (!Array.isArray(rawQuestions)) return [];
+  return rawQuestions.map((q) => {
+    // Preserve original fields but produce a sanitized object
+    const text = q.text || q.title || q.question || q.label || "";
+
+    // Map many frontend question types into backend enum values
+    const t = (q.type || '').toString();
+    const multipleTypes = new Set(['multiple', 'multiple_choice', 'multiple-choice', 'checkboxes', 'dropdown']);
+    const shortTypes = new Set(['short', 'short_answer', 'short-answer', 'paragraph', 'identification', 'true_false', 'true-false', 'truefalse', 'enumeration', 'matching_type', 'date', 'time']);
+
+    let type = 'short';
+    if (multipleTypes.has(t)) type = 'multiple';
+    else if (shortTypes.has(t)) type = 'short';
+    else if (t === 'multiple') type = 'multiple';
+
+    const options = Array.isArray(q.options) ? q.options : (q.choices || q.items || []);
+    const correctAnswer = q.correctAnswer ?? q.answer ?? q.correct ?? '';
+
+    return {
+      text: String(text || '').trim(),
+      type,
+      options: options || [],
+      correctAnswer: correctAnswer || ''
+    };
+  });
+}
+
 // Get all exams (with optional className filter)
 router.get('/', authenticateToken, async (req, res) => {
   try {
@@ -402,7 +433,7 @@ router.post('/', authenticateToken, requireTeacherOrAdmin, async (req, res) => {
       body: req.body
     });
     
-  const { title, description, class: className, questions, createdBy, due, manualGrading } = req.body;
+  const { title, description, class: className, questions: rawQuestions, createdBy, due, manualGrading } = req.body;
     
     if (!title) {
       console.log('Validation error: Title is required');
@@ -430,6 +461,9 @@ router.post('/', authenticateToken, requireTeacherOrAdmin, async (req, res) => {
       console.log(`Parsed due date: ${dueDate.toISOString()} (from input: ${due})`);
     }
     
+    // Normalize incoming questions to the Exam model format
+    const questions = normalizeQuestions(rawQuestions);
+
     const exam = new Exam({
       title,
       description,
@@ -508,7 +542,7 @@ router.put('/:id', authenticateToken, requireTeacherOrAdmin, async (req, res) =>
       examId: req.params.id
     });
     
-    const { title, description, questions, due } = req.body;
+    const { title, description, questions: rawQuestions, due } = req.body;
     const exam = await Exam.findById(req.params.id);
     
     if (!exam) {
@@ -530,7 +564,8 @@ router.put('/:id', authenticateToken, requireTeacherOrAdmin, async (req, res) =>
       return res.status(400).json({ error: 'At least one question is required' });
     }
     
-    // Update the exam fields
+    // Update the exam fields (normalize incoming questions)
+    const questions = normalizeQuestions(rawQuestions);
     exam.title = title;
     exam.description = description;
     exam.questions = questions;
@@ -738,12 +773,16 @@ router.post('/:id/submit', authenticateToken, requireStudent, async (req, res) =
       if (exam.due) {
         if (now < new Date(exam.due)) creditDelta = 1; else creditDelta = -2;
       }
-      user.creditPoints = Math.max(0, (user.creditPoints || 0) + creditDelta);
+      // Clamp credit points to schema limits to avoid validation errors
+      const MAX_CREDITS = 10; // Keep in sync with User schema max
+      const currentCredits = Number(user.creditPoints || 0);
+      const afterDelta = Math.max(0, Math.min(MAX_CREDITS, currentCredits + creditDelta));
+      user.creditPoints = afterDelta;
       // Fill missing points using available credits
       const missing = Math.max(0, total - rawScore);
       creditsToUse = Math.min(user.creditPoints, missing);
       finalScore = rawScore + creditsToUse;
-      user.creditPoints = Math.max(0, user.creditPoints - creditsToUse);
+      user.creditPoints = Math.max(0, (Number(user.creditPoints) || 0) - creditsToUse);
       await user.save();
       feedback = `Exam: ${exam.title} (raw ${rawScore}/${total}, +${creditsToUse} credits)`;
       // Do NOT create Grade entry here - wait for teacher to return scores

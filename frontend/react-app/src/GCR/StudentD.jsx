@@ -1910,9 +1910,31 @@ function StudentClassStream() {
               { headers: { Authorization: `Bearer ${token}` } }
             );
             console.log(`Form ${form.title} status response:`, statusRes.data);
+            // Validate returned submission belongs to current user to avoid false positives
+            const currentPayload = token ? JSON.parse(atob(token.split('.')[1])) : null;
+            const currentUserId = currentPayload?.id || currentPayload?._id || null;
+            const currentUsername = currentPayload?.username || null;
+            let hasSubmitted = false;
+            if (statusRes.data.hasSubmitted) {
+              const submission = statusRes.data.submission || {};
+              const respondent = submission.respondent || {};
+              const respondentUserId = respondent.userId || null;
+              const respondentUsername = respondent.username || null;
+              const respondentEmail = respondent.email || null;
+              if (respondentUserId && currentUserId && respondentUserId.toString() === currentUserId.toString()) {
+                hasSubmitted = true;
+              } else if (respondentUsername && currentUsername && respondentUsername === currentUsername) {
+                hasSubmitted = true;
+              } else if (!respondentUserId && !respondentUsername && statusRes.data.hasSubmitted) {
+                // If we can't validate respondent identity, be conservative and honor server flag
+                hasSubmitted = true;
+              } else {
+                console.warn('Form submission exists but belongs to another user - ignoring hasSubmitted flag', { formId: form._id, submission });
+              }
+            }
             return {
               ...form,
-              hasSubmitted: statusRes.data.hasSubmitted === true,
+              hasSubmitted: hasSubmitted === true,
               gradesReturned: statusRes.data.gradesReturned === true
             };
           } catch (err) {
@@ -2217,52 +2239,68 @@ function StudentClassStream() {
   };
 
   const handleTakeExam = async (exam) => {
-    // Simple check - if already submitted, don't allow
-    if (submittedExams.includes(exam._id)) {
-      alert("You have already submitted this exam.");
-      return;
-    }
-    // Prevent taking an exam that has expired
-    if (exam.due && new Date(exam.due) < new Date()) {
-      alert('This exam has expired and can no longer be taken.');
-      return;
-    }
-    
-    // Open exam modal
-    setSelectedExam(exam);
-    setExamAnswers({});
-    setExamSubmitted(false);
-    setUseCreditPoints(0); // Reset to 0
-    setShowExamModal(true);
-    
+    // Verify with server to avoid relying on potentially stale client state
     try {
-      
+      const token = getAuthToken();
+      const headers = { Authorization: `Bearer ${token}` };
+
+      // Check server-side whether this student has already submitted this exam
+      const checkRes = await axios.get(`${API_BASE_URL}/api/exam-submissions/check/${exam._id}`, { headers });
+      if (checkRes.data?.hasSubmitted) {
+        // Validate that the submission belongs to the current user (by ID or username)
+        const currentTokenPayload = token ? JSON.parse(atob(token.split('.')[1])) : null;
+        const currentUserId = currentTokenPayload?.id || currentTokenPayload?._id || null;
+        const currentUsername = currentTokenPayload?.username || null;
+        const debug = checkRes.data?.debug || null;
+        const debugStudentId = debug?.studentId || null;
+        const debugStudentUsername = debug?.student || null;
+        if (debugStudentId && currentUserId && debugStudentId.toString() !== currentUserId.toString()) {
+          console.warn('Check endpoint reported a submission but it belongs to a different user (ignoring):', { debugStudentId, currentUserId });
+        } else if (debugStudentUsername && currentUsername && debugStudentUsername !== currentUsername) {
+          console.warn('Check endpoint reported a submission but it belongs to a different username (ignoring):', { debugStudentUsername, currentUsername });
+        } else {
+          alert("You have already submitted this exam.");
+          return;
+        }
+      }
+
+      // Prevent taking an exam that has expired
+      if (exam.due && new Date(exam.due) < new Date()) {
+        alert('This exam has expired and can no longer be taken.');
+        return;
+      }
+
       // Open exam modal
       setSelectedExam(exam);
       setExamAnswers({});
       setExamSubmitted(false);
       setUseCreditPoints(0); // Reset to 0
       setShowExamModal(true);
-    
-    // Fetch user's current credit points
-    try {
-      const token = getAuthToken();
-      const response = await axios.get(`${API_BASE_URL}/api/profile`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setUserCreditPoints(response.data.creditPoints || 0);
-      console.log("User credit points:", response.data.creditPoints || 0);
+
+      // Fetch user's current credit points
+      try {
+        const profileRes = await axios.get(`${API_BASE_URL}/api/profile`, { headers });
+        setUserCreditPoints(profileRes.data.creditPoints || 0);
+        console.log("User credit points:", profileRes.data.creditPoints || 0);
+      } catch (err) {
+        console.error("Error fetching credit points:", err);
+        setUserCreditPoints(0);
+      }
+
+      console.log("Modal should show now");
     } catch (err) {
-      console.error("Error fetching credit points:", err);
-      setUserCreditPoints(0);
-    }
-    
-    console.log("Modal should show now");
-    setExamLoading(null); // Clear loading state
-    } catch (err) {
-      console.error("Error opening exam:", err);
-      alert("Error opening the exam. Please try again.");
-      setExamLoading(null); // Clear loading state
+      console.error('Error checking submission status or opening exam:', err);
+      // If the check endpoint fails, fall back to client-side check as a best-effort
+      if (submittedExams.includes(exam._id)) {
+        alert("You have already submitted this exam.");
+        return;
+      }
+      // Otherwise allow user to open exam but log the error
+      setSelectedExam(exam);
+      setExamAnswers({});
+      setExamSubmitted(false);
+      setUseCreditPoints(0);
+      setShowExamModal(true);
     }
   };
 

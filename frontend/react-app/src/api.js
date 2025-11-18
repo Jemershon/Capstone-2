@@ -70,6 +70,9 @@ export const setAuthData = (token, username, role) => {
   localStorage.setItem('token', token);
   localStorage.setItem('username', username);
   localStorage.setItem('userRole', role);
+  // Reset per-user cached state when a new user logs in
+  localStorage.removeItem('submittedExams');
+  localStorage.removeItem('studentClasses');
 };
 
 // Function to clear authentication data on logout
@@ -77,6 +80,9 @@ export const clearAuthData = () => {
   localStorage.removeItem('token');
   localStorage.removeItem('username');
   localStorage.removeItem('userRole');
+  // Keep submission-local state tied to the current user cleared on logout
+  localStorage.removeItem('submittedExams');
+  localStorage.removeItem('studentClasses');
 };
 
 // API Functions for exams

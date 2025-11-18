@@ -441,9 +441,6 @@ const FormBuilder = () => {
                           <div className="flex-grow-1">
                             <div className="d-flex align-items-center gap-2 mb-1">
                               <span className="fw-bold">{section.title}</span>
-                              {section.pointsPerItem && (
-                                <Badge bg="info">{section.pointsPerItem} pts each</Badge>
-                              )}
                             </div>
                             {section.instructions && (
                               <small className="text-muted d-block">📝 {section.instructions}</small>

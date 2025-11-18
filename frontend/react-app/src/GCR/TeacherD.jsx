@@ -1527,7 +1527,7 @@ function DashboardAndClasses() {
                   </tr>
                 ) : (
                   classes.map((cls, index) => (
-                    <tr key={cls._id || cls.id}>
+                    <tr key={cls._id || `class-${index}`}>
                       <td>{index + 1}</td>
                       <td>{cls.name}</td>
                       <td>{cls.section}</td>
@@ -2920,14 +2920,7 @@ function TeacherClassStream() {
                         <i className="bi bi-eye me-2"></i>
                         Preview
                       </Button>
-                      <Button
-                        variant="outline-primary"
-                        size="sm"
-                        onClick={() => window.open(`/teacher/forms/${form._id}/edit`, '_self')}
-                      >
-                        <i className="bi bi-pencil me-2"></i>
-                        Edit
-                      </Button>
+                      {/* Edit button intentionally removed */}
                     </div>
                   </Card.Body>
                 </Card>
@@ -3230,7 +3223,18 @@ function TeacherClassStream() {
                         </ListGroup.Item>
                       ))}
                       {/* Quiz Forms */}
-                      {forms.filter(f => f.settings?.isQuiz).map(form => (
+                      {(() => {
+                        const quizForms = forms.filter(f => f.settings?.isQuiz);
+                        // Remove quizzes that have a matching Exam (same title + class)
+                        const filteredQuizForms = quizForms.filter(f => !exams.some(e => {
+                          const examTitle = (e.title || '').toString().trim().toLowerCase();
+                          const formTitle = (f.title || '').toString().trim().toLowerCase();
+                          const examClass = (e.class || e.className || '').toString().trim();
+                          const formClass = (f.className || className || '').toString().trim();
+                          return examTitle === formTitle && examClass === formClass;
+                        }));
+
+                        return filteredQuizForms.map(form => (
                         <ListGroup.Item 
                           key={form._id || `quiz-${Math.random()}`}
                           className="d-flex justify-content-between align-items-center"
@@ -3289,7 +3293,8 @@ function TeacherClassStream() {
                             </Dropdown.Menu>
                           </Dropdown>
                         </ListGroup.Item>
-                      ))}
+                      ));
+                      })()}
                     </ListGroup>
                   </Card.Body>
                 </Card>

@@ -13,6 +13,29 @@ export function setupReuseModels(models) {
   Announcement = models.Announcement;
 }
 
+// Local question normalizer (same mapping used by /api/exams route)
+function normalizeQuestions(rawQuestions) {
+  if (!Array.isArray(rawQuestions)) return [];
+  return rawQuestions.map((q) => {
+    const text = q.text || q.title || q.question || q.label || "";
+    const t = (q.type || '').toString();
+    const multipleTypes = new Set(['multiple', 'multiple_choice', 'multiple-choice', 'checkboxes', 'dropdown']);
+    const shortTypes = new Set(['short', 'short_answer', 'short-answer', 'paragraph', 'identification', 'true_false', 'true-false', 'truefalse', 'enumeration', 'matching_type', 'date', 'time']);
+    let type = 'short';
+    if (multipleTypes.has(t)) type = 'multiple';
+    else if (shortTypes.has(t)) type = 'short';
+    else if (t === 'multiple') type = 'multiple';
+    const options = Array.isArray(q.options) ? q.options : (q.choices || q.items || []);
+    const correctAnswer = q.correctAnswer ?? q.answer ?? q.correct ?? '';
+    return {
+      text: String(text || '').trim(),
+      type,
+      options: options || [],
+      correctAnswer: correctAnswer || ''
+    };
+  });
+}
+
 // Reuse announcement in another class
 router.post("/reuse/announcement", authenticateToken, requireTeacherOrAdmin, async (req, res) => {
   try {
@@ -154,13 +177,13 @@ router.post("/reuse/exam", authenticateToken, requireTeacherOrAdmin, async (req,
       return res.status(403).json({ error: "You are not authorized to post to the target class" });
     }
     
-    // Create new exam
+    // Create new exam (normalize question shapes)
     const newExam = new Exam({
       title: original.title,
       description: original.description,
       class: targetClass,
       due: newDueDate ? new Date(newDueDate) : original.due,
-      questions: original.questions,
+      questions: normalizeQuestions(original.questions),
       createdBy: req.user.username,
       manualGrading: original.manualGrading,
       allowResubmission: original.allowResubmission

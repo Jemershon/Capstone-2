@@ -410,6 +410,7 @@ router.post("/:id/responses", async (req, res) => {
           if (nameFromToken) respondent.name = nameFromToken;
           if (emailFromToken) respondent.email = emailFromToken;
           if (username) respondent.username = username;
+          if (decoded.id || decoded._id) respondent.userId = decoded.id || decoded._id;
 
           // If name is still missing, try to look up the user record
           if (!respondent.name && username) {
@@ -420,6 +421,7 @@ router.post("/:id/responses", async (req, res) => {
                 respondent.name = user.name || respondent.name;
                 respondent.email = user.email || respondent.email;
                 respondent.username = respondent.username || username;
+                respondent.userId = respondent.userId || user._id;
               }
             } catch (lookupErr) {
               console.warn('Could not lookup user for respondent enrichment:', lookupErr && lookupErr.message ? lookupErr.message : lookupErr);
@@ -582,15 +584,26 @@ router.get("/:id/my-submission-status", authenticateToken, async (req, res) => {
 
     // Check if user has submitted this form
     // Use "respondent.username" since respondent is a nested object
+    console.log(`Checking form submission status for user ${username} on form ${req.params.id}`);
     const submission = await FormResponse.findOne({
       formId: req.params.id,
-      "respondent.username": username
-    });
+      $or: [
+        { "respondent.userId": req.user?.id },
+        { "respondent.username": username }
+      ]
+    }).lean();
+
+    if (submission) {
+      console.log('Form submission found for user:', { submissionId: submission._id, submittedAt: submission.submittedAt, respondent: submission.respondent });
+    } else {
+      console.log('No form submission found for user on this form');
+    }
 
     res.json({
       hasSubmitted: !!submission,
       gradesReturned: submission?.gradesReturned || false,
-      submission: submission || null
+      submission: submission || null,
+      debug: submission ? { submissionId: submission._id, submittedAt: submission.submittedAt } : null
     });
   } catch (err) {
     console.error("Check submission status error:", err);
@@ -969,17 +982,20 @@ router.post("/:id/send-to-class", authenticateToken, requireTeacherOrAdmin, asyn
           createdBy: formToUse.owner
         });
         if (!existingExam) {
+          // Normalize questions coming from forms which may use different field names/types
+          const normalizedQuestions = (formToUse.questions || []).map(q => ({
+            text: q.text || q.title || q.question || '',
+            type: (['multiple', 'multiple_choice', 'checkboxes', 'dropdown'].includes(q.type) ? 'multiple' : 'short'),
+            options: q.options || q.choices || [],
+            correctAnswer: q.correctAnswer || q.answer || ''
+          }));
+
           const exam = new Exam({
             title: formToUse.title,
             description: formToUse.description,
             class: formToUse.className,
             due: formToUse.settings.deadline || formToUse.settings.closeAt,
-            questions: (formToUse.questions || []).map(q => ({
-              text: q.text,
-              type: q.type,
-              options: q.options,
-              correctAnswer: q.correctAnswer
-            })),
+            questions: normalizedQuestions,
             createdBy: formToUse.owner,
             manualGrading: !!formToUse.settings.manualGrading,
             allowResubmission: true,

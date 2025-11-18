@@ -56,6 +56,7 @@ function NotificationsDropdown({ inNavbar = false, mobileMode = false }) {
   
   // Reference to socket connection status
   const socketRef = useRef(null);
+  const pollRef = useRef(null);
 
   useEffect(() => {
     fetchNotifications();
@@ -70,6 +71,29 @@ function NotificationsDropdown({ inNavbar = false, mobileMode = false }) {
     try {
       // Ensure the socket is connected and authenticated
       ensureSocketConnected();
+
+      // If socket fails to connect within a short time, fall back to polling
+      // This ensures the notification bell still updates when Socket.IO or backend is down.
+      const checkSocketAndMaybeStartPolling = () => {
+        const s = socketRef.current;
+        if (!s) {
+          console.debug('[NotificationsDropdown] socket not available, starting polling fallback');
+          if (!pollRef.current) pollRef.current = setInterval(fetchNotifications, 30000);
+          return;
+        }
+        if (!s.connected) {
+          console.debug('[NotificationsDropdown] socket not connected yet — starting polling fallback');
+          if (!pollRef.current) pollRef.current = setInterval(fetchNotifications, 30000);
+        } else {
+          // If connected and polling was running, stop polling
+          if (pollRef.current) {
+            clearInterval(pollRef.current);
+            pollRef.current = null;
+          }
+        }
+      };
+      // Check after a short delay to allow connect attempts
+      setTimeout(checkSocketAndMaybeStartPolling, 1200);
 
       // Attach listener for new notifications
       const onNewNotification = (notification) => {
@@ -101,6 +125,8 @@ function NotificationsDropdown({ inNavbar = false, mobileMode = false }) {
       socketRef.current._onNewNotification = onNewNotification;
     } catch (err) {
       console.debug('Socket setup skipped or failed:', err.message || err);
+      // Start polling if socket setup fails entirely
+      if (!pollRef.current) pollRef.current = setInterval(fetchNotifications, 30000);
     }
 
     return () => {
@@ -108,6 +134,10 @@ function NotificationsDropdown({ inNavbar = false, mobileMode = false }) {
         if (socketRef.current && socketRef.current._onNewNotification) {
           socketRef.current.off('new-notification', socketRef.current._onNewNotification);
           delete socketRef.current._onNewNotification;
+        }
+        if (pollRef.current) {
+          clearInterval(pollRef.current);
+          pollRef.current = null;
         }
       } catch (e) {
         // ignore cleanup errors

@@ -120,11 +120,37 @@ const FormViewer = () => {
             `${API_BASE_URL}/api/forms/${formId}/my-submission-status`,
             { headers: { Authorization: `Bearer ${token}` } }
           );
-          
+
+          // Extra validation: ensure the submission returned by the server actually belongs to the
+          // currently logged-in user. Some older entries or shared records could cause a false
+          // positive (another student's submission), so check respondent.identity.
           if (statusRes.data.hasSubmitted) {
-            setAlreadySubmitted(true);
-            setError("You have already submitted this form. Multiple submissions are not allowed.");
-            console.log("Student has already submitted this form");
+            const currentUsername = (() => { try { return JSON.parse(atob(token.split('.')[1])).username; } catch(e){ return null; } })();
+            const currentEmail = (() => { try { return JSON.parse(atob(token.split('.')[1])).email; } catch(e){ return null; } })();
+            const currentUserId = (() => { try { const payload = JSON.parse(atob(token.split('.')[1])); return payload?.id || payload?._id || null; } catch(e){ return null; } })();
+            const submission = statusRes.data.submission;
+            const respondent = submission?.respondent || {};
+            const respondentUsername = respondent.username;
+            const respondentEmail = respondent.email;
+            const respondentUserId = respondent.userId || respondent.user || respondent._id || null;
+
+            // If the respondent matches current user by username or email, then mark as submitted
+            if (respondentUserId && currentUserId && respondentUserId.toString() === currentUserId.toString()) {
+              setAlreadySubmitted(true);
+              setError("You have already submitted this form. Multiple submissions are not allowed.");
+              console.log("Student has already submitted this form (id match)");
+            } else if (respondentUsername && currentUsername && respondentUsername === currentUsername) {
+              setAlreadySubmitted(true);
+              setError("You have already submitted this form. Multiple submissions are not allowed.");
+              console.log("Student has already submitted this form (username match)");
+            } else if (respondentEmail && currentEmail && respondentEmail === currentEmail) {
+              setAlreadySubmitted(true);
+              setError("You have already submitted this form. Multiple submissions are not allowed.");
+              console.log("Student has already submitted this form (email match)");
+            } else {
+              // Mismatch detected: server says submission exists but it's not our user - treat as not submitted
+              console.warn('Submission exists for this form but does not belong to the logged-in user. Ignoring hasSubmitted flag.');
+            }
           }
         } catch (err) {
           // If endpoint doesn't exist or error occurs, we'll catch it at submission time

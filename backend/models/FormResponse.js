@@ -26,6 +26,7 @@ const responseSchema = new mongoose.Schema(
     // Respondent info
     respondent: {
       username: String, // null if anonymous
+      userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
       email: String,
       name: String,
     },

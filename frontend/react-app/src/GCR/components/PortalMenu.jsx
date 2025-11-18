@@ -2,17 +2,19 @@ import React from 'react';
 import ReactDOM from 'react-dom';
 
 // PortalMenu: render dropdown menu into document.body to avoid clipping by overflow/stacking contexts
-const PortalMenu = React.forwardRef(({ children, className, style, ...props }, ref) => {
+const PortalMenu = React.forwardRef(({ children, className, style }, ref) => {
+  // Do not forward arbitrary props to the DOM to avoid React warnings
+  // about non-standard attributes like `show` or `close` being applied to <div>.
   if (typeof document === 'undefined') {
     return (
-      <div ref={ref} className={className} style={style} {...props}>
+      <div ref={ref} className={className} style={style}>
         {children}
       </div>
     );
   }
 
   return ReactDOM.createPortal(
-    <div ref={ref} className={className} style={style} {...props}>
+    <div ref={ref} className={className} style={style}>
       {children}
     </div>,
     document.body
