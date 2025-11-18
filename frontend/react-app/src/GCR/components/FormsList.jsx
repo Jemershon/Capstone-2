@@ -210,13 +210,6 @@ const FormsList = () => {
             <h2 className="mb-0">📋 Forms</h2>
             <div className="d-flex flex-column flex-sm-row gap-2 w-100 w-md-auto">
               <Button 
-                variant="outline-primary" 
-                onClick={() => setShowTemplatesModal(true)}
-                className="w-100 w-sm-auto"
-              >
-                📚 Use Template
-              </Button>
-              <Button 
                 variant="primary" 
                 onClick={() => navigate("/teacher/forms/new")}
                 className="w-100 w-sm-auto"
@@ -385,11 +378,6 @@ const FormsList = () => {
         <Modal.Body>
           {selectedForm && (
             <>
-              <Alert variant="info">
-                <strong>Form:</strong> {selectedForm.title}
-                <br />
-                <small>Select one or more classes to send this form to. A copy will be created for each class.</small>
-              </Alert>
               
               <Form.Group className="mb-3">
                 <Form.Label className="fw-bold">Select Classes:</Form.Label>
