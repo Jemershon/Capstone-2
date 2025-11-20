@@ -820,40 +820,7 @@ const FormBuilder = () => {
                         </Col>
                       </Row>
                       <Row>
-                        <Col md={4}>
-                          <Form.Group className="mb-3">
-                            <Form.Label>Duration (minutes)</Form.Label>
-                            <Form.Control
-                              type="text"
-                              inputMode="numeric"
-                              value={form.examHeader?.duration}
-                              onChange={(e) => {
-                                const value = e.target.value;
-                                // Allow empty string or valid integers
-                                if (value === '' || /^\d*$/.test(value)) {
-                                  setForm({
-                                    ...form,
-                                    examHeader: { ...form.examHeader, duration: value === '' ? '' : parseInt(value) }
-                                  });
-                                }
-                              }}
-                            />
-                          </Form.Group>
-                        </Col>
-                        <Col md={4}>
-                          <Form.Group className="mb-3">
-                            <Form.Label>Exam Date</Form.Label>
-                            <Form.Control
-                              type="date"
-                              value={form.examHeader?.examDate || ""}
-                              onChange={(e) => setForm({
-                                ...form,
-                                examHeader: { ...form.examHeader, examDate: e.target.value }
-                              })}
-                            />
-                          </Form.Group>
-                        </Col>
-                        <Col md={4}>
+                        <Col md={6}>
                           <Form.Group className="mb-3">
                             <Form.Label>Passing Score</Form.Label>
                             <Form.Control
@@ -874,9 +841,7 @@ const FormBuilder = () => {
                         </Col>
                       </Row>
                       
-                      <Alert variant="info" className="mt-3">
-                        <strong>📝 Tip:</strong> After enabling Philippine format, use the "Add Section" button to create exam sections like "Part I: Multiple Choice", "Part II: Identification", etc.
-                      </Alert>
+                      {/* Philippine-style tip removed per request */}
                     </>
                   )}
                 </Tab>
