@@ -653,18 +653,7 @@ const FormBuilder = () => {
                     </Form.Text>
                   </Form.Group>
                   
-                  <Form.Group className="mb-3">
-                    <Form.Label>Confirmation Message</Form.Label>
-                    <Form.Control
-                      as="textarea"
-                      rows={2}
-                      value={form.settings.confirmationMessage}
-                      onChange={(e) => setForm({
-                        ...form,
-                        settings: { ...form.settings, confirmationMessage: e.target.value }
-                      })}
-                    />
-                  </Form.Group>
+                  {/* Confirmation Message removed per request */}
                 </Tab>
                 
                 <Tab eventKey="quiz" title="Quiz Mode">
@@ -819,57 +808,14 @@ const FormBuilder = () => {
                           </Form.Group>
                         </Col>
                       </Row>
-                      <Row>
-                        <Col md={6}>
-                          <Form.Group className="mb-3">
-                            <Form.Label>Passing Score</Form.Label>
-                            <Form.Control
-                              type="text"
-                              inputMode="numeric"
-                              value={form.examHeader?.passingScore}
-                              onChange={(e) => {
-                                const value = e.target.value;
-                                if (value === '' || /^\d+$/.test(value)) {
-                                  setForm({
-                                    ...form,
-                                    examHeader: { ...form.examHeader, passingScore: value === '' ? '' : parseInt(value) }
-                                  });
-                                }
-                              }}
-                            />
-                          </Form.Group>
-                        </Col>
-                      </Row>
+                      {/* Passing Score removed per request */}
                       
                       {/* Philippine-style tip removed per request */}
                     </>
                   )}
                 </Tab>
                 
-                <Tab eventKey="theme" title="Theme">
-                  <Form.Group className="mb-3">
-                    <Form.Label>Primary Color</Form.Label>
-                    <Form.Control
-                      type="color"
-                      value={form.theme.primaryColor}
-                      onChange={(e) => setForm({
-                        ...form,
-                        theme: { ...form.theme, primaryColor: e.target.value }
-                      })}
-                    />
-                  </Form.Group>
-                  <Form.Group className="mb-3">
-                    <Form.Label>Background Color</Form.Label>
-                    <Form.Control
-                      type="color"
-                      value={form.theme.backgroundColor}
-                      onChange={(e) => setForm({
-                        ...form,
-                        theme: { ...form.theme, backgroundColor: e.target.value }
-                      })}
-                    />
-                  </Form.Group>
-                </Tab>
+                {/* Theme tab removed per request */}
               </Tabs>
             </Card.Body>
           </Card>

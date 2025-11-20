@@ -776,16 +776,11 @@ const FormViewer = () => {
   
   return (
     <Container className="py-4" style={{ maxWidth: '800px' }}>
-      <Card 
-        className="shadow-sm"
-        style={{ 
-          borderTop: `4px solid ${form.theme?.primaryColor || '#007bff'}`,
-        }}
-      >
+      <Card className="shadow-sm">
         <Card.Body>
           {/* Header */}
           <div className="mb-4 pb-3 border-bottom">
-            <h2 style={{ color: form.theme?.primaryColor || '#007bff' }}>
+            <h2>
               {form.title}
             </h2>
             {form.description && (
@@ -811,21 +806,7 @@ const FormViewer = () => {
                     </div>
                   </Col>
                   <Col md={6}>
-                    <div className="mb-2">
-                      <strong>Date:</strong> {form.examHeader.examDate 
-                        ? new Date(form.examHeader.examDate).toLocaleDateString() 
-                        : 'N/A'}
-                    </div>
-                    <div className="mb-2">
-                      <strong>Duration:</strong> {form.examHeader.duration 
-                        ? `${form.examHeader.duration} minutes` 
-                        : 'N/A'}
-                    </div>
-                    <div className="mb-2">
-                      <strong>Passing Score:</strong> {form.examHeader.passingScore 
-                        ? form.examHeader.passingScore 
-                        : 'N/A'}
-                    </div>
+                    {/* Date, Duration, and Passing Score removed from viewer */}
                   </Col>
                 </Row>
               </div>
@@ -923,10 +904,7 @@ const FormViewer = () => {
                   variant="primary" 
                   size="lg"
                   disabled={submitting || alreadySubmitted}
-                  style={{ 
-                    backgroundColor: form.theme?.primaryColor,
-                    opacity: alreadySubmitted ? 0.6 : 1
-                  }}
+                  style={{ opacity: alreadySubmitted ? 0.6 : 1 }}
                 >
                   {alreadySubmitted ? (
                     <>
